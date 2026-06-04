@@ -296,10 +296,11 @@ def admin_darkfollow_balance():
             "action": "balance"
         }, timeout=10)
         data = resp.json()
-        balance = data.get("balance", data.get("funds", 0))
-        return jsonify({"balance": balance})
+        # دارك فولو قد يرجع balance أو funds
+        balance = data.get("balance", data.get("funds", data.get("Balance", 0)))
+        return jsonify({"balance": balance, "raw": data})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e), "balance": 0}), 200
 
 # ────────────────────────────────────────────────────────────
 if __name__ == "__main__":
