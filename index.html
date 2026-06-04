@@ -4735,7 +4735,9 @@ async function fetchDarkfollowBalance() {
   const el  = document.getElementById('darkfollow-balance-display');
   const bar = document.getElementById('wf-api-balance-bar');
   const val = document.getElementById('wf-api-balance-val');
-  if (el) el.textContent = '⏳ جاري التحميل...';
+  // أظهر الويدجت فوراً بدون انتظار السيرفر
+  if (bar) bar.style.display = '';
+  if (el)  el.textContent  = '⏳ جاري التحميل...';
   if (val) val.textContent = '...';
   try {
     const res = await fetch(`${SERVER_URL}/admin/darkfollow-balance`);
@@ -4743,29 +4745,33 @@ async function fetchDarkfollowBalance() {
     const data = await res.json();
     if (typeof data.balance !== 'undefined') {
       const formatted = parseFloat(data.balance).toFixed(2);
-      if (el) el.textContent = '💰 ' + formatted + ' $';
+      if (el)  el.textContent  = '💰 ' + formatted + ' $';
       if (val) val.textContent = formatted;
-      if (bar) bar.style.display = '';
     } else {
-      if (el) el.textContent = '⚠️ ' + (data.error || 'تعذر الجلب');
+      if (el)  el.textContent  = '⚠️ ' + (data.error || 'تعذر الجلب');
       if (val) val.textContent = '—';
     }
   } catch(e) {
+    // محاولة مباشرة من دارك فولو
     try {
       const apiKey = '4LjeZHfeNj4R0GoncgjlFLjNaZjjTj662pMpFSY3Y8V5njf9OEDT4uEQVjW';
-      const r2 = await fetch('https://darkfollow.com/api/v2?action=balance&key=' + apiKey);
+      const r2 = await fetch('https://darkfollow.shop/api/v2', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'key=' + apiKey + '&action=balance'
+      });
       const d2 = await r2.json();
-      if (d2.balance !== undefined) {
-        const formatted = parseFloat(d2.balance).toFixed(2);
-        if (el) el.textContent = '💰 ' + formatted + ' $';
+      const bal = d2.balance ?? d2.funds;
+      if (bal !== undefined) {
+        const formatted = parseFloat(bal).toFixed(2);
+        if (el)  el.textContent  = '💰 ' + formatted + ' $';
         if (val) val.textContent = formatted;
-        if (bar) bar.style.display = '';
       } else {
-        if (el) el.textContent = '⚠️ تعذر جلب الرصيد';
+        if (el)  el.textContent  = '⚠️ تعذر جلب الرصيد';
         if (val) val.textContent = '—';
       }
     } catch(e2) {
-      if (el) el.textContent = '⚠️ تحقق من الاتصال';
+      if (el)  el.textContent  = '⚠️ تحقق من الاتصال';
       if (val) val.textContent = '—';
     }
   }
