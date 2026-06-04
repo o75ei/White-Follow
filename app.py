@@ -300,6 +300,32 @@ def services_list():
         print(f"[services_list ERROR] {e}")
         return jsonify({"ok": False, "error": "خطأ في جلب الخدمات"})
 
+@app.route("/admin/markup", methods=["GET"])
+def admin_markup_get():
+    """جلب هامش الربح من Firestore — للأدمن فقط"""
+    if not _check_admin(request):
+        return jsonify({"error": "غير مصرح"}), 403
+    if not db:
+        return jsonify({"markup": 1.0})
+    doc = db.collection("settings").document("admin").get()
+    if doc.exists:
+        return jsonify({"markup": doc.to_dict().get("markup", 1.0)})
+    return jsonify({"markup": 1.0})
+
+@app.route("/admin/markup", methods=["POST"])
+def admin_markup_set():
+    """حفظ هامش الربح في Firestore — للأدمن فقط"""
+    if not _check_admin(request):
+        return jsonify({"error": "غير مصرح"}), 403
+    if not db:
+        return jsonify({"error": "Firebase غير مفعّل"}), 503
+    data = request.get_json(silent=True) or {}
+    markup = data.get("markup")
+    if markup is None or not isinstance(markup, (int, float)) or float(markup) < 0:
+        return jsonify({"error": "markup يجب أن يكون رقماً ≥ 0"}), 400
+    db.collection("settings").document("admin").set({"markup": float(markup)}, merge=True)
+    return jsonify({"ok": True, "markup": float(markup)})
+
 @app.route("/admin/verify", methods=["POST"])
 def admin_verify():
     """التحقق من مفتاح الأدمن — لا يكشف المفتاح، فقط يرد بـ ok/false"""
