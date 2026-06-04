@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#ffffff" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <script>
     // ── Pause cardmaster animations during scroll for smooth performance ──
 document.addEventListener('DOMContentLoaded', function() {
@@ -2668,6 +2671,8 @@ function updateBalanceUI() {
 // ── API ─────────────────────────────────────────────────
 // ⬇️ ضع رابط Railway الخاص بك هنا بعد النشر
 const SERVER_URL = 'https://telegramaibot-production-4017.up.railway.app';
+// ── نسخة البناء — غيّر هذا الرقم مع كل تحديث لإجبار إعادة التحميل ──
+const BUILD_VERSION = '20260605';
 
 // ── قواعد البيانات ───────────────────────────────────────
 const gamesDatabase = {
