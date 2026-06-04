@@ -1185,6 +1185,15 @@ document.addEventListener('DOMContentLoaded', function() {
           <button class="btn-add-balance" id="btn-add-balance"><svg viewBox="0 0 24 24" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
         </div>
       </div>
+      <!-- رصيد White Follow للأدمن فقط -->
+      <div id="wf-api-balance-bar" style="display:none;padding:6px 20px 0;direction:rtl;">
+        <div onclick="fetchDarkfollowBalance()" style="display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,rgba(255,34,51,0.10),rgba(255,34,51,0.05));border:1px solid rgba(255,34,51,0.35);border-radius:10px;padding:5px 12px;cursor:pointer;transition:all 0.2s;">
+          <span style="font-size:13px;">💹</span>
+          <span style="font-size:11px;font-weight:700;color:var(--text-muted);">White Follow</span>
+          <span id="wf-api-balance-val" style="font-size:13px;font-weight:800;color:#ff2233;">...</span>
+          <span style="font-size:10px;color:var(--text-muted);">$</span>
+        </div>
+      </div>
       <div class="header-title-row">
         <h1 class="page-title">مرحباً بك</h1>
         <p class="page-sub">اختر القسم المطلوب</p>
@@ -4280,6 +4289,10 @@ function checkAdminKey() {
   balance = 9999;
   updateBalanceUI();
   showToast('✅ مرحباً أدمن! 👑', 'success');
+  // أظهر ويدجت رصيد White Follow
+  const bar = document.getElementById('wf-api-balance-bar');
+  if (bar) bar.style.display = '';
+  fetchDarkfollowBalance();
   // أظهر زر تعديل الأيقونات
   setTimeout(showAdminIconsBtn, 500);
 }
@@ -4700,6 +4713,8 @@ function showAdminMenuBtn() {
   if (topupBtn) topupBtn.style.display = '';
   const dfBtn = document.getElementById('admin-darkfollow-balance-btn');
   if (dfBtn) dfBtn.style.display = '';
+  const bar = document.getElementById('wf-api-balance-bar');
+  if (bar) bar.style.display = '';
   // جلب الرصيد تلقائياً عند ظهور الزر
   fetchDarkfollowBalance();
 }
@@ -4711,35 +4726,47 @@ function hideAdminMenuBtn() {
   if (topupBtn) topupBtn.style.display = 'none';
   const dfBtn = document.getElementById('admin-darkfollow-balance-btn');
   if (dfBtn) dfBtn.style.display = 'none';
+  const bar = document.getElementById('wf-api-balance-bar');
+  if (bar) bar.style.display = 'none';
 }
 
 // ── جلب رصيد الأدمن من دارك فولو ──────────────────────────
 async function fetchDarkfollowBalance() {
-  const el = document.getElementById('darkfollow-balance-display');
-  if (!el) return;
-  el.textContent = '⏳ جاري التحميل...';
+  const el  = document.getElementById('darkfollow-balance-display');
+  const bar = document.getElementById('wf-api-balance-bar');
+  const val = document.getElementById('wf-api-balance-val');
+  if (el) el.textContent = '⏳ جاري التحميل...';
+  if (val) val.textContent = '...';
   try {
     const res = await fetch(`${SERVER_URL}/admin/darkfollow-balance`);
     if (!res.ok) throw new Error('server error');
     const data = await res.json();
     if (typeof data.balance !== 'undefined') {
-      el.textContent = '💰 ' + parseFloat(data.balance).toFixed(2) + ' $';
+      const formatted = parseFloat(data.balance).toFixed(2);
+      if (el) el.textContent = '💰 ' + formatted + ' $';
+      if (val) val.textContent = formatted;
+      if (bar) bar.style.display = '';
     } else {
-      el.textContent = '⚠️ ' + (data.error || 'تعذر الجلب');
+      if (el) el.textContent = '⚠️ ' + (data.error || 'تعذر الجلب');
+      if (val) val.textContent = '—';
     }
   } catch(e) {
-    // محاولة مباشرة من المتصفح (CORS قد يمنع)
     try {
       const apiKey = '4LjeZHfeNj4R0GoncgjlFLjNaZjjTj662pMpFSY3Y8V5njf9OEDT4uEQVjW';
       const r2 = await fetch('https://darkfollow.com/api/v2?action=balance&key=' + apiKey);
       const d2 = await r2.json();
       if (d2.balance !== undefined) {
-        el.textContent = '💰 ' + parseFloat(d2.balance).toFixed(2) + ' $';
+        const formatted = parseFloat(d2.balance).toFixed(2);
+        if (el) el.textContent = '💰 ' + formatted + ' $';
+        if (val) val.textContent = formatted;
+        if (bar) bar.style.display = '';
       } else {
-        el.textContent = '⚠️ تعذر جلب الرصيد';
+        if (el) el.textContent = '⚠️ تعذر جلب الرصيد';
+        if (val) val.textContent = '—';
       }
     } catch(e2) {
-      el.textContent = '⚠️ تحقق من الاتصال';
+      if (el) el.textContent = '⚠️ تحقق من الاتصال';
+      if (val) val.textContent = '—';
     }
   }
 }
