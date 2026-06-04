@@ -4102,22 +4102,26 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (emailEl && identifier) emailEl.value = identifier;
     // استعد الرصيد من registry
     const reg = getUsersRegistry();
-    if (reg[uid]) { balance = reg[uid].balance || 0; updateBalanceUI(); }
-    // حاول تحديث الرصيد من السيرفر (حيث قد يكون الأدمن شحن)
-    fetch(`${SERVER_URL}/user/find?uid=${encodeURIComponent(uid)}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data && data.uid && typeof data.balance === 'number') {
-          balance = data.balance;
-          updateBalanceUI();
-          const reg2 = getUsersRegistry();
-          if (!reg2[uid]) reg2[uid] = {};
-          reg2[uid].balance = data.balance;
-          reg2[uid].totalCharged = data.totalCharged || reg2[uid].totalCharged || 0;
-          saveUsersRegistry(reg2);
-        }
-      })
-      .catch(() => {});
+    if (localStorage.getItem('wf_is_admin')) {
+      balance = 9999; updateBalanceUI();
+    } else {
+      if (reg[uid]) { balance = reg[uid].balance || 0; updateBalanceUI(); }
+      // حاول تحديث الرصيد من السيرفر (حيث قد يكون الأدمن شحن)
+      fetch(`${SERVER_URL}/user/find?uid=${encodeURIComponent(uid)}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data && data.uid && typeof data.balance === 'number') {
+            balance = data.balance;
+            updateBalanceUI();
+            const reg2 = getUsersRegistry();
+            if (!reg2[uid]) reg2[uid] = {};
+            reg2[uid].balance = data.balance;
+            reg2[uid].totalCharged = data.totalCharged || reg2[uid].totalCharged || 0;
+            saveUsersRegistry(reg2);
+          }
+        })
+        .catch(() => {});
+    }
     // انتقل للرئيسية بدون animation
     document.querySelectorAll('.page').forEach(p => { p.classList.remove('active'); p.classList.add('slide-right'); });
     document.getElementById('page-login').classList.remove('active','slide-right');
@@ -4328,12 +4332,9 @@ async function checkAdminKey() {
   balance = 9999;
   updateBalanceUI();
   showToast('✅ مرحباً أدمن! 👑', 'success');
-  // أظهر ويدجت رصيد White Follow
-  const bar = document.getElementById('wf-api-balance-bar');
-  if (bar) bar.style.display = '';
-  const markupBtnDirect = document.getElementById('admin-markup-btn');
-  if (markupBtnDirect) markupBtnDirect.style.display = '';
-  fetchDarkfollowBalance();
+  // أظهر جميع أزرار الأدمن
+  showAdminMenuBtn();
+  showPaymentIconsBtn();
   // أظهر زر تعديل الأيقونات
   setTimeout(showAdminIconsBtn, 500);
 }
