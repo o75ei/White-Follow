@@ -134,7 +134,12 @@ def webhook():
 @app.route("/app")
 def serve_app():
     """يفتح الموقع كـ WebApp داخل تلغرام"""
-    return send_file("index.html")
+    from flask import make_response
+    response = make_response(send_file("index.html"))
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 # ────────────────────────────────────────────────────────────
 # API الطلبات
