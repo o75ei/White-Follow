@@ -5103,6 +5103,31 @@ function toggleTheme() {
     'tg_nodrop7':         '1777',
   };
 
+  // خريطة أزرار openGameItem: value → service ID في دارك فولو
+  const GAME_ITEM_MAP = {
+    'ox50':    '1939',
+    'ox250':   '1940',
+    'pb60':    '1878',
+    'pb325':   '1879',
+    'pb660':   '1881',
+    'pb985':   '1895',
+    'gen5':    '1603',
+    'gen15':   '1604',
+    'gen30':   '1605',
+    'gen50':   '1606',
+    'gen100':  '1607',
+    'dt18':    '1894',
+    'dt30':    '1893',
+    'dt60':    '1892',
+    'dt320':   '1891',
+    'dt460':   '1890',
+    'cod80':   '1759',
+    'cod420':  '1760',
+    'cod880':  '1761',
+    'cod2400': '1762',
+    'ludo830': '1882',
+  };
+
   try {
     const res = await fetch('/services/list');
     const data = await res.json();
@@ -5128,7 +5153,7 @@ function toggleTheme() {
       }
 
       // الخدمة موجودة → نحدث السعر = سعر دارك فولو + 1$
-      const newPrice = (svcData.rate + 1).toFixed(2);
+      const newPrice = (parseFloat(svcData.rate) + 1).toFixed(2);
       const badge = btn.querySelector('.price-badge');
       if (badge) {
         // نحتفظ بأيقونة السلة ونبدل النص فقط
@@ -5141,6 +5166,37 @@ function toggleTheme() {
       const onclick = btn.getAttribute('onclick') || '';
       const updated = onclick.replace(/'[\d.]+'\)$/, `'${newPrice}')`);
       if (updated !== onclick) btn.setAttribute('onclick', updated);
+    });
+
+    // ── أزرار openGameItem (الألعاب والبطاقات اليدوية) ──
+    document.querySelectorAll('button[onclick^="openGameItem"]').forEach(btn => {
+      const onclick = btn.getAttribute('onclick') || '';
+      // نستخرج value من openGameItem('label','value',price)
+      const match = onclick.match(/openGameItem\('[^']*','([^']+)',([\d.]+)\)/);
+      if (!match) return;
+      const itemKey = match[1];
+      const darkfollowId = GAME_ITEM_MAP[itemKey];
+      if (!darkfollowId) return;
+
+      const svcData = available[darkfollowId];
+      if (!svcData) {
+        btn.style.display = 'none';
+        return;
+      }
+
+      const newPrice = (parseFloat(svcData.rate) + 1).toFixed(2);
+
+      // تحديث الـ onclick بالسعر الجديد
+      const newOnclick = onclick.replace(/,[\d.]+\)$/, `,${newPrice})`);
+      btn.setAttribute('onclick', newOnclick);
+
+      // تحديث شارة السعر
+      const badge = btn.querySelector('.price-badge');
+      if (badge) {
+        const svg = badge.querySelector('svg');
+        badge.textContent = newPrice + ' د.ع';
+        if (svg) badge.insertBefore(svg, badge.firstChild);
+      }
     });
 
   } catch (e) {
