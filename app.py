@@ -8,7 +8,11 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 
 app = Flask(__name__)
-CORS(app)
+ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "")
+if ALLOWED_ORIGIN:
+    CORS(app, origins=[ALLOWED_ORIGIN])
+else:
+    CORS(app)  # dev fallback — حدّد ALLOWED_ORIGIN في Railway
 
 # ── Firebase Admin SDK ─────────────────────────────────────
 _fb_creds_json = os.environ.get("FIREBASE_CREDENTIALS", "")
@@ -25,9 +29,15 @@ DARKFOLLOW_API_URL = "https://darkfollow.shop/api/v2"
 DARKFOLLOW_API_KEY = os.environ.get("DARKFOLLOW_API_KEY", "")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID   = os.environ.get("TELEGRAM_CHAT_ID", "")
+ADMIN_SECRET_KEY   = os.environ.get("ADMIN_SECRET_KEY", "")   # ⚠️ يجب تعيينه في Railway
 # رابط موقعك على Railway (يُحدَّث بعد النشر)
 WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://YOUR-APP.up.railway.app/app")
 SUPPORT_USERNAME = "o75ei"
+
+def _check_admin(req):
+    """يتحقق من مفتاح الأدمن في Header أو JSON"""
+    key = req.headers.get("X-Admin-Key", "") or (req.get_json(silent=True) or {}).get("admin_key", "")
+    return ADMIN_SECRET_KEY and key == ADMIN_SECRET_KEY
 
 # ────────────────────────────────────────────────────────────
 # دوال مساعدة
@@ -159,7 +169,8 @@ def place_order():
             return jsonify({"error": result.get("error", "خطأ")}), 400
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"[/order ERROR] {e}")
+        return jsonify({"error": "خطأ في السيرفر"}), 500
 
 @app.route("/balance")
 def get_balance():
@@ -229,6 +240,8 @@ def user_find():
 @app.route("/user/balance", methods=["POST"])
 def user_balance():
     """شحن رصيد مستخدم — للأدمن فقط"""
+    if not _check_admin(request):
+        return jsonify({"error": "غير مصرح"}), 403
     if not db:
         return jsonify({"error": "Firebase غير مفعّل"}), 503
     data    = request.get_json()
@@ -262,6 +275,8 @@ def user_check():
 @app.route("/user/list", methods=["GET"])
 def user_list():
     """قائمة كل المستخدمين — للأدمن"""
+    if not _check_admin(request):
+        return jsonify({"error": "غير مصرح"}), 403
     if not db:
         return jsonify([])
     docs = db.collection("users").order_by("joinedAt", direction=firestore.Query.DESCENDING).limit(200).get()
@@ -282,7 +297,19 @@ def services_list():
         services = {str(s["service"]): s for s in data}
         return jsonify({"ok": True, "services": services})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)})
+        print(f"[services_list ERROR] {e}")
+        return jsonify({"ok": False, "error": "خطأ في جلب الخدمات"})
+
+@app.route("/admin/verify", methods=["POST"])
+def admin_verify():
+    """التحقق من مفتاح الأدمن — لا يكشف المفتاح، فقط يرد بـ ok/false"""
+    if not ADMIN_SECRET_KEY:
+        return jsonify({"ok": False, "error": "ADMIN_SECRET_KEY غير مضبوط"}), 503
+    data = request.get_json(silent=True) or {}
+    key  = data.get("admin_key", "")
+    if key == ADMIN_SECRET_KEY:
+        return jsonify({"ok": True})
+    return jsonify({"ok": False}), 403
 
 # ────────────────────────────────────────────────────────────
 # رصيد الأدمن من دارك فولو — للأدمن فقط
@@ -290,6 +317,8 @@ def services_list():
 @app.route("/admin/darkfollow-balance", methods=["GET"])
 def admin_darkfollow_balance():
     """جلب رصيد حساب دارك فولو — للأدمن فقط"""
+    if not _check_admin(request):
+        return jsonify({"error": "غير مصرح"}), 403
     try:
         resp = requests.post(DARKFOLLOW_API_URL, data={
             "key": DARKFOLLOW_API_KEY,
@@ -300,11 +329,111 @@ def admin_darkfollow_balance():
         balance = data.get("balance", data.get("funds", data.get("Balance", 0)))
         return jsonify({"balance": balance, "raw": data})
     except Exception as e:
-        return jsonify({"error": str(e), "balance": 0}), 200
+        print(f"[admin_darkfollow_balance ERROR] {e}")
+        return jsonify({"error": "خطأ في جلب الرصيد", "balance": 0}), 200
+
+@app.route("/order/status", methods=["GET"])
+def order_status():
+    """استعلام حالة طلب واحد من دارك فولو"""
+    order_id = request.args.get("order_id", "").strip()
+    if not order_id:
+        return jsonify({"error": "order_id مطلوب"}), 400
+    try:
+        resp = requests.post(DARKFOLLOW_API_URL, data={
+            "key": DARKFOLLOW_API_KEY,
+            "action": "status",
+            "order": order_id
+        }, timeout=10)
+        return jsonify(resp.json())
+    except Exception as e:
+        print(f"[API ERROR] {e}")
+        return jsonify({"error": "خطأ في السيرفر"}), 500
+
+@app.route("/orders/status-bulk", methods=["POST"])
+def orders_status_bulk():
+    """استعلام حالة طلبات متعددة دفعة واحدة — يُستدعى من الكرون"""
+    data = request.get_json()
+    order_ids = data.get("orders", [])
+    if not order_ids or not isinstance(order_ids, list):
+        return jsonify({"error": "orders مطلوب (array)"}), 400
+    # دارك فولو يقبل حتى 100 طلب في استعلام واحد
+    ids_str = ",".join(str(i) for i in order_ids[:100])
+    try:
+        resp = requests.post(DARKFOLLOW_API_URL, data={
+            "key": DARKFOLLOW_API_KEY,
+            "action": "status",
+            "order": ids_str
+        }, timeout=15)
+        return jsonify(resp.json())
+    except Exception as e:
+        print(f"[API ERROR] {e}")
+        return jsonify({"error": "خطأ في السيرفر"}), 500
+
+# ────────────────────────────────────────────────────────────
+# Cron Job — تحديث حالة الطلبات المعلقة في Firestore
+# ────────────────────────────────────────────────────────────
+def _cron_sync_orders():
+    """
+    يُشغَّل كل 60 ثانية.
+    يجلب الطلبات pending/active من Firestore ويستعلم عن حالتها من دارك فولو،
+    ثم يحدّث status و remains و progress في Firestore.
+    """
+    if not db:
+        return
+    try:
+        # جلب الطلبات غير المكتملة فقط
+        pending_docs = (
+            db.collection("orders")
+            .where("status", "in", ["pending", "active", "partial"])
+            .limit(100)
+            .get()
+        )
+        if not pending_docs:
+            return
+
+        order_map = {doc.to_dict().get("darkfollow_id"): doc
+                     for doc in pending_docs
+                     if doc.to_dict().get("darkfollow_id")}
+
+        if not order_map:
+            return
+
+        ids_str = ",".join(str(k) for k in order_map.keys())
+        resp = requests.post(DARKFOLLOW_API_URL, data={
+            "key": DARKFOLLOW_API_KEY,
+            "action": "status",
+            "order": ids_str
+        }, timeout=20)
+        results = resp.json()  # { "order_id": { "status": ..., "remains": ..., "charge": ... } }
+
+        for order_id_str, info in results.items():
+            doc_ref = order_map.get(order_id_str)
+            if not doc_ref:
+                continue
+            new_status  = str(info.get("status", "pending")).lower()
+            remains     = info.get("remains", 0)
+            charge      = info.get("charge", 0)
+            doc_ref.reference.update({
+                "status":    new_status,
+                "remains":   remains,
+                "charge":    charge,
+                "updatedAt": firestore.SERVER_TIMESTAMP
+            })
+    except Exception as e:
+        print(f"[CRON ERROR] order sync: {e}")
+
+def _start_cron():
+    """يبدأ خيط الكرون في الخلفية"""
+    import time
+    while True:
+        time.sleep(60)
+        _cron_sync_orders()
 
 # ────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     # تفعيل أوامر البوت عند بدء التشغيل
     threading.Thread(target=set_bot_commands, daemon=True).start()
+    # تشغيل Cron Job لتحديث حالة الطلبات كل 60 ثانية
+    threading.Thread(target=_start_cron, daemon=True).start()
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
