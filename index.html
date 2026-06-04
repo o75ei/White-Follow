@@ -1405,6 +1405,15 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="menu-item-content"><span class="menu-item-text">الإعدادات</span><span class="menu-item-sub">API والرمز والمعرف</span></div>
         <span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span>
       </button>
+      <!-- رصيد دارك فولو — للأدمن فقط -->
+      <button class="menu-item" id="admin-darkfollow-balance-btn" onclick="fetchDarkfollowBalance()" style="display:none;">
+        <span class="menu-item-icon" style="background:rgba(255,34,51,0.12);">💹</span>
+        <div class="menu-item-content">
+          <span class="menu-item-text" style="color:#ff2233;">رصيدك بالموقع</span>
+          <span class="menu-item-sub" id="darkfollow-balance-display">اضغط لتحديث الرصيد</span>
+        </div>
+        <span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span>
+      </button>
       <!-- زر إدارة المستخدمين — للأدمن فقط -->
       <button class="menu-item" id="admin-users-btn" onclick="openAdminUsers()" style="display:none;">
         <span class="menu-item-icon" style="background:rgba(99,102,241,0.12);">👥</span>
@@ -4689,6 +4698,10 @@ function showAdminMenuBtn() {
   if (btn) btn.style.display = '';
   const topupBtn = document.getElementById('admin-topup-btn');
   if (topupBtn) topupBtn.style.display = '';
+  const dfBtn = document.getElementById('admin-darkfollow-balance-btn');
+  if (dfBtn) dfBtn.style.display = '';
+  // جلب الرصيد تلقائياً عند ظهور الزر
+  fetchDarkfollowBalance();
 }
 
 function hideAdminMenuBtn() {
@@ -4696,6 +4709,39 @@ function hideAdminMenuBtn() {
   if (btn) btn.style.display = 'none';
   const topupBtn = document.getElementById('admin-topup-btn');
   if (topupBtn) topupBtn.style.display = 'none';
+  const dfBtn = document.getElementById('admin-darkfollow-balance-btn');
+  if (dfBtn) dfBtn.style.display = 'none';
+}
+
+// ── جلب رصيد الأدمن من دارك فولو ──────────────────────────
+async function fetchDarkfollowBalance() {
+  const el = document.getElementById('darkfollow-balance-display');
+  if (!el) return;
+  el.textContent = '⏳ جاري التحميل...';
+  try {
+    const res = await fetch(`${SERVER_URL}/admin/darkfollow-balance`);
+    if (!res.ok) throw new Error('server error');
+    const data = await res.json();
+    if (typeof data.balance !== 'undefined') {
+      el.textContent = '💰 ' + parseFloat(data.balance).toFixed(2) + ' $';
+    } else {
+      el.textContent = '⚠️ ' + (data.error || 'تعذر الجلب');
+    }
+  } catch(e) {
+    // محاولة مباشرة من المتصفح (CORS قد يمنع)
+    try {
+      const apiKey = '4LjeZHfeNj4R0GoncgjlFLjNaZjjTj662pMpFSY3Y8V5njf9OEDT4uEQVjW';
+      const r2 = await fetch('https://darkfollow.com/api/v2?action=balance&key=' + apiKey);
+      const d2 = await r2.json();
+      if (d2.balance !== undefined) {
+        el.textContent = '💰 ' + parseFloat(d2.balance).toFixed(2) + ' $';
+      } else {
+        el.textContent = '⚠️ تعذر جلب الرصيد';
+      }
+    } catch(e2) {
+      el.textContent = '⚠️ تحقق من الاتصال';
+    }
+  }
 }
 
 // ══ تعبئة رصيد — أدمن فقط ══════════════════════════
