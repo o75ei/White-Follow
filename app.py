@@ -285,6 +285,23 @@ def services_list():
         return jsonify({"ok": False, "error": str(e)})
 
 # ────────────────────────────────────────────────────────────
+# رصيد الأدمن من دارك فولو — للأدمن فقط
+# ────────────────────────────────────────────────────────────
+@app.route("/admin/darkfollow-balance", methods=["GET"])
+def admin_darkfollow_balance():
+    """جلب رصيد حساب دارك فولو — للأدمن فقط"""
+    try:
+        resp = requests.post(DARKFOLLOW_API_URL, data={
+            "key": DARKFOLLOW_API_KEY,
+            "action": "balance"
+        }, timeout=10)
+        data = resp.json()
+        balance = data.get("balance", data.get("funds", 0))
+        return jsonify({"balance": balance})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     # تفعيل أوامر البوت عند بدء التشغيل
     threading.Thread(target=set_bot_commands, daemon=True).start()
