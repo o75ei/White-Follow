@@ -1435,6 +1435,12 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="menu-item-content"><span class="menu-item-text" style="color:#1DB954;">تعبئة رصيد</span><span class="menu-item-sub">شحن رصيد مستخدم</span></div>
         <span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span>
       </button>
+      <!-- زر هامش الربح — للأدمن فقط -->
+      <button class="menu-item" id="admin-markup-btn" onclick="openMarkupModal()" style="display:none;">
+        <span class="menu-item-icon" style="background:rgba(218,165,32,0.15);">📈</span>
+        <div class="menu-item-content"><span class="menu-item-text" style="color:#DAA520;">هامش الربح</span><span class="menu-item-sub" id="markup-display-sub">الزيادة على سعر المزود: <b id="markup-val-label">$1.00</b></span></div>
+        <span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span>
+      </button>
       <p class="section-label" style="margin-top:12px;">معلومات</p>
       <button class="menu-item" onclick="window.open('https://t.me/o75ei','_blank')">
         <span class="menu-item-icon">💬</span>
@@ -2977,16 +2983,18 @@ function openPhoneItem(label, value, rate) {
       const result = await res.json();
       if (result.order) {
         balance -= rate; updateBalanceUI();
+                const _snm = document.getElementById(prefix+'-name'); saveOrder(_snm?_snm.textContent:'خدمة', 1, 'pending', rate);
         showToast('✅ تم تنفيذ طلبك! رقم: ' + result.order, 'success');
         alert('✅ تم الطلب بنجاح!\nرقم الطلب: ' + result.order);
-        setTimeout(() => navigate('main'), 1500);
+        setTimeout(() => switchTab('orders'), 1500);
       } else {
         showToast('❌ ' + (result.error || 'خطأ'), 'error');
       }
     } catch(e) {
       balance -= rate; updateBalanceUI();
+        saveOrder('خدمة', 1, 'pending', rate);
       showToast('✅ تم تسجيل طلبك', 'success');
-      setTimeout(() => navigate('main'), 1200);
+      setTimeout(() => switchTab('orders'), 1200);
     } finally {
       this.disabled = false;
       this.textContent = this.dataset.label || 'تأكيد';
@@ -2997,7 +3005,7 @@ function openPhoneItem(label, value, rate) {
 updateBalanceUI();
         showToast(`✅ تم تنفيذ طلبك بنجاح! رقم الطلب: ${result.order}`, 'success');
         alert(`✅ تم إرسال طلبك بنجاح!\nرقم الطلب: ${result.order}`);
-        setTimeout(() => { navigate('main'); }, 1500);
+        setTimeout(() => { switchTab('orders'); }, 1500);
       } else {
         showToast(`❌ فشل السيرفر: ${result.error || 'خطأ غير معروف'}`, 'error');
       }
@@ -3060,16 +3068,18 @@ function openPhoneItem(label, value, rate) {
       const result = await res.json();
       if (result.order) {
         balance -= rate; updateBalanceUI();
+                const _snm = document.getElementById(prefix+'-name'); saveOrder(_snm?_snm.textContent:'خدمة', 1, 'pending', rate);
         showToast('✅ تم تنفيذ طلبك! رقم: ' + result.order, 'success');
         alert('✅ تم الطلب بنجاح!\nرقم الطلب: ' + result.order);
-        setTimeout(() => navigate('main'), 1500);
+        setTimeout(() => switchTab('orders'), 1500);
       } else {
         showToast('❌ ' + (result.error || 'خطأ'), 'error');
       }
     } catch(e) {
       balance -= rate; updateBalanceUI();
+        saveOrder('خدمة', 1, 'pending', rate);
       showToast('✅ تم تسجيل طلبك', 'success');
-      setTimeout(() => navigate('main'), 1200);
+      setTimeout(() => switchTab('orders'), 1200);
     } finally {
       this.disabled = false;
       this.textContent = this.dataset.label || 'تأكيد';
@@ -3079,7 +3089,7 @@ function openPhoneItem(label, value, rate) {
 
 updateBalanceUI();
       showToast('✅ تم تسجيل طلبك بنجاح', 'success');
-      setTimeout(() => { navigate('main'); }, 1200);
+      setTimeout(() => { switchTab('orders'); }, 1200);
     } finally {
       this.disabled = false; this.textContent = 'إرسال الطلب فوراً';
     }
@@ -3197,16 +3207,18 @@ function openPhoneItem(label, value, rate) {
       const result = await res.json();
       if (result.order) {
         balance -= rate; updateBalanceUI();
+                const _snm = document.getElementById(prefix+'-name'); saveOrder(_snm?_snm.textContent:'خدمة', 1, 'pending', rate);
         showToast('✅ تم تنفيذ طلبك! رقم: ' + result.order, 'success');
         alert('✅ تم الطلب بنجاح!\nرقم الطلب: ' + result.order);
-        setTimeout(() => navigate('main'), 1500);
+        setTimeout(() => switchTab('orders'), 1500);
       } else {
         showToast('❌ ' + (result.error || 'خطأ'), 'error');
       }
     } catch(e) {
       balance -= rate; updateBalanceUI();
+        saveOrder('خدمة', 1, 'pending', rate);
       showToast('✅ تم تسجيل طلبك', 'success');
-      setTimeout(() => navigate('main'), 1200);
+      setTimeout(() => switchTab('orders'), 1200);
     } finally {
       this.disabled = false;
       this.textContent = this.dataset.label || 'تأكيد';
@@ -3217,7 +3229,7 @@ function openPhoneItem(label, value, rate) {
 updateBalanceUI();
         showToast(`✅ تم تنفيذ طلبك بنجاح! رقم الطلب: ${result.order}`, 'success');
         alert(`✅ تم إرسال طلبك بنجاح!\nرقم الطلب: ${result.order}`);
-        setTimeout(() => { navigate('main'); }, 1500);
+        setTimeout(() => { switchTab('orders'); }, 1500);
       } else {
         showToast(`❌ فشل السيرفر: ${result.error || 'خطأ غير معروف'}`, 'error');
       }
@@ -3280,16 +3292,18 @@ function openPhoneItem(label, value, rate) {
       const result = await res.json();
       if (result.order) {
         balance -= rate; updateBalanceUI();
+                const _snm = document.getElementById(prefix+'-name'); saveOrder(_snm?_snm.textContent:'خدمة', 1, 'pending', rate);
         showToast('✅ تم تنفيذ طلبك! رقم: ' + result.order, 'success');
         alert('✅ تم الطلب بنجاح!\nرقم الطلب: ' + result.order);
-        setTimeout(() => navigate('main'), 1500);
+        setTimeout(() => switchTab('orders'), 1500);
       } else {
         showToast('❌ ' + (result.error || 'خطأ'), 'error');
       }
     } catch(e) {
       balance -= rate; updateBalanceUI();
+        saveOrder('خدمة', 1, 'pending', rate);
       showToast('✅ تم تسجيل طلبك', 'success');
-      setTimeout(() => navigate('main'), 1200);
+      setTimeout(() => switchTab('orders'), 1200);
     } finally {
       this.disabled = false;
       this.textContent = this.dataset.label || 'تأكيد';
@@ -3299,7 +3313,7 @@ function openPhoneItem(label, value, rate) {
 
 updateBalanceUI();
       showToast('✅ تم تسجيل طلبك بنجاح', 'success');
-      setTimeout(() => { navigate('main'); }, 1200);
+      setTimeout(() => { switchTab('orders'); }, 1200);
     } finally {
       this.disabled = false; this.textContent = 'إرسال الطلب فوراً';
     }
@@ -3393,16 +3407,18 @@ function openPhoneItem(label, value, rate) {
       const result = await res.json();
       if (result.order) {
         balance -= rate; updateBalanceUI();
+                const _snm = document.getElementById(prefix+'-name'); saveOrder(_snm?_snm.textContent:'خدمة', 1, 'pending', rate);
         showToast('✅ تم تنفيذ طلبك! رقم: ' + result.order, 'success');
         alert('✅ تم الطلب بنجاح!\nرقم الطلب: ' + result.order);
-        setTimeout(() => navigate('main'), 1500);
+        setTimeout(() => switchTab('orders'), 1500);
       } else {
         showToast('❌ ' + (result.error || 'خطأ'), 'error');
       }
     } catch(e) {
       balance -= rate; updateBalanceUI();
+        saveOrder('خدمة', 1, 'pending', rate);
       showToast('✅ تم تسجيل طلبك', 'success');
-      setTimeout(() => navigate('main'), 1200);
+      setTimeout(() => switchTab('orders'), 1200);
     } finally {
       this.disabled = false;
       this.textContent = this.dataset.label || 'تأكيد';
@@ -3413,7 +3429,7 @@ function openPhoneItem(label, value, rate) {
 updateBalanceUI();
         showToast(`✅ تم تنفيذ طلبك بنجاح! رقم الطلب: ${result.order}`, 'success');
         alert(`✅ تم إرسال طلبك بنجاح!\nرقم الطلب: ${result.order}`);
-        setTimeout(() => { navigate('main'); }, 1500);
+        setTimeout(() => { switchTab('orders'); }, 1500);
       } else {
         showToast(`❌ فشل السيرفر: ${result.error || 'خطأ غير معروف'}`, 'error');
         alert(`❌ فشل إرسال الطلب:\n${result.error || 'خطأ غير معروف'}`);
@@ -3479,16 +3495,18 @@ function openPhoneItem(label, value, rate) {
       const result = await res.json();
       if (result.order) {
         balance -= rate; updateBalanceUI();
+                const _snm = document.getElementById(prefix+'-name'); saveOrder(_snm?_snm.textContent:'خدمة', 1, 'pending', rate);
         showToast('✅ تم تنفيذ طلبك! رقم: ' + result.order, 'success');
         alert('✅ تم الطلب بنجاح!\nرقم الطلب: ' + result.order);
-        setTimeout(() => navigate('main'), 1500);
+        setTimeout(() => switchTab('orders'), 1500);
       } else {
         showToast('❌ ' + (result.error || 'خطأ'), 'error');
       }
     } catch(e) {
       balance -= rate; updateBalanceUI();
+        saveOrder('خدمة', 1, 'pending', rate);
       showToast('✅ تم تسجيل طلبك', 'success');
-      setTimeout(() => navigate('main'), 1200);
+      setTimeout(() => switchTab('orders'), 1200);
     } finally {
       this.disabled = false;
       this.textContent = this.dataset.label || 'تأكيد';
@@ -3498,7 +3516,7 @@ function openPhoneItem(label, value, rate) {
 
 updateBalanceUI();
       showToast('✅ تم تسجيل طلبك بنجاح', 'success');
-      setTimeout(() => { navigate('main'); }, 1200);
+      setTimeout(() => { switchTab('orders'); }, 1200);
     } finally {
       this.disabled = false; this.textContent = this.dataset.label || 'إرسال الطلب';
     }
@@ -3571,16 +3589,18 @@ function openPhoneItem(label, value, rate) {
       const result = await res.json();
       if (result.order) {
         balance -= rate; updateBalanceUI();
+                const _snm = document.getElementById(prefix+'-name'); saveOrder(_snm?_snm.textContent:'خدمة', 1, 'pending', rate);
         showToast('✅ تم تنفيذ طلبك! رقم: ' + result.order, 'success');
         alert('✅ تم الطلب بنجاح!\nرقم الطلب: ' + result.order);
-        setTimeout(() => navigate('main'), 1500);
+        setTimeout(() => switchTab('orders'), 1500);
       } else {
         showToast('❌ ' + (result.error || 'خطأ'), 'error');
       }
     } catch(e) {
       balance -= rate; updateBalanceUI();
+        saveOrder('خدمة', 1, 'pending', rate);
       showToast('✅ تم تسجيل طلبك', 'success');
-      setTimeout(() => navigate('main'), 1200);
+      setTimeout(() => switchTab('orders'), 1200);
     } finally {
       this.disabled = false;
       this.textContent = this.dataset.label || 'تأكيد';
@@ -4171,16 +4191,18 @@ function openPhoneItem(label, value, rate) {
       const result = await res.json();
       if (result.order) {
         balance -= rate; updateBalanceUI();
+                const _snm = document.getElementById(prefix+'-name'); saveOrder(_snm?_snm.textContent:'خدمة', 1, 'pending', rate);
         showToast('✅ تم تنفيذ طلبك! رقم: ' + result.order, 'success');
         alert('✅ تم الطلب بنجاح!\nرقم الطلب: ' + result.order);
-        setTimeout(() => navigate('main'), 1500);
+        setTimeout(() => switchTab('orders'), 1500);
       } else {
         showToast('❌ ' + (result.error || 'خطأ'), 'error');
       }
     } catch(e) {
       balance -= rate; updateBalanceUI();
+        saveOrder('خدمة', 1, 'pending', rate);
       showToast('✅ تم تسجيل طلبك', 'success');
-      setTimeout(() => navigate('main'), 1200);
+      setTimeout(() => switchTab('orders'), 1200);
     } finally {
       this.disabled = false;
       this.textContent = this.dataset.label || 'تأكيد';
@@ -4264,12 +4286,23 @@ function toggleFieldPass(fieldId, btn) {
 }
 
 // ── Admin Key ─────────────────────────────────────────────
-const ADMIN_SECRET_KEY = 'WF@dmin2025!';
+// المفتاح يُتحقق منه على السيرفر — لا يُخزن في HTML
 function openAdminKeyModal()  { document.getElementById('admin-key-modal').classList.add('open'); document.getElementById('admin-key-input').value = ''; }
 function closeAdminKeyModal() { document.getElementById('admin-key-modal').classList.remove('open'); }
-function checkAdminKey() {
-  const key = document.getElementById('admin-key-input').value;
-  if (key !== ADMIN_SECRET_KEY) { showToast('❌ المفتاح غير صحيح', 'error'); return; }
+async function checkAdminKey() {
+  const key = document.getElementById('admin-key-input').value.trim();
+  if (!key) { showToast('❌ أدخل المفتاح', 'error'); return; }
+  try {
+    const res = await fetch(`${SERVER_URL}/admin/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ admin_key: key })
+    });
+    const data = await res.json();
+    if (!data.ok) { showToast('❌ المفتاح غير صحيح', 'error'); return; }
+  } catch(e) {
+    showToast('❌ تعذر التحقق من المفتاح', 'error'); return;
+  }
   closeAdminKeyModal();
   // تسجيل دخول الأدمن مباشرة
   localStorage.setItem('wf_logged_in', '1');
@@ -4277,6 +4310,7 @@ function checkAdminKey() {
   localStorage.setItem('wf_api_token', 'ADMIN-TOKEN-' + Date.now());
   localStorage.setItem('wf_identifier', 'admin@whitefollow.com');
   localStorage.setItem('wf_is_admin', '1');
+  localStorage.setItem('wf_admin_session_key', key); // للاستخدام في طلبات الأدمن
   // انتقل للرئيسية
   document.querySelectorAll('.page').forEach(p => { p.classList.remove('active'); p.classList.add('slide-right'); });
   document.getElementById('page-login').classList.remove('active','slide-right');
@@ -4292,6 +4326,8 @@ function checkAdminKey() {
   // أظهر ويدجت رصيد White Follow
   const bar = document.getElementById('wf-api-balance-bar');
   if (bar) bar.style.display = '';
+  const markupBtnDirect = document.getElementById('admin-markup-btn');
+  if (markupBtnDirect) markupBtnDirect.style.display = '';
   fetchDarkfollowBalance();
   // أظهر زر تعديل الأيقونات
   setTimeout(showAdminIconsBtn, 500);
@@ -4713,6 +4749,8 @@ function showAdminMenuBtn() {
   if (topupBtn) topupBtn.style.display = '';
   const dfBtn = document.getElementById('admin-darkfollow-balance-btn');
   if (dfBtn) dfBtn.style.display = '';
+  const markupBtn = document.getElementById('admin-markup-btn');
+  if (markupBtn) markupBtn.style.display = '';
   const bar = document.getElementById('wf-api-balance-bar');
   if (bar) bar.style.display = '';
   // جلب الرصيد تلقائياً عند ظهور الزر
@@ -4726,6 +4764,8 @@ function hideAdminMenuBtn() {
   if (topupBtn) topupBtn.style.display = 'none';
   const dfBtn = document.getElementById('admin-darkfollow-balance-btn');
   if (dfBtn) dfBtn.style.display = 'none';
+  const markupBtn = document.getElementById('admin-markup-btn');
+  if (markupBtn) markupBtn.style.display = 'none';
   const bar = document.getElementById('wf-api-balance-bar');
   if (bar) bar.style.display = 'none';
 }
@@ -4735,12 +4775,14 @@ async function fetchDarkfollowBalance() {
   const el  = document.getElementById('darkfollow-balance-display');
   const bar = document.getElementById('wf-api-balance-bar');
   const val = document.getElementById('wf-api-balance-val');
-  // أظهر الويدجت فوراً بدون انتظار السيرفر
   if (bar) bar.style.display = '';
   if (el)  el.textContent  = '⏳ جاري التحميل...';
   if (val) val.textContent = '...';
+  const adminKey = localStorage.getItem('wf_admin_session_key') || '';
   try {
-    const res = await fetch(`${SERVER_URL}/admin/darkfollow-balance`);
+    const res = await fetch(`${SERVER_URL}/admin/darkfollow-balance`, {
+      headers: { 'X-Admin-Key': adminKey }
+    });
     if (!res.ok) throw new Error('server error');
     const data = await res.json();
     if (typeof data.balance !== 'undefined') {
@@ -4752,28 +4794,8 @@ async function fetchDarkfollowBalance() {
       if (val) val.textContent = '—';
     }
   } catch(e) {
-    // محاولة مباشرة من دارك فولو
-    try {
-      const apiKey = '4LjeZHfeNj4R0GoncgjlFLjNaZjjTj662pMpFSY3Y8V5njf9OEDT4uEQVjW';
-      const r2 = await fetch('https://darkfollow.shop/api/v2', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'key=' + apiKey + '&action=balance'
-      });
-      const d2 = await r2.json();
-      const bal = d2.balance ?? d2.funds;
-      if (bal !== undefined) {
-        const formatted = parseFloat(bal).toFixed(2);
-        if (el)  el.textContent  = '💰 ' + formatted + ' $';
-        if (val) val.textContent = formatted;
-      } else {
-        if (el)  el.textContent  = '⚠️ تعذر جلب الرصيد';
-        if (val) val.textContent = '—';
-      }
-    } catch(e2) {
-      if (el)  el.textContent  = '⚠️ تحقق من الاتصال';
-      if (val) val.textContent = '—';
-    }
+    if (el)  el.textContent  = '⚠️ تحقق من الاتصال';
+    if (val) val.textContent = '—';
   }
 }
 
@@ -4837,7 +4859,7 @@ function executeTopup() {
   // مزامنة مع السيرفر
   fetch(`${SERVER_URL}/user/balance`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': localStorage.getItem('wf_admin_session_key') || '' },
     body: JSON.stringify({ uid: _topupFoundUid, balance: reg[_topupFoundUid].balance, totalCharged: reg[_topupFoundUid].totalCharged })
   }).catch(() => {});
   // لو نفس المستخدم مسجل دخول الآن، حدّث رصيده مباشرة
@@ -4904,7 +4926,9 @@ function syncUserCharged(uid, amount) {
 // فتح صفحة إدارة المستخدمين
 function openAdminUsers() {
   navigate('admin-users');
-  fetch(`${SERVER_URL}/user/list`)
+  fetch(`${SERVER_URL}/user/list`, {
+    headers: { 'X-Admin-Key': localStorage.getItem('wf_admin_session_key') || '' }
+  })
     .then(r => r.ok ? r.json() : [])
     .then(serverUsers => {
       if (Array.isArray(serverUsers) && serverUsers.length > 0) {
@@ -4992,7 +5016,7 @@ function adminChargeUser(uid) {
   // إرسال للسيرفر بـ amount (الإضافة) مو balance الكامل
   fetch(`${SERVER_URL}/user/balance`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': localStorage.getItem('wf_admin_session_key') || '' },
     body: JSON.stringify({ uid, amount })
   }).catch(() => {});
   if (localStorage.getItem('wf_user_id') === uid) {
@@ -5231,8 +5255,8 @@ function toggleTheme() {
         return;
       }
 
-      // الخدمة موجودة → نحدث السعر = سعر دارك فولو + 1$
-      const newPrice = (parseFloat(svcData.rate) + 1).toFixed(2);
+      // الخدمة موجودة → نحدث السعر = سعر دارك فولو + هامش الربح
+      const newPrice = (parseFloat(svcData.rate) + getAdminMarkup()).toFixed(2);
       const badge = btn.querySelector('.price-badge');
       if (badge) {
         // نحتفظ بأيقونة السلة ونبدل النص فقط
@@ -5263,7 +5287,7 @@ function toggleTheme() {
         return;
       }
 
-      const newPrice = (parseFloat(svcData.rate) + 1).toFixed(2);
+      const newPrice = (parseFloat(svcData.rate) + getAdminMarkup()).toFixed(2);
 
       // تحديث الـ onclick بالسعر الجديد
       const newOnclick = onclick.replace(/,[\d.]+\)$/, `,${newPrice})`);
@@ -5284,7 +5308,52 @@ function toggleTheme() {
 })();
 // ══════════════════════════════════════════════════════════════
 
+// ── Admin Markup (هامش الربح) ──────────────────────────────
+function getAdminMarkup() {
+  return parseFloat(localStorage.getItem('wf_admin_markup') || '1');
+}
+function openMarkupModal() {
+  const m = document.getElementById('markup-modal');
+  m.style.display = 'flex';
+  document.getElementById('markup-modal-input').value = getAdminMarkup().toFixed(2);
+}
+function closeMarkupModal() {
+  document.getElementById('markup-modal').style.display = 'none';
+}
+function saveMarkupModal() {
+  const val = parseFloat(document.getElementById('markup-modal-input').value);
+  if (isNaN(val) || val < 0) { showToast('❌ أدخل قيمة صحيحة (≥ 0)', 'error'); return; }
+  localStorage.setItem('wf_admin_markup', val.toFixed(2));
+  const lbl = document.getElementById('markup-val-label');
+  if (lbl) lbl.textContent = '$' + val.toFixed(2);
+  closeMarkupModal();
+  showToast('✅ تم حفظ هامش الربح: $' + val.toFixed(2), 'success');
+}
+// تحديث الـ label عند فتح الصفحة
+(function initMarkupLabel() {
+  const lbl = document.getElementById('markup-val-label');
+  if (lbl) lbl.textContent = '$' + getAdminMarkup().toFixed(2);
+})();
+
 </script>
+<!-- ══ Admin Markup Modal ══ -->
+<div id="markup-modal" role="dialog" aria-modal="true" onclick="if(event.target===this)closeMarkupModal()" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:flex-end;justify-content:center;display:none;" class="markup-modal-wrap">
+  <div style="background:var(--card);border-radius:24px 24px 0 0;padding:28px 20px 36px;width:100%;max-width:500px;box-shadow:0 -4px 32px rgba(0,0,0,0.3);">
+    <div style="width:40px;height:4px;background:rgba(0,0,0,0.15);border-radius:2px;margin:0 auto 20px;"></div>
+    <h3 style="font-size:17px;font-weight:800;color:var(--text-h);text-align:center;margin-bottom:6px;">📈 هامش الربح</h3>
+    <p style="font-size:12px;color:var(--text-muted);text-align:center;margin-bottom:20px;">الزيادة تُضاف تلقائياً على سعر المزود لكل الخدمات</p>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+      <span style="font-size:14px;font-weight:700;color:var(--text-body);">الزيادة ($)</span>
+      <input id="markup-modal-input" type="number" min="0" step="0.1" value="1.00" dir="ltr"
+        style="flex:1;background:var(--accent-light);border:1.5px solid var(--accent);border-radius:12px;padding:12px 14px;font-size:16px;font-weight:800;color:var(--accent);text-align:center;outline:none;font-family:var(--font);" />
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="closeMarkupModal()" style="flex:1;padding:14px;border-radius:14px;border:1.5px solid rgba(0,0,0,0.1);background:var(--accent-light);font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer;color:var(--text-muted);">إلغاء</button>
+      <button onclick="saveMarkupModal()" style="flex:2;padding:14px;border-radius:14px;border:none;background:linear-gradient(135deg,#DAA520,#B8860B);color:#fff;font-family:var(--font);font-size:14px;font-weight:800;cursor:pointer;">💾 حفظ</button>
+    </div>
+  </div>
+</div>
+<!-- ══════════════════════════════════════ -->
 <!-- ══ Admin Direct-Click Icon Source Modal ══ -->
 <div id="icon-source-modal" role="dialog" aria-modal="true" onclick="if(event.target===this)closeIconSourceModal()">
   <div class="icon-source-sheet">
