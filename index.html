@@ -5309,9 +5309,29 @@ function toggleTheme() {
 // ══════════════════════════════════════════════════════════════
 
 // ── Admin Markup (هامش الربح) ──────────────────────────────
+// يُخزَّن في Firestore عبر Backend ويُكاش محلياً كاحتياط
 function getAdminMarkup() {
   return parseFloat(localStorage.getItem('wf_admin_markup') || '1');
 }
+
+async function _loadMarkupFromServer() {
+  try {
+    const adminKey = localStorage.getItem('wf_admin_session_key') || '';
+    if (!adminKey) return;
+    const res = await fetch(`${SERVER_URL}/admin/markup`, {
+      headers: { 'X-Admin-Key': adminKey }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const val = parseFloat(data.markup ?? 1);
+    localStorage.setItem('wf_admin_markup', val.toFixed(2));
+    const lbl = document.getElementById('markup-val-label');
+    if (lbl) lbl.textContent = '$' + val.toFixed(2);
+  } catch (e) {
+    console.warn('[Markup] فشل جلب هامش الربح من السيرفر:', e);
+  }
+}
+
 function openMarkupModal() {
   const m = document.getElementById('markup-modal');
   m.style.display = 'flex';
@@ -5320,19 +5340,31 @@ function openMarkupModal() {
 function closeMarkupModal() {
   document.getElementById('markup-modal').style.display = 'none';
 }
-function saveMarkupModal() {
+async function saveMarkupModal() {
   const val = parseFloat(document.getElementById('markup-modal-input').value);
   if (isNaN(val) || val < 0) { showToast('❌ أدخل قيمة صحيحة (≥ 0)', 'error'); return; }
+  const adminKey = localStorage.getItem('wf_admin_session_key') || '';
+  try {
+    const res = await fetch(`${SERVER_URL}/admin/markup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+      body: JSON.stringify({ markup: val })
+    });
+    if (!res.ok) throw new Error('server error');
+  } catch (e) {
+    console.warn('[Markup] فشل الحفظ في السيرفر، سيُحفظ محلياً فقط:', e);
+  }
   localStorage.setItem('wf_admin_markup', val.toFixed(2));
   const lbl = document.getElementById('markup-val-label');
   if (lbl) lbl.textContent = '$' + val.toFixed(2);
   closeMarkupModal();
   showToast('✅ تم حفظ هامش الربح: $' + val.toFixed(2), 'success');
 }
-// تحديث الـ label عند فتح الصفحة
+// تحديث الـ label عند فتح الصفحة + جلب القيمة من السيرفر
 (function initMarkupLabel() {
   const lbl = document.getElementById('markup-val-label');
   if (lbl) lbl.textContent = '$' + getAdminMarkup().toFixed(2);
+  _loadMarkupFromServer();
 })();
 
 </script>
