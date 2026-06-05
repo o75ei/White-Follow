@@ -2687,7 +2687,7 @@ function updateBalanceUI() {
 
 // ── API ─────────────────────────────────────────────────
 // ⬇️ ضع رابط Railway الخاص بك هنا بعد النشر
-const SERVER_URL = 'https://telegramaibot-production-4017.up.railway.app';
+const SERVER_URL = 'https://web-production-005fc.up.railway.app';
 
 // ══ نظام Cache Busting + Version Check ══════════════════════════
 // غيّر هذا الرقم مع كل تحديث — يُجبر المتصفح على إعادة التحميل
@@ -3515,7 +3515,7 @@ function loginWithGoogle() {
   }
   // استخدم OAuth2 redirect — الأكثر موثوقية داخل Telegram WebApp والمتصفحات
   const clientId = '316214794759-jqbd46lca0kpdeug8mvt71vasv9s74bj.apps.googleusercontent.com';
-  const redirectUri = encodeURIComponent('https://telegramaibot-production-4017.up.railway.app/app');
+  const redirectUri = encodeURIComponent('https://web-production-005fc.up.railway.app/app');
   const scope = encodeURIComponent('openid email profile');
   const state = Math.random().toString(36).slice(2);
   sessionStorage.setItem('google_state', state);
