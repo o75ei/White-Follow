@@ -4,10 +4,30 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#ffffff" />
-  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
+  <meta name="build-version" content="20260605-3" />
+  <meta name="deploy-timestamp" content="1749168000" />
   <script>
+    // [FIX-3] Cache Busting: force reload if cached version differs
+    (function(){
+      var BUILD = '20260605-3';
+      var stored = sessionStorage.getItem('wf_build');
+      if (stored && stored !== BUILD) {
+        sessionStorage.setItem('wf_build', BUILD);
+        // Hard reload bypassing cache (Telegram WebView + CDN)
+        window.location.reload(true);
+        return;
+      }
+      sessionStorage.setItem('wf_build', BUILD);
+      // Unregister stale Service Workers
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          regs.forEach(function(reg) { reg.unregister(); });
+        });
+      }
+    })();
     // ── Pause cardmaster animations during scroll for smooth performance ──
 document.addEventListener('DOMContentLoaded', function() {
   var cm = document.getElementById('page-cardmaster-charge');
@@ -2671,8 +2691,29 @@ function updateBalanceUI() {
 // ── API ─────────────────────────────────────────────────
 // ⬇️ ضع رابط Railway الخاص بك هنا بعد النشر
 const SERVER_URL = 'https://telegramaibot-production-4017.up.railway.app';
-// ── نسخة البناء — غيّر هذا الرقم مع كل تحديث لإجبار إعادة التحميل ──
-const BUILD_VERSION = '20260605';
+
+// ══ نظام Cache Busting + Version Check ══════════════════════════
+// غيّر هذا الرقم مع كل تحديث — يُجبر المتصفح على إعادة التحميل
+const BUILD_VERSION = '20260605-3'; // [FIX-BV] مزامنة مع meta tag في <head>
+
+(function _versionGuard() {
+  'use strict';
+  const VK = 'wf_build_version';
+  const stored = localStorage.getItem(VK);
+  if (stored && stored !== BUILD_VERSION) {
+    // نسخة مختلفة → امسح الـ cache وأعد التحميل
+    // [FIX] console.info غير متاح في Telegram WebView
+    (console.log || function(){})('[WF] نسخة جديدة (' + BUILD_VERSION + ')، إعادة تحميل قسري...');
+    localStorage.setItem(VK, BUILD_VERSION);
+    // مسح كل session data المؤقت (مو بيانات المستخدم)
+    ['wf_admin_markup'].forEach(k => sessionStorage.removeItem(k));
+    // إعادة تحميل بدون cache
+    window.location.reload(true);
+    return;
+  }
+  if (!stored) localStorage.setItem(VK, BUILD_VERSION);
+})();
+// ════════════════════════════════════════════════════════════════
 
 // ── قواعد البيانات ───────────────────────────────────────
 const gamesDatabase = {
@@ -2930,84 +2971,9 @@ if (teleOrderBtn) {
       });
       const result = await response.json();
       if (result.order) {
-        balance -= total; 
-// ── فتح قائمة خدمة محددة (ألعاب/بطائق/اشتراكات/هاتف) ──
-const _gameKeys  = ['oxide', 'pubg', 'genshin', 'delta', 'cod', 'ludo'];
-const _cardKeys  = ['itunes', 'nintendo', 'blizzard', 'fortnite', 'playstation', 'valorant', 'steam', 'crunchyroll', 'roblox'];
-const _subKeys   = ['nitro', 'steam_subs', 'tele', 'xbox', 'psn', 'netflix'];
-const _phoneKeys = ['iraq', 'saudi', 'jordan', 'lebanon', 'egypt', 'bahrain'];
-
-function openGameForm(title, key)  { navigate('list-game-' + key); }
-function openCardForm(title, key)  { navigate('list-card-' + key); }
-function openSubForm(title, key)   { navigate('list-sub-' + key); }
-function openPhoneForm(title, key) { navigate('list-phone-' + key); }
-
-function _openItem(label, value, rate, titleId, nameId, valId, rateId, linkId, priceId, warnId, pageId) {
-  // title stays as section name — do not update to item label
-  // document.getElementById(titleId).textContent = label.length > 22 ? label.substring(0,22)+'…' : label;
-  document.getElementById(nameId).textContent  = label;
-  document.getElementById(valId).value  = value;
-  document.getElementById(rateId).value = rate;
-  document.getElementById(linkId).value = '';
-  document.getElementById(priceId).classList.add('hidden');
-  document.getElementById(warnId).classList.remove('show');
-  navigate(pageId);
-}
-
-function openGameItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-game','game-item-name','game-item-value','game-item-rate','game-item-link','game-item-price-preview','game-item-warn','form-game-item');
-}
-function openCardItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-card','card-item-name','card-item-value','card-item-rate','card-item-link','card-item-price-preview','card-item-warn','form-card-item');
-}
-function openSubItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-sub','sub-item-name','sub-item-value','sub-item-rate','sub-item-link','sub-item-price-preview','sub-item-warn','form-sub-item');
-}
-function openPhoneItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-phone','phone-item-name','phone-item-value','phone-item-rate','phone-item-link','phone-item-price-preview','phone-item-warn','form-phone-item');
-}
-
-// ── أزرار الطلب للأقسام الجديدة ──────────────────────────
-['game-item','card-item','sub-item','phone-item'].forEach(prefix => {
-  const btn = document.getElementById(prefix + '-order-btn');
-  if (!btn) return;
-  btn.addEventListener('click', async function() {
-    const serviceId = document.getElementById(prefix + '-value').value;
-    const rate      = parseFloat(document.getElementById(prefix + '-rate').value) || 0;
-    const link      = document.getElementById(prefix + '-link').value.trim();
-    if (!serviceId) { showToast('يرجى اختيار الخدمة أولاً', 'error'); return; }
-    if (!link)      { showToast('يرجى إملاء الحقل المطلوب', 'error'); return; }
-    if (rate > balance) { showToast('تحقق من رصيد المحفظة', 'error'); return; }
-    this.disabled = true; this.textContent = '⏳ جاري الإرسال...';
-    showToast('⏳ جاري معالجة الطلب...', 'success');
-    try {
-      const res = await fetch(`${SERVER_URL}/order`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ service: serviceId, link, quantity: 1 })
-      });
-      const result = await res.json();
-      if (result.order) {
-        balance -= rate; updateBalanceUI();
-                const _snm = document.getElementById(prefix+'-name'); saveOrder(_snm?_snm.textContent:'خدمة', 1, 'pending', rate);
-        showToast('✅ تم تنفيذ طلبك! رقم: ' + result.order, 'success');
-        alert('✅ تم الطلب بنجاح!\nرقم الطلب: ' + result.order);
-        setTimeout(() => switchTab('orders'), 1500);
-      } else {
-        showToast('❌ ' + (result.error || 'خطأ'), 'error');
-      }
-    } catch(e) {
-      balance -= rate; updateBalanceUI();
-        saveOrder('خدمة', 1, 'pending', rate);
-      showToast('✅ تم تسجيل طلبك', 'success');
-      setTimeout(() => switchTab('orders'), 1200);
-    } finally {
-      this.disabled = false;
-      this.textContent = this.dataset.label || 'تأكيد';
-    }
-  });
-});
-
-updateBalanceUI();
+        balance -= total; updateBalanceUI();
+        const _snm2 = document.getElementById('tele-service-name-display');
+        saveOrder(_snm2 ? _snm2.textContent : 'خدمة تليجرام', qty, 'pending', total);
         showToast(`✅ تم تنفيذ طلبك بنجاح! رقم الطلب: ${result.order}`, 'success');
         alert(`✅ تم إرسال طلبك بنجاح!\nرقم الطلب: ${result.order}`);
         setTimeout(() => { switchTab('orders'); }, 1500);
@@ -3015,84 +2981,8 @@ updateBalanceUI();
         showToast(`❌ فشل السيرفر: ${result.error || 'خطأ غير معروف'}`, 'error');
       }
     } catch(err) {
-      balance -= total; 
-// ── فتح قائمة خدمة محددة (ألعاب/بطائق/اشتراكات/هاتف) ──
-const _gameKeys  = ['oxide', 'pubg', 'genshin', 'delta', 'cod', 'ludo'];
-const _cardKeys  = ['itunes', 'nintendo', 'blizzard', 'fortnite', 'playstation', 'valorant', 'steam', 'crunchyroll', 'roblox'];
-const _subKeys   = ['nitro', 'steam_subs', 'tele', 'xbox', 'psn', 'netflix'];
-const _phoneKeys = ['iraq', 'saudi', 'jordan', 'lebanon', 'egypt', 'bahrain'];
-
-function openGameForm(title, key)  { navigate('list-game-' + key); }
-function openCardForm(title, key)  { navigate('list-card-' + key); }
-function openSubForm(title, key)   { navigate('list-sub-' + key); }
-function openPhoneForm(title, key) { navigate('list-phone-' + key); }
-
-function _openItem(label, value, rate, titleId, nameId, valId, rateId, linkId, priceId, warnId, pageId) {
-  // title stays as section name — do not update to item label
-  // document.getElementById(titleId).textContent = label.length > 22 ? label.substring(0,22)+'…' : label;
-  document.getElementById(nameId).textContent  = label;
-  document.getElementById(valId).value  = value;
-  document.getElementById(rateId).value = rate;
-  document.getElementById(linkId).value = '';
-  document.getElementById(priceId).classList.add('hidden');
-  document.getElementById(warnId).classList.remove('show');
-  navigate(pageId);
-}
-
-function openGameItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-game','game-item-name','game-item-value','game-item-rate','game-item-link','game-item-price-preview','game-item-warn','form-game-item');
-}
-function openCardItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-card','card-item-name','card-item-value','card-item-rate','card-item-link','card-item-price-preview','card-item-warn','form-card-item');
-}
-function openSubItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-sub','sub-item-name','sub-item-value','sub-item-rate','sub-item-link','sub-item-price-preview','sub-item-warn','form-sub-item');
-}
-function openPhoneItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-phone','phone-item-name','phone-item-value','phone-item-rate','phone-item-link','phone-item-price-preview','phone-item-warn','form-phone-item');
-}
-
-// ── أزرار الطلب للأقسام الجديدة ──────────────────────────
-['game-item','card-item','sub-item','phone-item'].forEach(prefix => {
-  const btn = document.getElementById(prefix + '-order-btn');
-  if (!btn) return;
-  btn.addEventListener('click', async function() {
-    const serviceId = document.getElementById(prefix + '-value').value;
-    const rate      = parseFloat(document.getElementById(prefix + '-rate').value) || 0;
-    const link      = document.getElementById(prefix + '-link').value.trim();
-    if (!serviceId) { showToast('يرجى اختيار الخدمة أولاً', 'error'); return; }
-    if (!link)      { showToast('يرجى إملاء الحقل المطلوب', 'error'); return; }
-    if (rate > balance) { showToast('تحقق من رصيد المحفظة', 'error'); return; }
-    this.disabled = true; this.textContent = '⏳ جاري الإرسال...';
-    showToast('⏳ جاري معالجة الطلب...', 'success');
-    try {
-      const res = await fetch(`${SERVER_URL}/order`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ service: serviceId, link, quantity: 1 })
-      });
-      const result = await res.json();
-      if (result.order) {
-        balance -= rate; updateBalanceUI();
-                const _snm = document.getElementById(prefix+'-name'); saveOrder(_snm?_snm.textContent:'خدمة', 1, 'pending', rate);
-        showToast('✅ تم تنفيذ طلبك! رقم: ' + result.order, 'success');
-        alert('✅ تم الطلب بنجاح!\nرقم الطلب: ' + result.order);
-        setTimeout(() => switchTab('orders'), 1500);
-      } else {
-        showToast('❌ ' + (result.error || 'خطأ'), 'error');
-      }
-    } catch(e) {
-      balance -= rate; updateBalanceUI();
-        saveOrder('خدمة', 1, 'pending', rate);
-      showToast('✅ تم تسجيل طلبك', 'success');
-      setTimeout(() => switchTab('orders'), 1200);
-    } finally {
-      this.disabled = false;
-      this.textContent = this.dataset.label || 'تأكيد';
-    }
-  });
-});
-
-updateBalanceUI();
+      balance -= total; updateBalanceUI();
+      saveOrder('خدمة تليجرام', qty, 'pending', total);
       showToast('✅ تم تسجيل طلبك بنجاح', 'success');
       setTimeout(() => { switchTab('orders'); }, 1200);
     } finally {
@@ -3100,7 +2990,6 @@ updateBalanceUI();
     }
   });
 }
-
 
 function openInstaService(label, value, rate) {
   document.getElementById('insta-service-title').textContent = label.split('|')[0].trim();
@@ -3154,173 +3043,23 @@ if (instaOrderBtn) {
       });
       const result = await response.json();
       if (result.order) {
-        balance -= total; 
-// ── فتح قائمة خدمة محددة (ألعاب/بطائق/اشتراكات/هاتف) ──
-const _gameKeys  = ['oxide', 'pubg', 'genshin', 'delta', 'cod', 'ludo'];
-const _cardKeys  = ['itunes', 'nintendo', 'blizzard', 'fortnite', 'playstation', 'valorant', 'steam', 'crunchyroll', 'roblox'];
-const _subKeys   = ['nitro', 'steam_subs', 'tele', 'xbox', 'psn', 'netflix'];
-const _phoneKeys = ['iraq', 'saudi', 'jordan', 'lebanon', 'egypt', 'bahrain'];
-
-function openGameForm(title, key)  { navigate('list-game-' + key); }
-function openCardForm(title, key)  { navigate('list-card-' + key); }
-function openSubForm(title, key)   { navigate('list-sub-' + key); }
-function openPhoneForm(title, key) { navigate('list-phone-' + key); }
-
-function _openItem(label, value, rate, titleId, nameId, valId, rateId, linkId, priceId, warnId, pageId) {
-  // title stays as section name — do not update to item label
-  // document.getElementById(titleId).textContent = label.length > 22 ? label.substring(0,22)+'…' : label;
-  document.getElementById(nameId).textContent  = label;
-  document.getElementById(valId).value  = value;
-  document.getElementById(rateId).value = rate;
-  document.getElementById(linkId).value = '';
-  document.getElementById(priceId).classList.add('hidden');
-  document.getElementById(warnId).classList.remove('show');
-  navigate(pageId);
-}
-
-function openGameItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-game','game-item-name','game-item-value','game-item-rate','game-item-link','game-item-price-preview','game-item-warn','form-game-item');
-}
-function openCardItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-card','card-item-name','card-item-value','card-item-rate','card-item-link','card-item-price-preview','card-item-warn','form-card-item');
-}
-function openSubItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-sub','sub-item-name','sub-item-value','sub-item-rate','sub-item-link','sub-item-price-preview','sub-item-warn','form-sub-item');
-}
-function openPhoneItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-phone','phone-item-name','phone-item-value','phone-item-rate','phone-item-link','phone-item-price-preview','phone-item-warn','form-phone-item');
-}
-
-// ── أزرار الطلب للأقسام الجديدة ──────────────────────────
-['game-item','card-item','sub-item','phone-item'].forEach(prefix => {
-  const btn = document.getElementById(prefix + '-order-btn');
-  if (!btn) return;
-  btn.addEventListener('click', async function() {
-    const serviceId = document.getElementById(prefix + '-value').value;
-    const rate      = parseFloat(document.getElementById(prefix + '-rate').value) || 0;
-    const link      = document.getElementById(prefix + '-link').value.trim();
-    if (!serviceId) { showToast('يرجى اختيار الخدمة أولاً', 'error'); return; }
-    if (!link)      { showToast('يرجى إملاء الحقل المطلوب', 'error'); return; }
-    if (rate > balance) { showToast('تحقق من رصيد المحفظة', 'error'); return; }
-    this.disabled = true; this.textContent = '⏳ جاري الإرسال...';
-    showToast('⏳ جاري معالجة الطلب...', 'success');
-    try {
-      const res = await fetch(`${SERVER_URL}/order`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ service: serviceId, link, quantity: 1 })
-      });
-      const result = await res.json();
-      if (result.order) {
-        balance -= rate; updateBalanceUI();
-                const _snm = document.getElementById(prefix+'-name'); saveOrder(_snm?_snm.textContent:'خدمة', 1, 'pending', rate);
-        showToast('✅ تم تنفيذ طلبك! رقم: ' + result.order, 'success');
-        alert('✅ تم الطلب بنجاح!\nرقم الطلب: ' + result.order);
-        setTimeout(() => switchTab('orders'), 1500);
-      } else {
-        showToast('❌ ' + (result.error || 'خطأ'), 'error');
-      }
-    } catch(e) {
-      balance -= rate; updateBalanceUI();
-        saveOrder('خدمة', 1, 'pending', rate);
-      showToast('✅ تم تسجيل طلبك', 'success');
-      setTimeout(() => switchTab('orders'), 1200);
-    } finally {
-      this.disabled = false;
-      this.textContent = this.dataset.label || 'تأكيد';
-    }
-  });
-});
-
-updateBalanceUI();
+        balance -= total; updateBalanceUI();
+        const _snm_insta = document.getElementById('insta-service-name-display');
+        saveOrder(_snm_insta ? _snm_insta.textContent : 'خدمة انستا', qty, 'pending', total);
         showToast(`✅ تم تنفيذ طلبك بنجاح! رقم الطلب: ${result.order}`, 'success');
         alert(`✅ تم إرسال طلبك بنجاح!\nرقم الطلب: ${result.order}`);
         setTimeout(() => { switchTab('orders'); }, 1500);
       } else {
-        showToast(`❌ فشل السيرفر: ${result.error || 'خطأ غير معروف'}`, 'error');
-      }
-    } catch(err) {
-      balance -= total; 
-// ── فتح قائمة خدمة محددة (ألعاب/بطائق/اشتراكات/هاتف) ──
-const _gameKeys  = ['oxide', 'pubg', 'genshin', 'delta', 'cod', 'ludo'];
-const _cardKeys  = ['itunes', 'nintendo', 'blizzard', 'fortnite', 'playstation', 'valorant', 'steam', 'crunchyroll', 'roblox'];
-const _subKeys   = ['nitro', 'steam_subs', 'tele', 'xbox', 'psn', 'netflix'];
-const _phoneKeys = ['iraq', 'saudi', 'jordan', 'lebanon', 'egypt', 'bahrain'];
-
-function openGameForm(title, key)  { navigate('list-game-' + key); }
-function openCardForm(title, key)  { navigate('list-card-' + key); }
-function openSubForm(title, key)   { navigate('list-sub-' + key); }
-function openPhoneForm(title, key) { navigate('list-phone-' + key); }
-
-function _openItem(label, value, rate, titleId, nameId, valId, rateId, linkId, priceId, warnId, pageId) {
-  // title stays as section name — do not update to item label
-  // document.getElementById(titleId).textContent = label.length > 22 ? label.substring(0,22)+'…' : label;
-  document.getElementById(nameId).textContent  = label;
-  document.getElementById(valId).value  = value;
-  document.getElementById(rateId).value = rate;
-  document.getElementById(linkId).value = '';
-  document.getElementById(priceId).classList.add('hidden');
-  document.getElementById(warnId).classList.remove('show');
-  navigate(pageId);
-}
-
-function openGameItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-game','game-item-name','game-item-value','game-item-rate','game-item-link','game-item-price-preview','game-item-warn','form-game-item');
-}
-function openCardItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-card','card-item-name','card-item-value','card-item-rate','card-item-link','card-item-price-preview','card-item-warn','form-card-item');
-}
-function openSubItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-sub','sub-item-name','sub-item-value','sub-item-rate','sub-item-link','sub-item-price-preview','sub-item-warn','form-sub-item');
-}
-function openPhoneItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-phone','phone-item-name','phone-item-value','phone-item-rate','phone-item-link','phone-item-price-preview','phone-item-warn','form-phone-item');
-}
-
-// ── أزرار الطلب للأقسام الجديدة ──────────────────────────
-['game-item','card-item','sub-item','phone-item'].forEach(prefix => {
-  const btn = document.getElementById(prefix + '-order-btn');
-  if (!btn) return;
-  btn.addEventListener('click', async function() {
-    const serviceId = document.getElementById(prefix + '-value').value;
-    const rate      = parseFloat(document.getElementById(prefix + '-rate').value) || 0;
-    const link      = document.getElementById(prefix + '-link').value.trim();
-    if (!serviceId) { showToast('يرجى اختيار الخدمة أولاً', 'error'); return; }
-    if (!link)      { showToast('يرجى إملاء الحقل المطلوب', 'error'); return; }
-    if (rate > balance) { showToast('تحقق من رصيد المحفظة', 'error'); return; }
-    this.disabled = true; this.textContent = '⏳ جاري الإرسال...';
-    showToast('⏳ جاري معالجة الطلب...', 'success');
-    try {
-      const res = await fetch(`${SERVER_URL}/order`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ service: serviceId, link, quantity: 1 })
-      });
-      const result = await res.json();
-      if (result.order) {
-        balance -= rate; updateBalanceUI();
-                const _snm = document.getElementById(prefix+'-name'); saveOrder(_snm?_snm.textContent:'خدمة', 1, 'pending', rate);
-        showToast('✅ تم تنفيذ طلبك! رقم: ' + result.order, 'success');
-        alert('✅ تم الطلب بنجاح!\nرقم الطلب: ' + result.order);
-        setTimeout(() => switchTab('orders'), 1500);
-      } else {
         showToast('❌ ' + (result.error || 'خطأ'), 'error');
       }
     } catch(e) {
-      balance -= rate; updateBalanceUI();
-        saveOrder('خدمة', 1, 'pending', rate);
+      balance -= total; updateBalanceUI();
+      saveOrder('خدمة انستا', qty, 'pending', total);
       showToast('✅ تم تسجيل طلبك', 'success');
       setTimeout(() => switchTab('orders'), 1200);
     } finally {
       this.disabled = false;
       this.textContent = this.dataset.label || 'تأكيد';
-    }
-  });
-});
-
-updateBalanceUI();
-      showToast('✅ تم تسجيل طلبك بنجاح', 'success');
-      setTimeout(() => { switchTab('orders'); }, 1200);
-    } finally {
-      this.disabled = false; this.textContent = 'إرسال الطلب فوراً';
     }
   });
 }
@@ -3354,162 +3093,17 @@ document.querySelectorAll('.order-btn').forEach(btn => {
       });
       const result   = await response.json();
       if (result.order) {
-        balance -= total; 
-// ── فتح قائمة خدمة محددة (ألعاب/بطائق/اشتراكات/هاتف) ──
-const _gameKeys  = ['oxide', 'pubg', 'genshin', 'delta', 'cod', 'ludo'];
-const _cardKeys  = ['itunes', 'nintendo', 'blizzard', 'fortnite', 'playstation', 'valorant', 'steam', 'crunchyroll', 'roblox'];
-const _subKeys   = ['nitro', 'steam_subs', 'tele', 'xbox', 'psn', 'netflix'];
-const _phoneKeys = ['iraq', 'saudi', 'jordan', 'lebanon', 'egypt', 'bahrain'];
-
-function openGameForm(title, key)  { navigate('list-game-' + key); }
-function openCardForm(title, key)  { navigate('list-card-' + key); }
-function openSubForm(title, key)   { navigate('list-sub-' + key); }
-function openPhoneForm(title, key) { navigate('list-phone-' + key); }
-
-function _openItem(label, value, rate, titleId, nameId, valId, rateId, linkId, priceId, warnId, pageId) {
-  // title stays as section name — do not update to item label
-  // document.getElementById(titleId).textContent = label.length > 22 ? label.substring(0,22)+'…' : label;
-  document.getElementById(nameId).textContent  = label;
-  document.getElementById(valId).value  = value;
-  document.getElementById(rateId).value = rate;
-  document.getElementById(linkId).value = '';
-  document.getElementById(priceId).classList.add('hidden');
-  document.getElementById(warnId).classList.remove('show');
-  navigate(pageId);
-}
-
-function openGameItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-game','game-item-name','game-item-value','game-item-rate','game-item-link','game-item-price-preview','game-item-warn','form-game-item');
-}
-function openCardItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-card','card-item-name','card-item-value','card-item-rate','card-item-link','card-item-price-preview','card-item-warn','form-card-item');
-}
-function openSubItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-sub','sub-item-name','sub-item-value','sub-item-rate','sub-item-link','sub-item-price-preview','sub-item-warn','form-sub-item');
-}
-function openPhoneItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-phone','phone-item-name','phone-item-value','phone-item-rate','phone-item-link','phone-item-price-preview','phone-item-warn','form-phone-item');
-}
-
-// ── أزرار الطلب للأقسام الجديدة ──────────────────────────
-['game-item','card-item','sub-item','phone-item'].forEach(prefix => {
-  const btn = document.getElementById(prefix + '-order-btn');
-  if (!btn) return;
-  btn.addEventListener('click', async function() {
-    const serviceId = document.getElementById(prefix + '-value').value;
-    const rate      = parseFloat(document.getElementById(prefix + '-rate').value) || 0;
-    const link      = document.getElementById(prefix + '-link').value.trim();
-    if (!serviceId) { showToast('يرجى اختيار الخدمة أولاً', 'error'); return; }
-    if (!link)      { showToast('يرجى إملاء الحقل المطلوب', 'error'); return; }
-    if (rate > balance) { showToast('تحقق من رصيد المحفظة', 'error'); return; }
-    this.disabled = true; this.textContent = '⏳ جاري الإرسال...';
-    showToast('⏳ جاري معالجة الطلب...', 'success');
-    try {
-      const res = await fetch(`${SERVER_URL}/order`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ service: serviceId, link, quantity: 1 })
-      });
-      const result = await res.json();
-      if (result.order) {
-        balance -= rate; updateBalanceUI();
-                const _snm = document.getElementById(prefix+'-name'); saveOrder(_snm?_snm.textContent:'خدمة', 1, 'pending', rate);
-        showToast('✅ تم تنفيذ طلبك! رقم: ' + result.order, 'success');
-        alert('✅ تم الطلب بنجاح!\nرقم الطلب: ' + result.order);
-        setTimeout(() => switchTab('orders'), 1500);
-      } else {
-        showToast('❌ ' + (result.error || 'خطأ'), 'error');
-      }
-    } catch(e) {
-      balance -= rate; updateBalanceUI();
-        saveOrder('خدمة', 1, 'pending', rate);
-      showToast('✅ تم تسجيل طلبك', 'success');
-      setTimeout(() => switchTab('orders'), 1200);
-    } finally {
-      this.disabled = false;
-      this.textContent = this.dataset.label || 'تأكيد';
-    }
-  });
-});
-
-updateBalanceUI();
+        balance -= total; updateBalanceUI();
+        saveOrder('خدمة', 1, 'pending', total);
         showToast(`✅ تم تنفيذ طلبك بنجاح! رقم الطلب: ${result.order}`, 'success');
         alert(`✅ تم إرسال طلبك بنجاح!\nرقم الطلب: ${result.order}`);
         setTimeout(() => { switchTab('orders'); }, 1500);
       } else {
-        showToast(`❌ فشل السيرفر: ${result.error || 'خطأ غير معروف'}`, 'error');
-        alert(`❌ فشل إرسال الطلب:\n${result.error || 'خطأ غير معروف'}`);
-      }
-    } catch (err) {
-      console.error(err);
-      // في حال فشل الاتصال نسجل الطلب محلياً
-      balance -= total; 
-// ── فتح قائمة خدمة محددة (ألعاب/بطائق/اشتراكات/هاتف) ──
-const _gameKeys  = ['oxide', 'pubg', 'genshin', 'delta', 'cod', 'ludo'];
-const _cardKeys  = ['itunes', 'nintendo', 'blizzard', 'fortnite', 'playstation', 'valorant', 'steam', 'crunchyroll', 'roblox'];
-const _subKeys   = ['nitro', 'steam_subs', 'tele', 'xbox', 'psn', 'netflix'];
-const _phoneKeys = ['iraq', 'saudi', 'jordan', 'lebanon', 'egypt', 'bahrain'];
-
-function openGameForm(title, key)  { navigate('list-game-' + key); }
-function openCardForm(title, key)  { navigate('list-card-' + key); }
-function openSubForm(title, key)   { navigate('list-sub-' + key); }
-function openPhoneForm(title, key) { navigate('list-phone-' + key); }
-
-function _openItem(label, value, rate, titleId, nameId, valId, rateId, linkId, priceId, warnId, pageId) {
-  // title stays as section name — do not update to item label
-  // document.getElementById(titleId).textContent = label.length > 22 ? label.substring(0,22)+'…' : label;
-  document.getElementById(nameId).textContent  = label;
-  document.getElementById(valId).value  = value;
-  document.getElementById(rateId).value = rate;
-  document.getElementById(linkId).value = '';
-  document.getElementById(priceId).classList.add('hidden');
-  document.getElementById(warnId).classList.remove('show');
-  navigate(pageId);
-}
-
-function openGameItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-game','game-item-name','game-item-value','game-item-rate','game-item-link','game-item-price-preview','game-item-warn','form-game-item');
-}
-function openCardItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-card','card-item-name','card-item-value','card-item-rate','card-item-link','card-item-price-preview','card-item-warn','form-card-item');
-}
-function openSubItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-sub','sub-item-name','sub-item-value','sub-item-rate','sub-item-link','sub-item-price-preview','sub-item-warn','form-sub-item');
-}
-function openPhoneItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-phone','phone-item-name','phone-item-value','phone-item-rate','phone-item-link','phone-item-price-preview','phone-item-warn','form-phone-item');
-}
-
-// ── أزرار الطلب للأقسام الجديدة ──────────────────────────
-['game-item','card-item','sub-item','phone-item'].forEach(prefix => {
-  const btn = document.getElementById(prefix + '-order-btn');
-  if (!btn) return;
-  btn.addEventListener('click', async function() {
-    const serviceId = document.getElementById(prefix + '-value').value;
-    const rate      = parseFloat(document.getElementById(prefix + '-rate').value) || 0;
-    const link      = document.getElementById(prefix + '-link').value.trim();
-    if (!serviceId) { showToast('يرجى اختيار الخدمة أولاً', 'error'); return; }
-    if (!link)      { showToast('يرجى إملاء الحقل المطلوب', 'error'); return; }
-    if (rate > balance) { showToast('تحقق من رصيد المحفظة', 'error'); return; }
-    this.disabled = true; this.textContent = '⏳ جاري الإرسال...';
-    showToast('⏳ جاري معالجة الطلب...', 'success');
-    try {
-      const res = await fetch(`${SERVER_URL}/order`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ service: serviceId, link, quantity: 1 })
-      });
-      const result = await res.json();
-      if (result.order) {
-        balance -= rate; updateBalanceUI();
-                const _snm = document.getElementById(prefix+'-name'); saveOrder(_snm?_snm.textContent:'خدمة', 1, 'pending', rate);
-        showToast('✅ تم تنفيذ طلبك! رقم: ' + result.order, 'success');
-        alert('✅ تم الطلب بنجاح!\nرقم الطلب: ' + result.order);
-        setTimeout(() => switchTab('orders'), 1500);
-      } else {
         showToast('❌ ' + (result.error || 'خطأ'), 'error');
       }
     } catch(e) {
-      balance -= rate; updateBalanceUI();
-        saveOrder('خدمة', 1, 'pending', rate);
+      balance -= total; updateBalanceUI();
+      saveOrder('خدمة', 1, 'pending', total);
       showToast('✅ تم تسجيل طلبك', 'success');
       setTimeout(() => switchTab('orders'), 1200);
     } finally {
@@ -3519,103 +3113,28 @@ function openPhoneItem(label, value, rate) {
   });
 });
 
-updateBalanceUI();
-      showToast('✅ تم تسجيل طلبك بنجاح', 'success');
-      setTimeout(() => { switchTab('orders'); }, 1200);
-    } finally {
-      this.disabled = false; this.textContent = this.dataset.label || 'إرسال الطلب';
-    }
-  });
-});
+
 
 // ── المحفظة ──────────────────────────────────────────────
-const overlay     = document.getElementById('modal-overlay');
-const amountInput = document.getElementById('modal-amount');
-// زر الرصيد الرئيسي — يفتح صفحة طرق الشحن
-document.getElementById('btn-add-balance').addEventListener('click', () => { navigate('payment-methods'); });
-overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
-document.getElementById('btn-confirm-balance').addEventListener('click', () => {
-  const val = parseFloat(amountInput.value); if (isNaN(val) || val <= 0) return;
-  balance += val; 
-// ── فتح قائمة خدمة محددة (ألعاب/بطائق/اشتراكات/هاتف) ──
-const _gameKeys  = ['oxide', 'pubg', 'genshin', 'delta', 'cod', 'ludo'];
-const _cardKeys  = ['itunes', 'nintendo', 'blizzard', 'fortnite', 'playstation', 'valorant', 'steam', 'crunchyroll', 'roblox'];
-const _subKeys   = ['nitro', 'steam_subs', 'tele', 'xbox', 'psn', 'netflix'];
-const _phoneKeys = ['iraq', 'saudi', 'jordan', 'lebanon', 'egypt', 'bahrain'];
-
-function openGameForm(title, key)  { navigate('list-game-' + key); }
-function openCardForm(title, key)  { navigate('list-card-' + key); }
-function openSubForm(title, key)   { navigate('list-sub-' + key); }
-function openPhoneForm(title, key) { navigate('list-phone-' + key); }
-
-function _openItem(label, value, rate, titleId, nameId, valId, rateId, linkId, priceId, warnId, pageId) {
-  // title stays as section name — do not update to item label
-  // document.getElementById(titleId).textContent = label.length > 22 ? label.substring(0,22)+'…' : label;
-  document.getElementById(nameId).textContent  = label;
-  document.getElementById(valId).value  = value;
-  document.getElementById(rateId).value = rate;
-  document.getElementById(linkId).value = '';
-  document.getElementById(priceId).classList.add('hidden');
-  document.getElementById(warnId).classList.remove('show');
-  navigate(pageId);
-}
-
-function openGameItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-game','game-item-name','game-item-value','game-item-rate','game-item-link','game-item-price-preview','game-item-warn','form-game-item');
-}
-function openCardItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-card','card-item-name','card-item-value','card-item-rate','card-item-link','card-item-price-preview','card-item-warn','form-card-item');
-}
-function openSubItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-sub','sub-item-name','sub-item-value','sub-item-rate','sub-item-link','sub-item-price-preview','sub-item-warn','form-sub-item');
-}
-function openPhoneItem(label, value, rate) {
-  _openItem(label,value,rate,'title-form-phone','phone-item-name','phone-item-value','phone-item-rate','phone-item-link','phone-item-price-preview','phone-item-warn','form-phone-item');
-}
-
-// ── أزرار الطلب للأقسام الجديدة ──────────────────────────
-['game-item','card-item','sub-item','phone-item'].forEach(prefix => {
-  const btn = document.getElementById(prefix + '-order-btn');
-  if (!btn) return;
-  btn.addEventListener('click', async function() {
-    const serviceId = document.getElementById(prefix + '-value').value;
-    const rate      = parseFloat(document.getElementById(prefix + '-rate').value) || 0;
-    const link      = document.getElementById(prefix + '-link').value.trim();
-    if (!serviceId) { showToast('يرجى اختيار الخدمة أولاً', 'error'); return; }
-    if (!link)      { showToast('يرجى إملاء الحقل المطلوب', 'error'); return; }
-    if (rate > balance) { showToast('تحقق من رصيد المحفظة', 'error'); return; }
-    this.disabled = true; this.textContent = '⏳ جاري الإرسال...';
-    showToast('⏳ جاري معالجة الطلب...', 'success');
-    try {
-      const res = await fetch(`${SERVER_URL}/order`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ service: serviceId, link, quantity: 1 })
-      });
-      const result = await res.json();
-      if (result.order) {
-        balance -= rate; updateBalanceUI();
-                const _snm = document.getElementById(prefix+'-name'); saveOrder(_snm?_snm.textContent:'خدمة', 1, 'pending', rate);
-        showToast('✅ تم تنفيذ طلبك! رقم: ' + result.order, 'success');
-        alert('✅ تم الطلب بنجاح!\nرقم الطلب: ' + result.order);
-        setTimeout(() => switchTab('orders'), 1500);
-      } else {
-        showToast('❌ ' + (result.error || 'خطأ'), 'error');
-      }
-    } catch(e) {
-      balance -= rate; updateBalanceUI();
-        saveOrder('خدمة', 1, 'pending', rate);
-      showToast('✅ تم تسجيل طلبك', 'success');
-      setTimeout(() => switchTab('orders'), 1200);
-    } finally {
-      this.disabled = false;
-      this.textContent = this.dataset.label || 'تأكيد';
-    }
+// [FIX-1] Moved to DOMContentLoaded to prevent null-reference errors
+let overlay     = null;
+let amountInput = null;
+document.addEventListener('DOMContentLoaded', function _walletInit() {
+  overlay     = document.getElementById('modal-overlay');
+  amountInput = document.getElementById('modal-amount');
+  const btnAdd     = document.getElementById('btn-add-balance');
+  const btnConfirm = document.getElementById('btn-confirm-balance');
+  if (btnAdd)     btnAdd.addEventListener('click', () => { navigate('payment-methods'); });
+  if (overlay)    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+  if (btnConfirm) btnConfirm.addEventListener('click', () => {
+    if (!amountInput) return;
+    const val = parseFloat(amountInput.value); if (isNaN(val) || val <= 0) return;
+    balance += val;
+    if (overlay) overlay.classList.remove('open');
+    showToast('✅ تم شحن المحفظة بنجاح', 'success');
+    updateBalanceUI();
   });
 });
-
-updateBalanceUI(); overlay.classList.remove('open'); showToast('✅ تم شحن المحفظة بنجاح', 'success');
-});
-
 // ── الإعدادات ─────────────────────────────────────────────
 function openSettingsModal() {
   const email    = localStorage.getItem('wf_identifier') || '';
@@ -4100,28 +3619,25 @@ document.addEventListener('DOMContentLoaded', async function() {
     const identifier = localStorage.getItem('wf_identifier') || '';
     const emailEl = document.getElementById('settings-email-field');
     if (emailEl && identifier) emailEl.value = identifier;
-    // استعد الرصيد من registry
+    // [FIX-2] استعد الرصيد من registry — الأدمن ليس له رصيد وهمي
     const reg = getUsersRegistry();
-    if (localStorage.getItem('wf_is_admin')) {
-      balance = 9999; updateBalanceUI();
-    } else {
-      if (reg[uid]) { balance = reg[uid].balance || 0; updateBalanceUI(); }
-      // حاول تحديث الرصيد من السيرفر (حيث قد يكون الأدمن شحن)
-      fetch(`${SERVER_URL}/user/find?uid=${encodeURIComponent(uid)}`)
-        .then(r => r.ok ? r.json() : null)
-        .then(data => {
-          if (data && data.uid && typeof data.balance === 'number') {
-            balance = data.balance;
-            updateBalanceUI();
-            const reg2 = getUsersRegistry();
-            if (!reg2[uid]) reg2[uid] = {};
-            reg2[uid].balance = data.balance;
-            reg2[uid].totalCharged = data.totalCharged || reg2[uid].totalCharged || 0;
-            saveUsersRegistry(reg2);
-          }
-        })
-        .catch(() => {});
-    }
+    // سواء كان أدمن أو مستخدم: نحمّل الرصيد الحقيقي من السجل المحلي أولاً
+    if (reg[uid]) { balance = reg[uid].balance || 0; updateBalanceUI(); }
+    // ثم نحدّث من السيرفر (لكلا الدورين)
+    fetch(`${SERVER_URL}/user/find?uid=${encodeURIComponent(uid)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data && data.uid && typeof data.balance === 'number') {
+          balance = data.balance;
+          updateBalanceUI();
+          const reg2 = getUsersRegistry();
+          if (!reg2[uid]) reg2[uid] = {};
+          reg2[uid].balance = data.balance;
+          reg2[uid].totalCharged = data.totalCharged || reg2[uid].totalCharged || 0;
+          saveUsersRegistry(reg2);
+        }
+      })
+      .catch(() => {});
     // انتقل للرئيسية بدون animation
     document.querySelectorAll('.page').forEach(p => { p.classList.remove('active'); p.classList.add('slide-right'); });
     document.getElementById('page-login').classList.remove('active','slide-right');
@@ -4132,9 +3648,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.getElementById('bottom-nav').classList.remove('hidden');
     document.getElementById('nav-main').classList.add('active');
     document.getElementById('nav-orders').classList.remove('active');
-    // أظهر أزرار الأدمن لو كان أدمن
+    // ✅ أظهر أزرار الأدمن فوراً بدون انتظار أي fetch
     if (localStorage.getItem('wf_is_admin')) {
-      showAdminMenuBtn();
+      showAdminMenuBtn();   // يشمل fetchDarkfollowBalance() تلقائياً
+      showPaymentIconsBtn();
+      showAdminIconsBtn();
     }
   }
 });
@@ -4200,7 +3718,8 @@ function openPhoneItem(label, value, rate) {
       const result = await res.json();
       if (result.order) {
         balance -= rate; updateBalanceUI();
-                const _snm = document.getElementById(prefix+'-name'); saveOrder(_snm?_snm.textContent:'خدمة', 1, 'pending', rate);
+        const _snm = document.getElementById(prefix + '-name');
+        saveOrder(_snm ? _snm.textContent : 'خدمة', 1, 'pending', rate);
         showToast('✅ تم تنفيذ طلبك! رقم: ' + result.order, 'success');
         alert('✅ تم الطلب بنجاح!\nرقم الطلب: ' + result.order);
         setTimeout(() => switchTab('orders'), 1500);
@@ -4329,14 +3848,18 @@ async function checkAdminKey() {
   history_stack = ['main'];
   document.getElementById('bottom-nav').classList.remove('hidden');
   document.getElementById('nav-main').classList.add('active');
-  balance = 9999;
+  balance = 0; // [FIX-2b] لا رصيد وهمي للأدمن — سيُجلب من السيرفر
   updateBalanceUI();
+  // جلب الرصيد الحقيقي من السيرفر للأدمن أيضاً
+  fetch(`${SERVER_URL}/user/find?uid=${encodeURIComponent(localStorage.getItem('wf_user_id')||'')}&_=${Date.now()}`)
+    .then(r => r.ok ? r.json() : null)
+    .then(data => { if (data && typeof data.balance === 'number') { balance = data.balance; updateBalanceUI(); } })
+    .catch(() => {});
   showToast('✅ مرحباً أدمن! 👑', 'success');
-  // أظهر جميع أزرار الأدمن
+  // ✅ أظهر جميع أزرار الأدمن فوراً بدون setTimeout
   showAdminMenuBtn();
   showPaymentIconsBtn();
-  // أظهر زر تعديل الأيقونات
-  setTimeout(showAdminIconsBtn, 500);
+  showAdminIconsBtn();
 }
 
 // ── Admin Icons ──────────────────────────────────────────
@@ -4597,9 +4120,60 @@ function handleIconUpload(event) {
   event.target.value = '';
 }
 
-// تطبيق الأيقونات عند التحميل
-// ══════════════════════════════════════════════
-// صفحة طرق الشحن
+// [FIX-4] Single Source of Truth: دائماً نجلب من السيرفر عند التحميل
+// ونمسح أي role/admin محلي قديم إذا السيرفر لم يؤكده
+document.addEventListener('DOMContentLoaded', async function _freshDataInit() {
+  const uid = localStorage.getItem('wf_user_id');
+  if (!uid || !localStorage.getItem('wf_logged_in')) return;
+
+  // [FIX] تنظيف رصيد وهمي قديم من localStorage (مثل 79999 أو 9999)
+  // الرصيد الحقيقي يأتي دائماً من السيرفر
+  const reg = getUsersRegistry();
+  if (reg[uid] && (reg[uid].balance > 50000 || reg[uid].balance === 9999)) {
+    console.warn('[WF-Balance] رصيد غير منطقي محفوظ محلياً — سيُحذف وينتظر السيرفر:', reg[uid].balance);
+    reg[uid].balance = 0;
+    saveUsersRegistry(reg);
+    balance = 0;
+    updateBalanceUI();
+  }
+  try {
+    const res = await fetch(`${SERVER_URL}/user/find?uid=${encodeURIComponent(uid)}&_=${Date.now()}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data || !data.uid) return;
+    // تحديث السجل المحلي بالبيانات الطازجة من السيرفر
+    const reg = getUsersRegistry();
+    reg[uid] = Object.assign(reg[uid] || {}, data);
+    saveUsersRegistry(reg);
+    // تحديث الرصيد الحالي لو تغيّر
+    if (typeof data.balance === 'number') {
+      balance = data.balance;
+      updateBalanceUI();
+    }
+    // [FIX-ROLE] التحقق من صلاحيات الأدمن من السيرفر
+    // إذا السيرفر أرجع role صريح — نطيعه
+    // إذا لم يرجع role — لا نغير شيء (لا نزيل admin ولا نضيفه)
+    if (data.role === 'admin') {
+      localStorage.setItem('wf_is_admin', '1');
+    } else if (data.role === 'user') {
+      // السيرفر أكد صراحة أنه مستخدم عادي — نزيل admin
+      localStorage.removeItem('wf_is_admin');
+      localStorage.removeItem('wf_admin_session_key');
+      hideAdminMenuBtn();
+    }
+    // data.role === undefined: السيرفر لا يعرف الدور — نترك الحالة كما هي
+    // تحديث واجهة الأدمن بعد التحقق
+    if (localStorage.getItem('wf_is_admin')) {
+      showAdminMenuBtn();
+      showPaymentIconsBtn();
+      showAdminIconsBtn();
+    } else {
+      hideAdminMenuBtn();
+    }
+  } catch(e) {
+    console.warn('[WF-DataSync] فشل التحديث من السيرفر، نستخدم البيانات المحلية:', e);
+  }
+});
 // ══════════════════════════════════════════════
 
 // بيانات طرق الدفع
@@ -4737,10 +4311,18 @@ function showPaymentIconsBtn() {
 window.addEventListener('load', () => {
   applyCustomIcons();
   applyPaymentIcons();
-  if (localStorage.getItem('wf_is_admin')) {
+  // [FIX] إخفاء أزرار الأدمن أولاً — تُظهر فقط بعد تحقق السيرفر في _freshDataInit
+  // نتحقق من localStorage كـ fallback فقط إذا كان المستخدم مسجلاً دخول
+  const uid = localStorage.getItem('wf_user_id');
+  const loggedIn = localStorage.getItem('wf_logged_in');
+  if (uid && loggedIn && localStorage.getItem('wf_is_admin')) {
+    // نُظهرها مؤقتاً، لكن _freshDataInit سيتحقق ويخفيها إذا السيرفر قال user
     showAdminIconsBtn();
     showAdminMenuBtn();
     showPaymentIconsBtn();
+  } else {
+    // المستخدم العادي أو غير مسجل — أخفِ كل شيء
+    hideAdminMenuBtn();
   }
 });
 
@@ -4749,42 +4331,55 @@ window.addEventListener('load', () => {
 // ══════════════════════════════════════════════
 
 function showAdminMenuBtn() {
-  const btn = document.getElementById('admin-users-btn');
-  if (btn) btn.style.display = '';
-  const topupBtn = document.getElementById('admin-topup-btn');
-  if (topupBtn) topupBtn.style.display = '';
-  const dfBtn = document.getElementById('admin-darkfollow-balance-btn');
-  if (dfBtn) dfBtn.style.display = '';
-  const markupBtn = document.getElementById('admin-markup-btn');
-  if (markupBtn) markupBtn.style.display = '';
-  const bar = document.getElementById('wf-api-balance-bar');
-  if (bar) bar.style.display = '';
+  // ✅ نستخدم removeAttribute بدل style.display = '' لتفادي تضارب CSS
+  const ids = [
+    'admin-users-btn',
+    'admin-topup-btn',
+    'admin-darkfollow-balance-btn',
+    'admin-markup-btn',
+    'wf-api-balance-bar'
+  ];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.style.removeProperty('display');
+      el.hidden = false;
+      // تأمين إضافي: إزالة أي inline display:none قديم
+      if (el.style.display === 'none') el.style.display = '';
+    }
+  });
   // جلب الرصيد تلقائياً عند ظهور الزر
   fetchDarkfollowBalance();
 }
 
 function hideAdminMenuBtn() {
-  const btn = document.getElementById('admin-users-btn');
-  if (btn) btn.style.display = 'none';
-  const topupBtn = document.getElementById('admin-topup-btn');
-  if (topupBtn) topupBtn.style.display = 'none';
-  const dfBtn = document.getElementById('admin-darkfollow-balance-btn');
-  if (dfBtn) dfBtn.style.display = 'none';
-  const markupBtn = document.getElementById('admin-markup-btn');
-  if (markupBtn) markupBtn.style.display = 'none';
-  const bar = document.getElementById('wf-api-balance-bar');
-  if (bar) bar.style.display = 'none';
+  const ids = [
+    'admin-users-btn',
+    'admin-topup-btn',
+    'admin-darkfollow-balance-btn',
+    'admin-markup-btn',
+    'wf-api-balance-bar'
+  ];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
 }
 
 // ── جلب رصيد الأدمن من دارك فولو ──────────────────────────
 async function fetchDarkfollowBalance() {
+  // ✅ حماية: لا ترسل الطلب بدون مفتاح أدمن صالح
+  const adminKey = localStorage.getItem('wf_admin_session_key') || '';
+  if (!adminKey) {
+    console.warn('[WF-Admin] لا يوجد مفتاح أدمن — تم إلغاء طلب الرصيد');
+    return;
+  }
   const el  = document.getElementById('darkfollow-balance-display');
   const bar = document.getElementById('wf-api-balance-bar');
   const val = document.getElementById('wf-api-balance-val');
   if (bar) bar.style.display = '';
   if (el)  el.textContent  = '⏳ جاري التحميل...';
   if (val) val.textContent = '...';
-  const adminKey = localStorage.getItem('wf_admin_session_key') || '';
   try {
     const res = await fetch(`${SERVER_URL}/admin/darkfollow-balance`, {
       headers: { 'X-Admin-Key': adminKey }
@@ -4868,11 +4463,11 @@ function executeTopup() {
     headers: { 'Content-Type': 'application/json', 'X-Admin-Key': localStorage.getItem('wf_admin_session_key') || '' },
     body: JSON.stringify({ uid: _topupFoundUid, balance: reg[_topupFoundUid].balance, totalCharged: reg[_topupFoundUid].totalCharged })
   }).catch(() => {});
-  // لو نفس المستخدم مسجل دخول الآن، حدّث رصيده مباشرة
+  // لو نفس المستخدم مسجل دخول الآن، حدّث رصيده مباشرة في الواجهة
+  // [FIX-TOPUP] wf_users مفتاحه email وليس uid — لذا نحدّث balance المتغير العام مباشرة
   if (localStorage.getItem('wf_user_id') === _topupFoundUid) {
-    const users = JSON.parse(localStorage.getItem('wf_users') || '{}');
-    if (users[_topupFoundUid]) { users[_topupFoundUid].balance = reg[_topupFoundUid].balance; localStorage.setItem('wf_users', JSON.stringify(users)); }
-    updateBalanceDisplay();
+    balance = reg[_topupFoundUid].balance;
+    updateBalanceUI();
   }
   showToast(`✅ تمت تعبئة ${amount.toFixed(2)} د.ع`, 'success');
   document.getElementById('topup-user-balance').textContent = reg[_topupFoundUid].balance.toFixed(2) + ' د.ع';
@@ -5156,8 +4751,18 @@ function toggleTheme() {
     e.target.value = '';
   }
 
-  document.getElementById('icon-pick-gallery').addEventListener('change', handleIconFilePick);
-  document.getElementById('icon-pick-camera' ).addEventListener('change', handleIconFilePick);
+  // [FIX-1b] Guard: elements may not exist yet if script runs before body end
+  function _attachIconPickers() {
+    var gal = document.getElementById('icon-pick-gallery');
+    var cam = document.getElementById('icon-pick-camera');
+    if (gal) gal.addEventListener('change', handleIconFilePick);
+    if (cam) cam.addEventListener('change', handleIconFilePick);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _attachIconPickers);
+  } else {
+    _attachIconPickers();
+  }
 
   /* 6 ─ Re-badge icons whenever navigate() switches pages (MutationObserver) */
   var observer = new MutationObserver(function(mutations) {
@@ -5238,7 +4843,13 @@ function toggleTheme() {
   };
 
   try {
-    const res = await fetch('/services/list');
+    // [FIX] استخدام SERVER_URL بدلاً من relative URL الذي يرجع HTML
+    const res = await fetch(`${SERVER_URL}/services/list`, {
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!res.ok) return; // السيرفر غير متاح — نتجاهل بهدوء
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) return; // تأكد أن الرد JSON
     const data = await res.json();
     if (!data.ok) return;
 
@@ -5321,9 +4932,10 @@ function getAdminMarkup() {
 }
 
 async function _loadMarkupFromServer() {
+  const adminKey = localStorage.getItem('wf_admin_session_key') || '';
+  // ✅ حماية مزدوجة: تحقق من وجود مفتاح الأدمن
+  if (!adminKey || !localStorage.getItem('wf_is_admin')) return;
   try {
-    const adminKey = localStorage.getItem('wf_admin_session_key') || '';
-    if (!adminKey) return;
     const res = await fetch(`${SERVER_URL}/admin/markup`, {
       headers: { 'X-Admin-Key': adminKey }
     });
@@ -5367,11 +4979,20 @@ async function saveMarkupModal() {
   showToast('✅ تم حفظ هامش الربح: $' + val.toFixed(2), 'success');
 }
 // تحديث الـ label عند فتح الصفحة + جلب القيمة من السيرفر
-(function initMarkupLabel() {
+// ✅ مؤجل لما بعد DOMContentLoaded لضمان وجود العناصر في الـ DOM
+function _runInitMarkupLabel() {
   const lbl = document.getElementById('markup-val-label');
   if (lbl) lbl.textContent = '$' + getAdminMarkup().toFixed(2);
-  _loadMarkupFromServer();
-})();
+  // لا نجلب من السيرفر إلا لو كان الأدمن مسجلاً
+  if (localStorage.getItem('wf_is_admin')) {
+    _loadMarkupFromServer();
+  }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _runInitMarkupLabel);
+} else {
+  _runInitMarkupLabel();
+}
 
 </script>
 <!-- ══ Admin Markup Modal ══ -->
