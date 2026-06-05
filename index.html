@@ -4881,6 +4881,14 @@ function toggleTheme() {
         if (svg) badge.insertBefore(svg, badge.firstChild);
       }
 
+      // ── تحديث صورة الخدمة من دارك فولو إن وجدت ──
+      if (svcData.image) {
+        const iconEl = btn.querySelector('.menu-item-icon');
+        if (iconEl && !iconEl.querySelector('img')) {
+          iconEl.innerHTML = `<img src="${svcData.image}" style="width:28px;height:28px;object-fit:cover;border-radius:8px;" onerror="this.style.display='none'" />`;
+        }
+      }
+
       // نحدث الـ onclick أيضاً بالسعر الجديد
       const onclick = btn.getAttribute('onclick') || '';
       const updated = onclick.replace(/'[\d.]+'\)$/, `'${newPrice}')`);
