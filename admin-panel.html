@@ -665,6 +665,7 @@
                 <th>الإيميل</th>
                 <th>الرصيد</th>
                 <th>الشحن الكلي</th>
+                <th>الصرف الكلي</th>
                 <th>الطلبات</th>
                 <th>إجراء</th>
               </tr>
@@ -761,7 +762,7 @@
 
 const PANEL_VERSION = '1.0.0';
 // رابط السيرفر الافتراضي — يمكن تعديله من تبويب الإعدادات
-const DEFAULT_SERVER = 'https://telegramaibot-production-4017.up.railway.app';
+const DEFAULT_SERVER = 'https://web-production-005fc.up.railway.app';
 
 // ── State ─────────────────────────────────────────────────────
 let _adminKey    = '';
@@ -956,7 +957,7 @@ async function saveMarkup() {
 // ── تحميل المستخدمين من السيرفر ───────────────────────────────
 async function loadUsers() {
   const tbody = document.getElementById('users-tbody');
-  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;"><span class="spinner"></span> جاري التحميل...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;"><span class="spinner"></span> جاري التحميل...</td></tr>';
 
   try {
     const res = await fetch(_serverUrl + '/admin/users', {
@@ -966,7 +967,7 @@ async function loadUsers() {
     const users = data.users || data || [];
 
     if (!Array.isArray(users) || users.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">لا يوجد مستخدمون بعد</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;">لا يوجد مستخدمون بعد</td></tr>';
       return;
     }
 
@@ -991,7 +992,7 @@ function loadUsersStats(users) {
 function renderUsersTable(users) {
   const tbody = document.getElementById('users-tbody');
   if (!users || users.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">لا يوجد مستخدمون</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;">لا يوجد مستخدمون</td></tr>';
     return;
   }
   tbody.innerHTML = users.map(u => `
@@ -1000,6 +1001,7 @@ function renderUsersTable(users) {
       <td style="font-size:12px;">${esc(u.email||'—')}</td>
       <td><span class="balance-badge">${(u.balance||0).toFixed(2)}</span></td>
       <td style="color:var(--muted);font-size:12px;">${(u.totalCharged||0).toFixed(2)}</td>
+      <td style="color:#ff6677;font-size:12px;">${(u.totalSpent||0).toFixed(2)}</td>
       <td style="color:var(--muted);font-size:12px;">${u.orders||0}</td>
       <td>
         <button class="inline-btn ib-charge" onclick="quickCharge('${esc(u.uid)}')">+ شحن</button>
