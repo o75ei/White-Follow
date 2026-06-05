@@ -7,12 +7,12 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <meta name="build-version" content="20260605-5" />
+  <meta name="build-version" content="20260605-6" />
   <meta name="deploy-timestamp" content="1749254400" />
   <script>
     // [FIX-3] Cache Busting: force reload if cached version differs
     (function(){
-      var BUILD = '20260605-5';
+      var BUILD = '20260605-6';
       var stored = sessionStorage.getItem('wf_build');
       if (stored && stored !== BUILD) {
         sessionStorage.setItem('wf_build', BUILD);
@@ -2691,7 +2691,7 @@ const SERVER_URL = 'https://telegramaibot-production-4017.up.railway.app';
 
 // ══ نظام Cache Busting + Version Check ══════════════════════════
 // غيّر هذا الرقم مع كل تحديث — يُجبر المتصفح على إعادة التحميل
-const BUILD_VERSION = '20260605-5'; // [FIX-BV] مزامنة مع meta tag في <head>
+const BUILD_VERSION = '20260605-6'; // [FIX-BV] مزامنة مع meta tag في <head>
 
 (function _versionGuard() {
   'use strict';
