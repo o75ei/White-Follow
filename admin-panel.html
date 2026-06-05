@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🔐 لوحة تحكم | White Follow</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:      #0a0a0f;
+      --card:    #111118;
+      --card2:   #16161f;
+      --border:  rgba(255,255,255,0.07);
+      --accent:  #DAA520;
+      --accent2: #B8860B;
+      --red:     #ff2233;
+      --green:   #1DB954;
+      --purple:  #8b5cf6;
+      --blue:    #3b82f6;
+      --text:    #f0f0f0;
+      --muted:   #666;
+      --font:    'Segoe UI', 'Tajawal', system-ui, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+    }
+
+    /* ── Login Screen ── */
+    #login-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+      background: radial-gradient(ellipse at 50% 0%, rgba(218,165,32,0.12) 0%, transparent 70%);
+    }
+
+    .login-card {
+      background: var(--card);
+      border: 1px solid rgba(218,165,32,0.2);
+      border-radius: 24px;
+      padding: 40px 32px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 0 60px rgba(218,165,32,0.08);
+    }
+
+    .login-logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .login-logo .shield {
+      font-size: 52px;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .login-logo h1 {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+    }
+
+    .login-logo p {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .field-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 8px;
+      display: block;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .field-wrap {
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    .field-input {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: var(--font);
+      outline: none;
+      transition: border-color 0.2s;
+      direction: ltr;
+      text-align: center;
+      letter-spacing: 3px;
+    }
+
+    .field-input:focus { border-color: rgba(218,165,32,0.5); }
+
+    .btn-login {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #000;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: opacity 0.2s, transform 0.1s;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-login:hover  { opacity: 0.9; }
+    .btn-login:active { transform: scale(0.98); }
+
+    .login-err {
+      display: none;
+      background: rgba(255,34,51,0.1);
+      border: 1px solid rgba(255,34,51,0.3);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #ff6677;
+      text-align: center;
+      margin-top: 16px;
+    }
+
+    /* ── Dashboard ── */
+    #dashboard { display: none; }
+
+    .topbar {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .topbar-brand .badge {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #000;
+      font-size: 10px;
+      font-weight: 900;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 1px;
+    }
+
+    .topbar-brand span {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .status-txt { font-size: 12px; color: var(--muted); }
+
+    .btn-logout {
+      background: rgba(255,34,51,0.1);
+      border: 1px solid rgba(255,34,51,0.2);
+      color: var(--red);
+      padding: 7px 14px;
+      border-radius: 9px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      font-family: var(--font);
+      transition: background 0.2s;
+    }
+
+    .btn-logout:hover { background: rgba(255,34,51,0.2); }
+
+    /* ── Grid Layout ── */
+    .dashboard-body {
+      padding: 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+      margin-top: 32px;
+    }
+
+    .section-title:first-child { margin-top: 0; }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 8px;
+    }
+
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .stat-card .stat-icon { font-size: 24px; }
+    .stat-card .stat-val  { font-size: 26px; font-weight: 900; color: var(--text); }
+    .stat-card .stat-lbl  { font-size: 12px; color: var(--muted); }
+
+    /* ── Cards ── */
+    .panel-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+
+    .panel-card h3 {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .panel-card .desc {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .p-input {
+      flex: 1;
+      min-width: 180px;
+      background: rgba(255,255,255,0.04);
+      border: 1.5px solid var(--border);
+      border-radius: 11px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: var(--font);
+      outline: none;
+      transition: border-color 0.2s;
+      direction: ltr;
+    }
+
+    .p-input:focus { border-color: rgba(255,255,255,0.2); }
+
+    .p-input.arabic { direction: rtl; }
+
+    .btn {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 11px;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: opacity 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .btn:active { transform: scale(0.97); }
+    .btn:hover  { opacity: 0.85; }
+
+    .btn-gold   { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #000; }
+    .btn-green  { background: linear-gradient(135deg, var(--green), #16a34a); color: #fff; }
+    .btn-red    { background: linear-gradient(135deg, var(--red), #cc0011); color: #fff; }
+    .btn-purple { background: linear-gradient(135deg, var(--purple), #6d28d9); color: #fff; }
+    .btn-blue   { background: linear-gradient(135deg, var(--blue), #1d4ed8); color: #fff; }
+    .btn-gray   { background: rgba(255,255,255,0.08); color: var(--text); }
+
+    /* ── Alert Box ── */
+    .alert {
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 13px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    .alert.success { background: rgba(29,185,84,0.12); border: 1px solid rgba(29,185,84,0.25); color: #4ade80; }
+    .alert.error   { background: rgba(255,34,51,0.10); border: 1px solid rgba(255,34,51,0.25); color: #ff6677; }
+    .alert.info    { background: rgba(59,130,246,0.10); border: 1px solid rgba(59,130,246,0.25); color: #60a5fa; }
+
+    /* ── Users Table ── */
+    .users-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+
+    .users-table th {
+      text-align: right;
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.03);
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .users-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      vertical-align: middle;
+    }
+
+    .users-table tr:last-child td { border-bottom: none; }
+    .users-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .uid-cell { font-family: monospace; font-size: 11px; color: var(--muted); }
+
+    .balance-badge {
+      background: rgba(29,185,84,0.12);
+      color: #4ade80;
+      border-radius: 7px;
+      padding: 3px 9px;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .inline-btn {
+      padding: 5px 11px;
+      border: none;
+      border-radius: 7px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: var(--font);
+      margin-right: 4px;
+      transition: opacity 0.2s;
+    }
+
+    .inline-btn:hover { opacity: 0.8; }
+    .ib-charge { background: rgba(29,185,84,0.15); color: #4ade80; }
+    .ib-deduct { background: rgba(255,34,51,0.12); color: #ff6677; }
+
+    /* ── Bot Link Status ── */
+    .bot-link-bar {
+      background: rgba(59,130,246,0.08);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 14px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .bot-link-bar .icon { font-size: 22px; }
+    .bot-link-bar .txt { flex: 1; }
+    .bot-link-bar .txt strong { font-size: 13px; color: var(--text); display: block; }
+    .bot-link-bar .txt small  { font-size: 11px; color: var(--muted); }
+
+    /* Markup Display */
+    .markup-display {
+      background: rgba(218,165,32,0.08);
+      border: 1px solid rgba(218,165,32,0.2);
+      border-radius: 12px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .markup-display .lbl { font-size: 12px; color: var(--muted); }
+    .markup-display .val { font-size: 22px; font-weight: 900; color: var(--accent); }
+
+    /* DF Balance */
+    .df-balance-card {
+      background: linear-gradient(135deg, rgba(255,34,51,0.08), rgba(255,34,51,0.03));
+      border: 1px solid rgba(255,34,51,0.2);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .df-balance-card .df-lbl { font-size: 12px; color: var(--muted); }
+    .df-balance-card .df-val { font-size: 28px; font-weight: 900; color: var(--red); }
+
+    /* Search box */
+    .search-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .dashboard-body { padding: 16px; }
+      .stats-row { grid-template-columns: 1fr 1fr; }
+      .topbar { padding: 12px 16px; }
+      .input-row { flex-direction: column; }
+      .input-row .btn { width: 100%; }
+    }
+
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .tab-btn {
+      padding: 9px 18px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: var(--font);
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: rgba(218,165,32,0.12);
+      border-color: rgba(218,165,32,0.35);
+      color: var(--accent);
+    }
+
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* Spinner */
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.15);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     شاشة تسجيل الدخول
+═══════════════════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <span class="shield">🔐</span>
+      <h1>لوحة التحكم</h1>
+      <p>White Follow — Admin Panel</p>
+    </div>
+
+    <label class="field-label">كلمة سر الأدمن</label>
+    <div class="field-wrap">
+      <input id="lp-key" class="field-input" type="password"
+             placeholder="••••••••••••"
+             maxlength="40"
+             onkeydown="if(event.key==='Enter') doLogin()" />
+    </div>
+
+    <button class="btn-login" onclick="doLogin()">دخول 🚀</button>
+    <div class="login-err" id="login-err">❌ كلمة السر غير صحيحة</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     لوحة التحكم الرئيسية
+═══════════════════════════════════════════════════════════ -->
+<div id="dashboard">
+
+  <!-- شريط علوي -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <span>⚙️</span>
+      <span>لوحة التحكم</span>
+      <div class="badge">ADMIN</div>
+    </div>
+    <div class="topbar-right">
+      <div class="status-dot"></div>
+      <span class="status-txt" id="conn-status">متصل</span>
+      <button class="btn-logout" onclick="doLogout()">تسجيل خروج</button>
+    </div>
+  </div>
+
+  <!-- المحتوى -->
+  <div class="dashboard-body">
+
+    <!-- شريط حالة الاتصال بالبوت -->
+    <div class="bot-link-bar" id="bot-link-bar">
+      <span class="icon">🤖</span>
+      <div class="txt">
+        <strong id="bot-url-display">جاري الاتصال...</strong>
+        <small>رابط السيرفر (Railway)</small>
+      </div>
+      <button class="btn btn-gray" onclick="pingServer()" style="padding:8px 14px;font-size:12px;">فحص الاتصال</button>
+    </div>
+
+    <!-- تبويبات -->
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('overview')">📊 نظرة عامة</button>
+      <button class="tab-btn" onclick="switchTab('balance')">💰 الرصيد والأسعار</button>
+      <button class="tab-btn" onclick="switchTab('users')">👥 المستخدمون</button>
+      <button class="tab-btn" onclick="switchTab('topup')">💳 تعبئة رصيد</button>
+      <button class="tab-btn" onclick="switchTab('settings')">⚙️ الإعدادات</button>
+    </div>
+
+    <!-- ═══ تبويب: نظرة عامة ═══ -->
+    <div class="tab-pane active" id="tab-overview">
+
+      <!-- إحصائيات سريعة -->
+      <p class="section-title">إحصائيات سريعة</p>
+      <div class="stats-row">
+        <div class="stat-card">
+          <span class="stat-icon">💹</span>
+          <span class="stat-val" id="stat-df-balance">—</span>
+          <span class="stat-lbl">رصيد دارك فولو ($)</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-icon">👥</span>
+          <span class="stat-val" id="stat-users">0</span>
+          <span class="stat-lbl">إجمالي المستخدمين</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-icon">📈</span>
+          <span class="stat-val" id="stat-markup">$1.00</span>
+          <span class="stat-lbl">هامش الربح الحالي</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-icon">💵</span>
+          <span class="stat-val" id="stat-total-bal">0</span>
+          <span class="stat-lbl">مجموع أرصدة العملاء</span>
+        </div>
+      </div>
+
+      <!-- أزرار سريعة -->
+      <p class="section-title">إجراءات سريعة</p>
+      <div class="panel-card">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-red" onclick="fetchDFBalance()">🔄 تحديث رصيد دارك فولو</button>
+          <button class="btn btn-gold" onclick="pushToBot('reload')">🔁 إعادة تحميل البوت</button>
+          <button class="btn btn-blue" onclick="loadUsers()">🔃 تحديث بيانات المستخدمين</button>
+          <button class="btn btn-green" onclick="switchTab('topup')">💰 تعبئة رصيد مستخدم</button>
+        </div>
+        <div class="alert" id="quick-alert"></div>
+      </div>
+
+    </div>
+
+    <!-- ═══ تبويب: الرصيد والأسعار ═══ -->
+    <div class="tab-pane" id="tab-balance">
+
+      <!-- رصيد دارك فولو -->
+      <p class="section-title">رصيد حساب دارك فولو</p>
+      <div class="df-balance-card">
+        <div>
+          <div class="df-lbl">رصيدك بالموقع</div>
+          <div class="df-val" id="df-balance-val">جاري التحميل...</div>
+        </div>
+        <button class="btn btn-red" onclick="fetchDFBalance()">🔄 تحديث</button>
+      </div>
+
+      <!-- هامش الربح -->
+      <p class="section-title">هامش الربح</p>
+      <div class="panel-card">
+        <h3>📈 تعديل هامش الربح</h3>
+        <p class="desc">الزيادة تُضاف تلقائياً على سعر المزود لكل الخدمات في البوت</p>
+
+        <div class="markup-display">
+          <span class="lbl">القيمة الحالية</span>
+          <span class="val" id="markup-current-val">$1.00</span>
+        </div>
+
+        <div class="input-row">
+          <input class="p-input" id="markup-input" type="number"
+                 min="0" step="0.1" value="1.00"
+                 placeholder="مثال: 1.50" />
+          <button class="btn btn-gold" onclick="saveMarkup()">💾 حفظ وإرسال للبوت</button>
+        </div>
+        <div class="alert" id="markup-alert"></div>
+      </div>
+
+    </div>
+
+    <!-- ═══ تبويب: المستخدمون ═══ -->
+    <div class="tab-pane" id="tab-users">
+
+      <p class="section-title">إدارة المستخدمين</p>
+
+      <div class="panel-card">
+        <div class="search-row">
+          <input class="p-input arabic" id="users-search"
+                 placeholder="🔍 بحث بـ UID أو الإيميل..."
+                 oninput="filterUsersTable()" />
+          <button class="btn btn-blue" onclick="loadUsers()">تحديث 🔃</button>
+        </div>
+
+        <div id="users-table-wrap" style="overflow-x:auto;">
+          <table class="users-table" id="users-table">
+            <thead>
+              <tr>
+                <th>UID</th>
+                <th>الإيميل</th>
+                <th>الرصيد</th>
+                <th>الشحن الكلي</th>
+                <th>الطلبات</th>
+                <th>إجراء</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody">
+              <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">اضغط "تحديث" لتحميل البيانات</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="alert" id="users-alert"></div>
+      </div>
+
+    </div>
+
+    <!-- ═══ تبويب: تعبئة رصيد ═══ -->
+    <div class="tab-pane" id="tab-topup">
+
+      <p class="section-title">تعبئة رصيد مستخدم</p>
+
+      <div class="panel-card">
+        <h3>💳 شحن رصيد</h3>
+        <p class="desc">ابحث عن المستخدم ثم أدخل المبلغ</p>
+
+        <div class="input-row" style="margin-bottom:12px;">
+          <input class="p-input arabic" id="topup-uid"
+                 placeholder="أدخل UID المستخدم..." />
+          <button class="btn btn-blue" onclick="searchTopupUser()">بحث 🔍</button>
+        </div>
+
+        <div id="topup-user-card" style="display:none;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;">
+          <div style="font-size:13px;color:var(--muted);">المستخدم</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text);margin-top:4px;" id="topup-found-email">—</div>
+          <div style="font-size:13px;color:#4ade80;margin-top:4px;">الرصيد الحالي: <b id="topup-found-balance">—</b></div>
+        </div>
+
+        <div class="input-row">
+          <input class="p-input" id="topup-amount"
+                 type="number" min="0.01" step="0.01"
+                 placeholder="المبلغ (د.ع)" />
+          <button class="btn btn-green" onclick="executeTopup()">✅ تعبئة الرصيد</button>
+        </div>
+
+        <div id="topup-not-found" style="display:none;color:#ff6677;font-size:13px;margin-top:10px;">❌ المستخدم غير موجود</div>
+        <div class="alert" id="topup-alert"></div>
+      </div>
+
+    </div>
+
+    <!-- ═══ تبويب: الإعدادات ═══ -->
+    <div class="tab-pane" id="tab-settings">
+
+      <p class="section-title">إعدادات اللوحة</p>
+
+      <div class="panel-card">
+        <h3>🔗 رابط السيرفر (Railway)</h3>
+        <p class="desc">الرابط المرتبط حالياً ببوتك</p>
+        <div class="input-row">
+          <input class="p-input" id="server-url-input"
+                 type="url" placeholder="https://..." dir="ltr" />
+          <button class="btn btn-gold" onclick="saveServerUrl()">💾 حفظ</button>
+        </div>
+        <div class="alert" id="url-alert"></div>
+      </div>
+
+      <div class="panel-card">
+        <h3>🤖 إرسال أمر للبوت</h3>
+        <p class="desc">إجبار البوت على إعادة التحميل</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-gold" onclick="pushToBot('reload')">🔁 إعادة تحميل البوت</button>
+          <button class="btn btn-green" onclick="connectBotSession()">🔌 ربط جلسة الأدمن بالبوت</button>
+        </div>
+        <div class="alert" id="bot-alert"></div>
+      </div>
+
+      <div class="panel-card" style="border-color:rgba(255,34,51,0.2);">
+        <h3 style="color:var(--red);">⚠️ منطقة الخطر</h3>
+        <p class="desc">إجراءات لا يمكن التراجع عنها</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-red" onclick="clearAllCache()">🗑️ مسح بيانات الكاش المحلي</button>
+        </div>
+      </div>
+
+    </div>
+
+  </div><!-- / dashboard-body -->
+</div><!-- / dashboard -->
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  White Follow — Admin Panel JS
+//  يتصل بـ Railway عبر fetch() + يرسل أوامر للبوت عبر
+//  BroadcastChannel + localStorage events
+// ══════════════════════════════════════════════════════════════
+
+const PANEL_VERSION = '1.0.0';
+// رابط السيرفر الافتراضي — يمكن تعديله من تبويب الإعدادات
+const DEFAULT_SERVER = 'https://telegramaibot-production-4017.up.railway.app';
+
+// ── State ─────────────────────────────────────────────────────
+let _adminKey    = '';
+let _serverUrl   = '';
+let _usersCache  = {};
+let _topupFoundUid = null;
+let _bc          = null; // BroadcastChannel
+
+// ── Startup ───────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function() {
+  // استرجاع الرابط المحفوظ
+  _serverUrl = localStorage.getItem('wf_panel_server') || DEFAULT_SERVER;
+  document.getElementById('server-url-input').value = _serverUrl;
+  document.getElementById('bot-url-display').textContent = _serverUrl;
+
+  // فحص جلسة محفوظة
+  const saved = sessionStorage.getItem('wf_panel_key');
+  if (saved) {
+    _adminKey = saved;
+    showDashboard();
+  }
+
+  // فتح BroadcastChannel
+  if (typeof BroadcastChannel !== 'undefined') {
+    _bc = new BroadcastChannel('wf_admin_panel');
+  }
+});
+
+// ── تسجيل الدخول ──────────────────────────────────────────────
+async function doLogin() {
+  const key = document.getElementById('lp-key').value.trim();
+  if (!key) return;
+
+  const btn = document.querySelector('.btn-login');
+  btn.textContent = '⏳ جاري التحقق...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(_serverUrl + '/admin/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ admin_key: key })
+    });
+    const data = await res.json();
+
+    if (!data.ok) {
+      document.getElementById('login-err').style.display = 'block';
+      btn.textContent = 'دخول 🚀';
+      btn.disabled = false;
+      return;
+    }
+  } catch(e) {
+    // إذا فشل الاتصال، اقبل المفتاح مؤقتاً (offline mode)
+    console.warn('[Panel] لا اتصال بالسيرفر — وضع غير متصل');
+  }
+
+  _adminKey = key;
+  sessionStorage.setItem('wf_panel_key', key);
+  btn.textContent = 'دخول 🚀';
+  btn.disabled = false;
+  showDashboard();
+}
+
+// ── إخفاء login وإظهار Dashboard ──────────────────────────────
+function showDashboard() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+
+  // تحميل البيانات الأولية
+  fetchDFBalance();
+  loadUsersStats();
+  loadCurrentMarkup();
+
+  // تحديث حالة البوت
+  document.getElementById('bot-url-display').textContent = _serverUrl;
+
+  // إرسال جلسة الأدمن للبوت المفتوح
+  _pushCmd({ action: 'admin_login', key: _adminKey });
+  localStorage.setItem('wf_panel_admin_active', '1');
+}
+
+// ── تسجيل الخروج ──────────────────────────────────────────────
+function doLogout() {
+  if (!confirm('تأكيد تسجيل الخروج؟')) return;
+  _adminKey = '';
+  sessionStorage.removeItem('wf_panel_key');
+  localStorage.removeItem('wf_panel_admin_active');
+  _pushCmd({ action: 'admin_logout' });
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('lp-key').value = '';
+}
+
+// ── إرسال أمر للبوت ───────────────────────────────────────────
+function _pushCmd(cmd) {
+  // BroadcastChannel (نفس المتصفح — سريع)
+  if (_bc) { try { _bc.postMessage(cmd); } catch(_) {} }
+  // localStorage event (تابات مختلفة)
+  try {
+    localStorage.setItem('wf_panel_cmd', JSON.stringify(cmd));
+    // مسح فوراً حتى يُطلق event مجدداً في المرة القادمة
+    setTimeout(() => localStorage.removeItem('wf_panel_cmd'), 500);
+  } catch(_) {}
+}
+
+function pushToBot(action) {
+  _pushCmd({ action });
+  showAlert('bot-alert', '✅ تم إرسال الأمر للبوت', 'success');
+  showAlert('quick-alert', '✅ تم إرسال أمر ' + action + ' للبوت', 'success');
+}
+
+// ── تبويبات ───────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    const tabs = ['overview','balance','users','topup','settings'];
+    b.classList.toggle('active', tabs[i] === name);
+  });
+  document.querySelectorAll('.tab-pane').forEach(p => {
+    p.classList.toggle('active', p.id === 'tab-' + name);
+  });
+
+  // تحميل بيانات المستخدمين عند الانتقال لتبويبهم
+  if (name === 'users') loadUsers();
+}
+
+// ── جلب رصيد دارك فولو ────────────────────────────────────────
+async function fetchDFBalance() {
+  const els = [
+    document.getElementById('df-balance-val'),
+    document.getElementById('stat-df-balance')
+  ];
+  els.forEach(e => { if(e) e.textContent = '⏳'; });
+
+  try {
+    const res = await fetch(_serverUrl + '/admin/darkfollow-balance', {
+      headers: { 'X-Admin-Key': _adminKey }
+    });
+    const data = await res.json();
+    const val = typeof data.balance !== 'undefined'
+      ? parseFloat(data.balance).toFixed(2) + ' $'
+      : '⚠️ ' + (data.error || 'تعذر الجلب');
+    els.forEach(e => { if(e) e.textContent = val; });
+  } catch(e) {
+    els.forEach(el => { if(el) el.textContent = '⚠️ تحقق من الاتصال'; });
+  }
+}
+
+// ── جلب هامش الربح الحالي ─────────────────────────────────────
+async function loadCurrentMarkup() {
+  try {
+    const res = await fetch(_serverUrl + '/admin/markup', {
+      headers: { 'X-Admin-Key': _adminKey }
+    });
+    const data = await res.json();
+    const val = parseFloat(data.markup ?? 1);
+    document.getElementById('markup-current-val').textContent = '$' + val.toFixed(2);
+    document.getElementById('markup-input').value = val.toFixed(2);
+    document.getElementById('stat-markup').textContent = '$' + val.toFixed(2);
+  } catch(e) {
+    document.getElementById('markup-current-val').textContent = '⚠️ تعذر الجلب';
+  }
+}
+
+// ── حفظ هامش الربح ────────────────────────────────────────────
+async function saveMarkup() {
+  const val = parseFloat(document.getElementById('markup-input').value);
+  if (isNaN(val) || val < 0) {
+    showAlert('markup-alert', '❌ أدخل قيمة صحيحة (≥ 0)', 'error'); return;
+  }
+
+  showAlert('markup-alert', '⏳ جاري الحفظ...', 'info');
+
+  try {
+    const res = await fetch(_serverUrl + '/admin/markup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': _adminKey },
+      body: JSON.stringify({ markup: val })
+    });
+    if (!res.ok) throw new Error('server error');
+  } catch(e) {
+    showAlert('markup-alert', '⚠️ تعذر الحفظ في السيرفر — تم الإرسال للبوت فقط', 'error');
+  }
+
+  // إرسال للبوت مباشرة
+  _pushCmd({ action: 'set_markup', markup: val });
+
+  document.getElementById('markup-current-val').textContent = '$' + val.toFixed(2);
+  document.getElementById('stat-markup').textContent = '$' + val.toFixed(2);
+  showAlert('markup-alert', '✅ تم حفظ هامش الربح: $' + val.toFixed(2), 'success');
+}
+
+// ── تحميل المستخدمين من السيرفر ───────────────────────────────
+async function loadUsers() {
+  const tbody = document.getElementById('users-tbody');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;"><span class="spinner"></span> جاري التحميل...</td></tr>';
+
+  try {
+    const res = await fetch(_serverUrl + '/admin/users', {
+      headers: { 'X-Admin-Key': _adminKey }
+    });
+    const data = await res.json();
+    const users = data.users || data || [];
+
+    if (!Array.isArray(users) || users.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">لا يوجد مستخدمون بعد</td></tr>';
+      return;
+    }
+
+    _usersCache = {};
+    users.forEach(u => { if (u.uid) _usersCache[u.uid] = u; });
+
+    renderUsersTable(users);
+    loadUsersStats(users);
+
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#ff6677;padding:30px;">⚠️ تعذر تحميل المستخدمين من السيرفر</td></tr>';
+  }
+}
+
+function loadUsersStats(users) {
+  users = users || Object.values(_usersCache);
+  document.getElementById('stat-users').textContent = users.length;
+  const totalBal = users.reduce((s,u) => s + (u.balance||0), 0);
+  document.getElementById('stat-total-bal').textContent = totalBal.toFixed(0);
+}
+
+function renderUsersTable(users) {
+  const tbody = document.getElementById('users-tbody');
+  if (!users || users.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">لا يوجد مستخدمون</td></tr>';
+    return;
+  }
+  tbody.innerHTML = users.map(u => `
+    <tr>
+      <td class="uid-cell">${esc(u.uid)}</td>
+      <td style="font-size:12px;">${esc(u.email||'—')}</td>
+      <td><span class="balance-badge">${(u.balance||0).toFixed(2)}</span></td>
+      <td style="color:var(--muted);font-size:12px;">${(u.totalCharged||0).toFixed(2)}</td>
+      <td style="color:var(--muted);font-size:12px;">${u.orders||0}</td>
+      <td>
+        <button class="inline-btn ib-charge" onclick="quickCharge('${esc(u.uid)}')">+ شحن</button>
+        <button class="inline-btn ib-deduct" onclick="quickDeduct('${esc(u.uid)}')">− خصم</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterUsersTable() {
+  const q = (document.getElementById('users-search').value || '').toLowerCase();
+  const users = Object.values(_usersCache).filter(u =>
+    !q || u.uid.toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q)
+  );
+  renderUsersTable(users);
+}
+
+// ── شحن/خصم سريع من جدول المستخدمين ──────────────────────────
+async function quickCharge(uid) {
+  const amount = parseFloat(prompt('مبلغ الشحن (د.ع):'));
+  if (isNaN(amount) || amount <= 0) return;
+  await _modifyBalance(uid, amount, 'charge');
+}
+
+async function quickDeduct(uid) {
+  const amount = parseFloat(prompt('مبلغ الخصم (د.ع):'));
+  if (isNaN(amount) || amount <= 0) return;
+  await _modifyBalance(uid, -amount, 'deduct');
+}
+
+async function _modifyBalance(uid, amount, type) {
+  try {
+    const res = await fetch(_serverUrl + '/user/balance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': _adminKey },
+      body: JSON.stringify({ uid, amount })
+    });
+    if (!res.ok) throw new Error('server error');
+  } catch(e) {}
+
+  // إرسال أمر مباشر للبوت
+  _pushCmd({ action: 'topup_user', uid, amount });
+
+  if (_usersCache[uid]) {
+    _usersCache[uid].balance = Math.max(0, (_usersCache[uid].balance||0) + amount);
+    if (amount > 0) _usersCache[uid].totalCharged = (_usersCache[uid].totalCharged||0) + amount;
+  }
+
+  renderUsersTable(Object.values(_usersCache));
+  showAlert('users-alert', (type==='charge'?'✅ تم شحن ':'✅ تم خصم ') + Math.abs(amount).toFixed(2) + ' د.ع', 'success');
+}
+
+// ── البحث عن مستخدم في تعبئة الرصيد ──────────────────────────
+async function searchTopupUser() {
+  const uid = (document.getElementById('topup-uid').value || '').trim();
+  if (!uid) return;
+
+  _topupFoundUid = null;
+  document.getElementById('topup-user-card').style.display = 'none';
+  document.getElementById('topup-not-found').style.display = 'none';
+
+  try {
+    const res = await fetch(_serverUrl + '/user/find?uid=' + encodeURIComponent(uid), {
+      headers: { 'X-Admin-Key': _adminKey }
+    });
+    const data = await res.json();
+
+    if (data && data.uid) {
+      _topupFoundUid = data.uid;
+      document.getElementById('topup-found-email').textContent   = data.email || data.uid;
+      document.getElementById('topup-found-balance').textContent = (data.balance||0).toFixed(2) + ' د.ع';
+      document.getElementById('topup-user-card').style.display   = 'block';
+    } else {
+      document.getElementById('topup-not-found').style.display = 'block';
+    }
+  } catch(e) {
+    document.getElementById('topup-not-found').style.display = 'block';
+  }
+}
+
+async function executeTopup() {
+  if (!_topupFoundUid) { showAlert('topup-alert','❌ اختر مستخدماً أولاً','error'); return; }
+  const amount = parseFloat(document.getElementById('topup-amount').value);
+  if (!amount || amount <= 0) { showAlert('topup-alert','❌ أدخل مبلغاً صحيحاً','error'); return; }
+
+  showAlert('topup-alert','⏳ جاري الإرسال...','info');
+
+  try {
+    await fetch(_serverUrl + '/user/balance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': _adminKey },
+      body: JSON.stringify({ uid: _topupFoundUid, amount })
+    });
+  } catch(e) {}
+
+  _pushCmd({ action: 'topup_user', uid: _topupFoundUid, amount });
+
+  const newBal = parseFloat((document.getElementById('topup-found-balance').textContent||'0')) + amount;
+  document.getElementById('topup-found-balance').textContent = newBal.toFixed(2) + ' د.ع';
+  document.getElementById('topup-amount').value = '';
+  showAlert('topup-alert', `✅ تمت تعبئة ${amount.toFixed(2)} د.ع بنجاح`, 'success');
+}
+
+// ── ربط جلسة الأدمن بالبوت ────────────────────────────────────
+function connectBotSession() {
+  _pushCmd({ action: 'admin_login', key: _adminKey });
+  localStorage.setItem('wf_panel_admin_active', '1');
+  showAlert('bot-alert', '✅ تم إرسال جلسة الأدمن للبوت — افتح البوت ليتطبق', 'success');
+}
+
+// ── حفظ رابط السيرفر ──────────────────────────────────────────
+function saveServerUrl() {
+  const url = (document.getElementById('server-url-input').value || '').trim();
+  if (!url.startsWith('http')) {
+    showAlert('url-alert','❌ رابط غير صحيح','error'); return;
+  }
+  _serverUrl = url;
+  localStorage.setItem('wf_panel_server', url);
+  document.getElementById('bot-url-display').textContent = url;
+  showAlert('url-alert','✅ تم حفظ الرابط','success');
+  pingServer();
+}
+
+// ── فحص الاتصال ───────────────────────────────────────────────
+async function pingServer() {
+  document.getElementById('conn-status').textContent = 'جاري الفحص...';
+  try {
+    const res = await fetch(_serverUrl + '/health', { signal: AbortSignal.timeout(5000) });
+    document.getElementById('conn-status').textContent = res.ok ? 'متصل ✅' : 'خطأ في السيرفر';
+  } catch(e) {
+    document.getElementById('conn-status').textContent = 'غير متصل ⚠️';
+  }
+}
+
+// ── مسح الكاش ─────────────────────────────────────────────────
+function clearAllCache() {
+  if (!confirm('هل أنت متأكد؟ سيتم مسح بيانات الكاش المحلي للوحة فقط.')) return;
+  const key = sessionStorage.getItem('wf_panel_key');
+  localStorage.removeItem('wf_panel_server');
+  localStorage.removeItem('wf_panel_cmd');
+  sessionStorage.clear();
+  if (key) sessionStorage.setItem('wf_panel_key', key);
+  alert('✅ تم مسح الكاش');
+}
+
+// ── إحصائيات عند التشغيل ──────────────────────────────────────
+function loadUsersStats(users) {
+  if (!users) users = Object.values(_usersCache);
+  document.getElementById('stat-users').textContent = users.length;
+  const tb = users.reduce((s,u) => s+(u.balance||0),0);
+  document.getElementById('stat-total-bal').textContent = tb.toFixed(0);
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function esc(str) {
+  return String(str||'')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function showAlert(id, msg, type) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'alert ' + type;
+  el.style.display = 'block';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.display='none'; }, 4000);
+}
+</script>
+</body>
+</html>
