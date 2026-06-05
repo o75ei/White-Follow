@@ -9,10 +9,8 @@ from firebase_admin import credentials, firestore
 
 app = Flask(__name__)
 ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "")
-if ALLOWED_ORIGIN:
-    CORS(app, origins=[ALLOWED_ORIGIN])
-else:
-    CORS(app)  # dev fallback — حدّد ALLOWED_ORIGIN في Railway
+# السماح لجميع المصادر — الموقع يُفتح من المتصفح العادي وتلغرام WebApp
+CORS(app, origins="*", supports_credentials=False)
 
 # ── Firebase Admin SDK ─────────────────────────────────────
 _fb_creds_json = os.environ.get("FIREBASE_CREDENTIALS", "")
@@ -131,9 +129,10 @@ def webhook():
 # ────────────────────────────────────────────────────────────
 # يخدم ملف الموقع داخل تلغرام WebApp
 # ────────────────────────────────────────────────────────────
+@app.route("/app")
 @app.route("/app2")
 def serve_app():
-    """يفتح الموقع كـ WebApp داخل تلغرام"""
+    """يفتح الموقع — يعمل على /app و /app2"""
     from flask import make_response
     response = make_response(send_file("index.html"))
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
@@ -291,14 +290,16 @@ def user_check():
     return jsonify({"exists": len(docs) > 0})
 
 @app.route("/user/list", methods=["GET"])
+@app.route("/admin/users", methods=["GET"])
 def user_list():
-    """قائمة كل المستخدمين — للأدمن"""
+    """قائمة كل المستخدمين — للأدمن (يعمل على /user/list و /admin/users)"""
     if not _check_admin(request):
         return jsonify({"error": "غير مصرح"}), 403
     if not db:
-        return jsonify([])
+        return jsonify({"users": [], "total": 0})
     docs = db.collection("users").order_by("joinedAt", direction=firestore.Query.DESCENDING).limit(200).get()
-    return jsonify([d.to_dict() for d in docs])
+    users = [d.to_dict() for d in docs]
+    return jsonify({"users": users, "total": len(users)})
 
 
 
@@ -474,10 +475,14 @@ def _start_cron():
         _cron_sync_orders()
 
 # ────────────────────────────────────────────────────────────
-if __name__ == "__main__":
-    # تفعيل أوامر البوت عند بدء التشغيل
+# تشغيل الكرون وأوامر البوت — يعمل مع Flask المباشر وGunicorn
+# ────────────────────────────────────────────────────────────
+def _startup():
     threading.Thread(target=set_bot_commands, daemon=True).start()
-    # تشغيل Cron Job لتحديث حالة الطلبات كل 60 ثانية
     threading.Thread(target=_start_cron, daemon=True).start()
+
+_startup()
+
+if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
