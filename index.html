@@ -7,12 +7,12 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <meta name="build-version" content="20260605-3" />
-  <meta name="deploy-timestamp" content="1749168000" />
+  <meta name="build-version" content="20260605-4" />
+  <meta name="deploy-timestamp" content="1749254400" />
   <script>
     // [FIX-3] Cache Busting: force reload if cached version differs
     (function(){
-      var BUILD = '20260605-3';
+      var BUILD = '20260605-4';
       var stored = sessionStorage.getItem('wf_build');
       if (stored && stored !== BUILD) {
         sessionStorage.setItem('wf_build', BUILD);
@@ -2694,7 +2694,7 @@ const SERVER_URL = 'https://telegramaibot-production-4017.up.railway.app';
 
 // ══ نظام Cache Busting + Version Check ══════════════════════════
 // غيّر هذا الرقم مع كل تحديث — يُجبر المتصفح على إعادة التحميل
-const BUILD_VERSION = '20260605-3'; // [FIX-BV] مزامنة مع meta tag في <head>
+const BUILD_VERSION = '20260605-4'; // [FIX-BV] مزامنة مع meta tag في <head>
 
 (function _versionGuard() {
   'use strict';
@@ -3848,15 +3848,13 @@ async function checkAdminKey() {
   history_stack = ['main'];
   document.getElementById('bottom-nav').classList.remove('hidden');
   document.getElementById('nav-main').classList.add('active');
-  balance = 0; // [FIX-2b] لا رصيد وهمي للأدمن — سيُجلب من السيرفر
+  // [FIX-ADMIN-BALANCE] الأدمن لا يحتاج رصيد — نعرض صفر فقط
+  balance = 0;
   updateBalanceUI();
-  // جلب الرصيد الحقيقي من السيرفر للأدمن أيضاً
-  fetch(`${SERVER_URL}/user/find?uid=${encodeURIComponent(localStorage.getItem('wf_user_id')||'')}&_=${Date.now()}`)
-    .then(r => r.ok ? r.json() : null)
-    .then(data => { if (data && typeof data.balance === 'number') { balance = data.balance; updateBalanceUI(); } })
-    .catch(() => {});
+  // [FIX] لا نجلب من /user/find بـ WF-ADMIN000001 لأنه مو موجود في DB
+  // رصيد الأدمن الحقيقي يظهر في زر "رصيدك بالموقع" عبر fetchDarkfollowBalance
   showToast('✅ مرحباً أدمن! 👑', 'success');
-  // ✅ أظهر جميع أزرار الأدمن فوراً بدون setTimeout
+  // ✅ أظهر جميع أزرار الأدمن فوراً
   showAdminMenuBtn();
   showPaymentIconsBtn();
   showAdminIconsBtn();
@@ -4125,6 +4123,13 @@ function handleIconUpload(event) {
 document.addEventListener('DOMContentLoaded', async function _freshDataInit() {
   const uid = localStorage.getItem('wf_user_id');
   if (!uid || !localStorage.getItem('wf_logged_in')) return;
+  // [FIX-ADMIN] الأدمن لا يحتاج جلب بيانات من السيرفر — حسابه محلي فقط
+  if (uid === 'WF-ADMIN000001' && localStorage.getItem('wf_is_admin')) {
+    showAdminMenuBtn();
+    showPaymentIconsBtn();
+    showAdminIconsBtn();
+    return;
+  }
 
   // [FIX] تنظيف رصيد وهمي قديم من localStorage (مثل 79999 أو 9999)
   // الرصيد الحقيقي يأتي دائماً من السيرفر
