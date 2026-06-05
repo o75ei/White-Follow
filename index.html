@@ -7,12 +7,12 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <meta name="build-version" content="20260605-4" />
+  <meta name="build-version" content="20260605-5" />
   <meta name="deploy-timestamp" content="1749254400" />
   <script>
     // [FIX-3] Cache Busting: force reload if cached version differs
     (function(){
-      var BUILD = '20260605-4';
+      var BUILD = '20260605-5';
       var stored = sessionStorage.getItem('wf_build');
       if (stored && stored !== BUILD) {
         sessionStorage.setItem('wf_build', BUILD);
@@ -2680,7 +2680,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script>
 // ── الرصيد ──────────────────────────────────────────────
-let balance = 5.00;
+let balance = 0;
 function updateBalanceUI() {
   const val = balance.toFixed(2);
   ['balance-display','balance-display-orders','balance-display-menu'].forEach(id => {
@@ -2694,20 +2694,18 @@ const SERVER_URL = 'https://telegramaibot-production-4017.up.railway.app';
 
 // ══ نظام Cache Busting + Version Check ══════════════════════════
 // غيّر هذا الرقم مع كل تحديث — يُجبر المتصفح على إعادة التحميل
-const BUILD_VERSION = '20260605-4'; // [FIX-BV] مزامنة مع meta tag في <head>
+const BUILD_VERSION = '20260605-5'; // [FIX-BV] مزامنة مع meta tag في <head>
 
 (function _versionGuard() {
   'use strict';
   const VK = 'wf_build_version';
   const stored = localStorage.getItem(VK);
   if (stored && stored !== BUILD_VERSION) {
-    // نسخة مختلفة → امسح الـ cache وأعد التحميل
-    // [FIX] console.info غير متاح في Telegram WebView
     (console.log || function(){})('[WF] نسخة جديدة (' + BUILD_VERSION + ')، إعادة تحميل قسري...');
+    // [FIX-CACHE] مسح كل البيانات المؤقتة عند تحديث النسخة
+    ['wf_admin_markup', 'wf_users_registry'].forEach(k => localStorage.removeItem(k));
+    sessionStorage.clear();
     localStorage.setItem(VK, BUILD_VERSION);
-    // مسح كل session data المؤقت (مو بيانات المستخدم)
-    ['wf_admin_markup'].forEach(k => sessionStorage.removeItem(k));
-    // إعادة تحميل بدون cache
     window.location.reload(true);
     return;
   }
@@ -3848,7 +3846,9 @@ async function checkAdminKey() {
   history_stack = ['main'];
   document.getElementById('bottom-nav').classList.remove('hidden');
   document.getElementById('nav-main').classList.add('active');
-  // [FIX-ADMIN-BALANCE] الأدمن لا يحتاج رصيد — نعرض صفر فقط
+  // [FIX-ADMIN-BALANCE] مسح أي رصيد وهمي قديم من localStorage
+  localStorage.removeItem('wf_users_registry');
+  localStorage.removeItem('wf_admin_markup');
   balance = 0;
   updateBalanceUI();
   // [FIX] لا نجلب من /user/find بـ WF-ADMIN000001 لأنه مو موجود في DB
@@ -4336,7 +4336,6 @@ window.addEventListener('load', () => {
 // ══════════════════════════════════════════════
 
 function showAdminMenuBtn() {
-  // ✅ نستخدم removeAttribute بدل style.display = '' لتفادي تضارب CSS
   const ids = [
     'admin-users-btn',
     'admin-topup-btn',
@@ -4347,13 +4346,11 @@ function showAdminMenuBtn() {
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
-      el.style.removeProperty('display');
+      // [FIX] إجبار إظهار العنصر بشكل صريح مع !important
+      el.setAttribute('style', 'display:flex !important');
       el.hidden = false;
-      // تأمين إضافي: إزالة أي inline display:none قديم
-      if (el.style.display === 'none') el.style.display = '';
     }
   });
-  // جلب الرصيد تلقائياً عند ظهور الزر
   fetchDarkfollowBalance();
 }
 
