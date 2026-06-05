@@ -191,6 +191,19 @@ def get_balance():
 def home():
     return jsonify({"status": "✅ السيرفر شغال"})
 
+@app.route("/health")
+def health():
+    return jsonify({"ok": True, "status": "running"})
+
+@app.route("/admin-panel")
+def serve_admin_panel():
+    from flask import make_response
+    response = make_response(send_file("admin-panel.html"))
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
 # ────────────────────────────────────────────────────────────
 # User Endpoints — إدارة المستخدمين عبر Firestore
 # ────────────────────────────────────────────────────────────
