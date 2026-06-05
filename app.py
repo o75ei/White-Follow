@@ -31,7 +31,7 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID   = os.environ.get("TELEGRAM_CHAT_ID", "")
 ADMIN_SECRET_KEY   = os.environ.get("ADMIN_SECRET_KEY", "")   # ⚠️ يجب تعيينه في Railway
 # رابط موقعك على Railway (يُحدَّث بعد النشر)
-WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://YOUR-APP.up.railway.app/app")
+WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://YOUR-APP.up.railway.app/app2")
 SUPPORT_USERNAME = "o75ei"
 
 def _check_admin(req):
@@ -131,7 +131,7 @@ def webhook():
 # ────────────────────────────────────────────────────────────
 # يخدم ملف الموقع داخل تلغرام WebApp
 # ────────────────────────────────────────────────────────────
-@app.route("/app")
+@app.route("/app2")
 def serve_app():
     """يفتح الموقع كـ WebApp داخل تلغرام"""
     from flask import make_response
