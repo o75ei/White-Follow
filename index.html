@@ -1091,10 +1091,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <button class="login-link-btn" onclick="showPage('page-forgot')">نسيت كلمة المرور</button>
       </div>
 
-      <button class="admin-login-btn" onclick="openAdminKeyModal()">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-        دخول الأدمن
-      </button>
+      <!-- [ADMIN-PANEL] زر دخول الأدمن نُقل للوحة التحكم الخارجية admin-panel.html -->
 
       <p class="login-footer">White Follow © 2025 — جميع الحقوق محفوظة</p>
     </div>
@@ -4990,13 +4987,93 @@ function _runInitMarkupLabel() {
     _loadMarkupFromServer();
   }
 }
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', _runInitMarkupLabel);
-} else {
-  _runInitMarkupLabel();
-}
+// ══ جسر لوحة التحكم الخارجية (Admin Panel Bridge) ══════════
+// يستقبل أوامر الأدمن من admin-panel.html عبر localStorage events
+(function _adminPanelBridge() {
+  'use strict';
 
-</script>
+  function _applyAdminSession(data) {
+    localStorage.setItem('wf_logged_in',        '1');
+    localStorage.setItem('wf_user_id',          'WF-ADMIN000001');
+    localStorage.setItem('wf_api_token',        'ADMIN-TOKEN-' + Date.now());
+    localStorage.setItem('wf_identifier',       'admin@whitefollow.com');
+    localStorage.setItem('wf_is_admin',         '1');
+    localStorage.setItem('wf_admin_session_key', data.key || '');
+    balance = 0; updateBalanceUI();
+    showAdminMenuBtn();
+    showPaymentIconsBtn();
+    showAdminIconsBtn();
+    showToast('✅ الأدمن متصل من لوحة التحكم 👑', 'success');
+  }
+
+  function _handlePanelCommand(cmd) {
+    switch (cmd.action) {
+      case 'admin_login':
+        _applyAdminSession(cmd);
+        break;
+      case 'admin_logout':
+        localStorage.removeItem('wf_is_admin');
+        localStorage.removeItem('wf_admin_session_key');
+        hideAdminMenuBtn();
+        showToast('تم قطع جلسة الأدمن', 'error');
+        break;
+      case 'set_markup':
+        if (typeof cmd.markup === 'number') {
+          localStorage.setItem('wf_admin_markup', cmd.markup.toFixed(2));
+          const lbl = document.getElementById('markup-val-label');
+          if (lbl) lbl.textContent = '$' + cmd.markup.toFixed(2);
+          showToast('📈 هامش الربح حُدِّث: $' + cmd.markup.toFixed(2), 'success');
+        }
+        break;
+      case 'topup_user':
+        if (cmd.uid && typeof cmd.amount === 'number') {
+          const reg = getUsersRegistry();
+          if (reg[cmd.uid]) {
+            reg[cmd.uid].balance = (reg[cmd.uid].balance || 0) + cmd.amount;
+            reg[cmd.uid].totalCharged = (reg[cmd.uid].totalCharged || 0) + cmd.amount;
+            saveUsersRegistry(reg);
+            if (localStorage.getItem('wf_user_id') === cmd.uid) {
+              balance = reg[cmd.uid].balance;
+              updateBalanceUI();
+            }
+          }
+          showToast('💰 تم شحن ' + cmd.amount + ' د.ع للمستخدم', 'success');
+        }
+        break;
+      case 'reload':
+        window.location.reload(true);
+        break;
+    }
+  }
+
+  // ── استقبال عبر localStorage (يعمل عبر تابات مختلفة في نفس المتصفح)
+  window.addEventListener('storage', function(e) {
+    if (e.key !== 'wf_panel_cmd') return;
+    try {
+      const cmd = JSON.parse(e.newValue || '{}');
+      if (cmd && cmd.action) _handlePanelCommand(cmd);
+    } catch(_) {}
+  });
+
+  // ── استقبال عبر BroadcastChannel (أسرع، لنفس المتصفح)
+  if (typeof BroadcastChannel !== 'undefined') {
+    const bc = new BroadcastChannel('wf_admin_panel');
+    bc.onmessage = function(e) {
+      if (e.data && e.data.action) _handlePanelCommand(e.data);
+    };
+  }
+
+  // ── تحقق من جلسة أدمن نشطة عند تحميل الصفحة (من لوحة التحكم)
+  document.addEventListener('DOMContentLoaded', function() {
+    const panelSession = localStorage.getItem('wf_panel_admin_active');
+    if (panelSession === '1' && localStorage.getItem('wf_is_admin')) {
+      showAdminMenuBtn();
+      showPaymentIconsBtn();
+      showAdminIconsBtn();
+    }
+  });
+})();
+// ════════════════════════════════════════════════════════════
 <!-- ══ Admin Markup Modal ══ -->
 <div id="markup-modal" role="dialog" aria-modal="true" onclick="if(event.target===this)closeMarkupModal()" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:flex-end;justify-content:center;display:none;" class="markup-modal-wrap">
   <div style="background:var(--card);border-radius:24px 24px 0 0;padding:28px 20px 36px;width:100%;max-width:500px;box-shadow:0 -4px 32px rgba(0,0,0,0.3);">
