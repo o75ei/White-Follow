@@ -278,6 +278,19 @@ def user_balance():
     })
     return jsonify({"ok": True, "newBalance": new_bal})
 
+@app.route("/user/find", methods=["GET"])
+def user_find():
+    """جلب بيانات مستخدم واحد بالـ uid — للأدمن وللمستخدم نفسه"""
+    if not db:
+        return jsonify({"error": "Firebase غير مفعّل"}), 503
+    uid = request.args.get("uid", "").strip()
+    if not uid:
+        return jsonify({"error": "uid مطلوب"}), 400
+    doc = db.collection("users").document(uid).get()
+    if not doc.exists:
+        return jsonify({"error": "المستخدم غير موجود"}), 404
+    return jsonify(doc.to_dict())
+
 @app.route("/user/check", methods=["GET"])
 def user_check():
     """تحقق إذا البريد مسجل مسبقاً"""
