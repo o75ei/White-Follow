@@ -241,19 +241,6 @@ def user_sync():
         })
     return jsonify({"ok": True})
 
-@app.route("/user/find", methods=["GET"])
-def user_find():
-    """بحث عن مستخدم بالـ uid"""
-    if not db:
-        return jsonify({"error": "Firebase غير مفعّل"}), 503
-    uid = request.args.get("uid", "").strip()
-    if not uid:
-        return jsonify({"error": "uid مطلوب"}), 400
-    doc = db.collection("users").document(uid).get()
-    if not doc.exists:
-        return jsonify({"error": "المستخدم غير موجود"}), 404
-    return jsonify(doc.to_dict())
-
 @app.route("/user/balance", methods=["POST"])
 def user_balance():
     """شحن رصيد مستخدم — للأدمن فقط"""
