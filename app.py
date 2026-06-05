@@ -100,7 +100,7 @@ def webhook():
                     [
                         {
                             "text": "🚀 فتح التطبيق",
-                            "web_app": {"url": WEBAPP_URL}
+                            "url": WEBAPP_URL
                         }
                     ],
                     [
