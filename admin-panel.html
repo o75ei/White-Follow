@@ -519,6 +519,11 @@ textarea.form-control{resize:vertical;min-height:80px;}
       </button>
       <div class="login-err" id="login-err"></div>
       <p class="login-attempts" id="login-attempts-txt"></p>
+      <div id="rate-limit-hint" style="display:none;margin-top:10px;text-align:center;">
+        <button onclick="clearRateLimit()" style="background:none;border:1px solid var(--cyan);color:var(--cyan);padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">
+          🔓 مسح قيد المحاولات
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -1165,11 +1170,32 @@ async function doLogin() {
     localStorage.setItem('adm_token', adminToken);
     showDashboard();
   } else {
-    err.textContent = d.error === 'too_many_attempts'
-      ? '🚫 تم حظر المحاولات مؤقتاً، انتظر 15 دقيقة'
-      : '❌ بيانات خاطئة';
+    if (d.error === 'too_many_attempts') {
+      err.textContent = '🚫 تم حظر المحاولات مؤقتاً، انقر زر مسح قيد المحاولات أدناه';
+      document.getElementById('rate-limit-hint').style.display = 'block';
+    } else {
+      err.textContent = '❌ بيانات خاطئة — تأكد من اليوزرنيم وكلمة السر';
+      document.getElementById('rate-limit-hint').style.display = 'none';
+    }
     err.classList.add('show');
     document.getElementById('inp-pass').value = '';
+  }
+}
+
+async function clearRateLimit() {
+  const key = prompt('أدخل ADMIN_SECRET_KEY لمسح الحظر:');
+  if (!key) return;
+  const d = await fetch(API + '/admin/clear-attempts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key })
+  }).then(r => r.json()).catch(() => ({ ok: false }));
+  if (d.ok) {
+    document.getElementById('rate-limit-hint').style.display = 'none';
+    document.getElementById('login-err').classList.remove('show');
+    toast('✅ تم مسح قيد المحاولات، حاول تسجيل الدخول الآن', 'success');
+  } else {
+    toast('❌ المفتاح خاطئ', 'error');
   }
 }
 
