@@ -412,9 +412,40 @@ select.form-ctrl{cursor:pointer;}
         <label class="field-lbl" data-t="auth.email">البريد الإلكتروني</label>
         <input type="email" id="rst-email" class="field-inp" placeholder="you@example.com" dir="ltr"/>
       </div>
-      <button class="btn-auth" onclick="doReset()" data-t="auth.reset_btn">إرسال رابط الاستعادة</button>
+      <button class="btn-auth" onclick="doReset()" data-t="auth.reset_btn">إرسال رمز الاستعادة</button>
       <div class="auth-err" id="rst-msg"></div>
       <div class="auth-link" onclick="switchAuthTab('login')">← <span data-t="auth.back_login">العودة للدخول</span></div>
+    </div>
+
+    <!-- OTP Verify (email verification after register) -->
+    <div id="form-otp" style="display:none;">
+      <div style="text-align:center;margin-bottom:20px;">
+        <div style="font-size:36px;">📧</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:8px;">تم إرسال رمز التحقق إلى</div>
+        <div id="otp-email-display" style="color:var(--cyan);font-size:13px;font-family:var(--mono);margin-top:4px;"></div>
+      </div>
+      <div class="field-grp">
+        <label class="field-lbl">رمز التحقق (6 أرقام)</label>
+        <input type="text" id="otp-code" class="field-inp" placeholder="000000" maxlength="6" dir="ltr" style="text-align:center;font-size:24px;letter-spacing:8px;"/>
+      </div>
+      <button class="btn-auth" onclick="doVerifyOTP()">✅ تأكيد الحساب</button>
+      <div class="auth-err" id="otp-err"></div>
+      <div class="auth-link" onclick="doResendOTP()">لم يصلك الرمز؟ <span>إعادة إرسال</span></div>
+      <div class="auth-link" onclick="switchAuthTab('register')">← <span>العودة للتسجيل</span></div>
+    </div>
+
+    <!-- Reset Confirm (enter OTP + new password) -->
+    <div id="form-reset-confirm" style="display:none;">
+      <div class="field-grp">
+        <label class="field-lbl">رمز التحقق</label>
+        <input type="text" id="rconf-code" class="field-inp" placeholder="000000" maxlength="6" dir="ltr" style="text-align:center;letter-spacing:6px;"/>
+      </div>
+      <div class="field-grp">
+        <label class="field-lbl">كلمة المرور الجديدة</label>
+        <input type="password" id="rconf-pass" class="field-inp" placeholder="6+ أحرف" dir="ltr"/>
+      </div>
+      <button class="btn-auth" onclick="doResetConfirm()">🔐 تأكيد تغيير كلمة المرور</button>
+      <div class="auth-err" id="rconf-err"></div>
     </div>
   </div>
 </div>
@@ -747,11 +778,14 @@ function statusBadge(s) {
 // ═══════════════════════════════════════════
 // AUTH
 // ═══════════════════════════════════════════
+let _pendingEmail = ''; // email waiting for OTP
+
 function switchAuthTab(tab) {
-  ['login','register','reset'].forEach(t => {
-    document.getElementById(`form-${t}`).style.display = t===tab ? 'block' : 'none';
-    const tabEl = document.getElementById(`tab-${t}`);
-    if (tabEl) tabEl.classList.toggle('active', t===tab);
+  ['login','register','reset','otp','reset-confirm'].forEach(name => {
+    const el = document.getElementById(`form-${name}`);
+    if (el) el.style.display = name===tab ? 'block' : 'none';
+    const tabEl = document.getElementById(`tab-${name}`);
+    if (tabEl) tabEl.classList.toggle('active', name===tab);
   });
 }
 
@@ -768,64 +802,134 @@ async function checkAuth() {
 }
 
 async function doLogin() {
-  const email = document.getElementById('l-email').value.trim();
+  const email    = document.getElementById('l-email').value.trim();
   const password = document.getElementById('l-pass').value;
-  const errEl = document.getElementById('l-err');
+  const errEl    = document.getElementById('l-err');
   errEl.classList.remove('show');
-  if (!email || !password) { errEl.textContent = t('auth.fill_all') || 'أكمل جميع الحقول'; errEl.classList.add('show'); return; }
-
+  if (!email || !password) {
+    errEl.textContent = 'أكمل جميع الحقول'; errEl.classList.add('show'); return;
+  }
+  const btn = document.getElementById('btn-login');
+  btn.textContent = '⌛ جارٍ الدخول...'; btn.disabled = true;
   const d = await fetch(`${API}/auth/login`, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ email, password })
   }).then(r=>r.json()).catch(()=>({error:'network'}));
-
+  btn.textContent = 'دخول'; btn.disabled = false;
   if (d.ok) {
     _token = d.token; _user = d.user;
     localStorage.setItem('u_token', _token);
     showApp();
   } else {
-    errEl.textContent = t('auth.wrong_creds') || 'بريد أو كلمة مرور خاطئة';
+    errEl.textContent = 'بريد أو كلمة مرور خاطئة';
     errEl.classList.add('show');
   }
 }
 
 async function doRegister() {
   const username = document.getElementById('r-user').value.trim();
-  const email = document.getElementById('r-email').value.trim();
+  const email    = document.getElementById('r-email').value.trim();
   const password = document.getElementById('r-pass').value;
-  const errEl = document.getElementById('r-err');
+  const errEl    = document.getElementById('r-err');
   errEl.classList.remove('show');
-
+  if (!username || !email || password.length < 6) {
+    errEl.textContent = 'أكمل جميع الحقول (كلمة المرور 6 أحرف على الأقل)';
+    errEl.classList.add('show'); return;
+  }
   const d = await fetch(`${API}/auth/register`, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ username, email, password })
   }).then(r=>r.json()).catch(()=>({error:'network'}));
 
+  if (!d.ok) {
+    errEl.textContent = d.error || 'حدث خطأ';
+    errEl.classList.add('show'); return;
+  }
+  // If already verified (SMTP disabled) → go straight to app
+  if (d.verified) {
+    _token = d.token; _user = d.user;
+    localStorage.setItem('u_token', _token);
+    showApp(); return;
+  }
+  // Show OTP form
+  _pendingEmail = email;
+  document.getElementById('otp-email-display').textContent = email;
+  document.getElementById('otp-code').value = '';
+  document.getElementById('otp-err').classList.remove('show');
+  switchAuthTab('otp');
+  toast('📧 تم إرسال رمز التحقق إلى بريدك', 'success');
+}
+
+async function doVerifyOTP() {
+  const code  = document.getElementById('otp-code').value.trim();
+  const errEl = document.getElementById('otp-err');
+  errEl.classList.remove('show');
+  if (code.length !== 6) {
+    errEl.textContent = 'أدخل الرمز المكون من 6 أرقام'; errEl.classList.add('show'); return;
+  }
+  const d = await fetch(`${API}/auth/verify-email`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ email: _pendingEmail, code })
+  }).then(r=>r.json()).catch(()=>({error:'network'}));
   if (d.ok) {
     _token = d.token; _user = d.user;
     localStorage.setItem('u_token', _token);
+    toast('✅ تم تأكيد حسابك', 'success');
     showApp();
   } else {
-    errEl.textContent = d.error === 'البريد مسجل مسبقاً'
-      ? (t('auth.email_exists') || 'البريد مسجل مسبقاً')
-      : (d.error || t('auth.error') || 'حدث خطأ');
-    errEl.classList.add('show');
+    errEl.textContent = d.error || 'رمز خاطئ'; errEl.classList.add('show');
   }
+}
+
+async function doResendOTP() {
+  if (!_pendingEmail) return;
+  const d = await fetch(`${API}/auth/resend-code`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ email: _pendingEmail })
+  }).then(r=>r.json()).catch(()=>({error:'network'}));
+  toast(d.ok ? '📧 تم إعادة إرسال الرمز' : (d.error||'خطأ'), d.ok ? 'success' : 'error');
 }
 
 async function doReset() {
   const email = document.getElementById('rst-email').value.trim();
   const msgEl = document.getElementById('rst-msg');
-  await fetch(`${API}/auth/reset-request`, {
+  if (!email) { msgEl.textContent='أدخل البريد الإلكتروني'; msgEl.style.color='var(--red)'; msgEl.classList.add('show'); return; }
+  const d = await fetch(`${API}/auth/reset-request`, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ email })
-  });
-  msgEl.textContent = t('auth.reset_sent') || 'إذا كان البريد مسجلاً ستصلك رسالة';
-  msgEl.style.color = 'var(--green)';
-  msgEl.classList.add('show');
+  }).then(r=>r.json()).catch(()=>({}));
+  _pendingEmail = email;
+  msgEl.textContent = 'تم إرسال رمز الاستعادة إلى بريدك إذا كان مسجلاً';
+  msgEl.style.color = 'var(--green)'; msgEl.classList.add('show');
+  setTimeout(() => switchAuthTab('reset-confirm'), 1500);
 }
 
-function doLogout() {
+async function doResetConfirm() {
+  const code     = document.getElementById('rconf-code').value.trim();
+  const password = document.getElementById('rconf-pass').value;
+  const errEl    = document.getElementById('rconf-err');
+  errEl.classList.remove('show');
+  if (!code || password.length < 6) {
+    errEl.textContent='أدخل الرمز وكلمة المرور الجديدة'; errEl.classList.add('show'); return;
+  }
+  const d = await fetch(`${API}/auth/reset-confirm`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ email: _pendingEmail, code, password })
+  }).then(r=>r.json()).catch(()=>({error:'network'}));
+  if (d.ok) {
+    toast('✅ تم تغيير كلمة المرور', 'success');
+    switchAuthTab('login');
+  } else {
+    errEl.textContent = d.error || 'خطأ'; errEl.classList.add('show');
+  }
+}
+
+async function doLogout() {
+  if (_token) {
+    await fetch(`${API}/auth/logout`, {
+      method:'POST', headers: authH()
+    }).catch(()=>{});
+  }
   _token = ''; _user = null;
   localStorage.removeItem('u_token');
   document.getElementById('app').classList.remove('show');
