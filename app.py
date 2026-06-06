@@ -6,7 +6,9 @@ Railway-compatible | Flask + SQLite | Telegram WebApp
 from flask import Flask, request, jsonify, send_file, redirect, session, make_response
 from flask_cors import CORS
 import requests, os, threading, json, time, hashlib, hmac, secrets
-import sqlite3, datetime, logging
+import sqlite3, datetime, logging, smtplib, random, string
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from functools import wraps
 
 # ─────────────────────────────────────────────
@@ -24,10 +26,18 @@ log = logging.getLogger("smm")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID   = os.environ.get("TELEGRAM_CHAT_ID", "")
 ADMIN_USERNAME     = os.environ.get("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD     = os.environ.get("ADMIN_PASSWORD", "")
+ADMIN_PASSWORD     = os.environ.get("ADMIN_PASSWORD", "admin2026%")
 ADMIN_SECRET_KEY   = os.environ.get("ADMIN_SECRET_KEY", "")
 WEBAPP_URL         = os.environ.get("WEBAPP_URL", "https://YOUR-APP.up.railway.app")
 SUPPORT_USERNAME   = os.environ.get("SUPPORT_USERNAME", "support")
+
+# SMTP — Email Verification
+SMTP_HOST     = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT     = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USER     = os.environ.get("SMTP_USER", "")
+SMTP_PASS     = os.environ.get("SMTP_PASS", "")
+SMTP_FROM     = os.environ.get("SMTP_FROM", SMTP_USER)
+EMAIL_VERIFY  = os.environ.get("EMAIL_VERIFY", "1")
 
 # ─────────────────────────────────────────────
 # Database — SQLite (Railway persistent volume or ephemeral)
@@ -199,6 +209,24 @@ def init_db():
             ran_at      TEXT    DEFAULT (datetime('now'))
         );
 
+        CREATE TABLE IF NOT EXISTS email_verifications (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            email         TEXT    NOT NULL,
+            username      TEXT,
+            password_hash TEXT    NOT NULL,
+            code          TEXT    NOT NULL,
+            expires_at    TEXT    NOT NULL,
+            created_at    TEXT    DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS user_sessions (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            token       TEXT    UNIQUE NOT NULL,
+            user_id     INTEGER NOT NULL,
+            created_at  TEXT    DEFAULT (datetime('now')),
+            expires_at  TEXT    NOT NULL
+        );
+
         -- Default settings
         INSERT OR IGNORE INTO settings VALUES ('site_name', 'SMM Panel');
         INSERT OR IGNORE INTO settings VALUES ('global_markup_type', 'percent');
@@ -299,7 +327,7 @@ def admin_login():
         log_security("brute_force_blocked", ip)
         return jsonify({"error": "too_many_attempts", "wait": 900}), 429
 
-    if username != ADMIN_USERNAME or (ADMIN_PASSWORD and password != ADMIN_PASSWORD):
+    if username != ADMIN_USERNAME or password != ADMIN_PASSWORD:
         attempts.append(now)
         _login_attempts[ip] = attempts
         log_security("login_failed", ip, f"user={username}")
@@ -417,10 +445,41 @@ def webhook():
 # ─────────────────────────────────────────────
 # User Auth (Web)
 # ─────────────────────────────────────────────
+def _send_verification_email(to_email, code, username):
+    """Send OTP email via SMTP. Returns True on success."""
+    if not SMTP_USER or not SMTP_PASS:
+        log.warning("[EMAIL] SMTP not configured — code: %s", code)
+        return False
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "رمز التحقق — SMM Panel"
+        msg["From"]    = SMTP_FROM or SMTP_USER
+        msg["To"]      = to_email
+        html = f"""
+        <div dir="rtl" style="font-family:Arial;max-width:480px;margin:0 auto;background:#020408;color:#c8e8ff;padding:32px;border-radius:8px;">
+          <h2 style="color:#00b4ff;letter-spacing:2px;">⚡ SMM PANEL</h2>
+          <p>مرحباً <strong>{username}</strong>،</p>
+          <p>رمز التحقق الخاص بتسجيل حسابك:</p>
+          <div style="background:#0a1520;border:1px solid rgba(0,180,255,0.3);border-radius:6px;padding:20px;text-align:center;margin:20px 0;">
+            <span style="font-size:36px;font-weight:700;letter-spacing:8px;color:#00ff88;font-family:monospace;">{code}</span>
+          </div>
+          <p style="color:#4a6a8a;font-size:12px;">صالح لمدة 10 دقائق. لا تشاركه مع أحد.</p>
+        </div>"""
+        msg.attach(MIMEText(html, "html"))
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as srv:
+            srv.ehlo()
+            srv.starttls()
+            srv.login(SMTP_USER, SMTP_PASS)
+            srv.sendmail(SMTP_USER, to_email, msg.as_string())
+        return True
+    except Exception as e:
+        log.error("[EMAIL] send failed: %s", e)
+        return False
+
 @app.route("/auth/register", methods=["POST"])
 def auth_register():
     data = request.get_json(silent=True) or {}
-    email = (data.get("email") or "").strip().lower()
+    email    = (data.get("email") or "").strip().lower()
     password = data.get("password", "")
     username = (data.get("username") or email.split("@")[0]).strip()
 
@@ -431,15 +490,112 @@ def auth_register():
         existing = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
         if existing:
             return jsonify({"error": "البريد مسجل مسبقاً"}), 409
+
+    # Generate 6-digit OTP
+    code    = "".join(random.choices(string.digits, k=6))
+    expires = (datetime.datetime.utcnow() + datetime.timedelta(minutes=10)).isoformat()
+    ph      = hash_password(password)
+
+    with get_db() as db:
+        # Remove old pending verifications for same email
+        db.execute("DELETE FROM email_verifications WHERE email=?", (email,))
+        db.execute(
+            "INSERT INTO email_verifications (email,username,password_hash,code,expires_at) VALUES (?,?,?,?,?)",
+            (email, username, ph, code, expires)
+        )
+        db.commit()
+
+    # If SMTP not configured or EMAIL_VERIFY disabled → auto-confirm
+    if EMAIL_VERIFY == "0" or not SMTP_USER:
+        with get_db() as db:
+            cur = db.execute(
+                "INSERT INTO users (email,username,password_hash) VALUES (?,?,?)",
+                (email, username, ph)
+            )
+            user_id = cur.lastrowid
+            db.execute("DELETE FROM email_verifications WHERE email=?", (email,))
+            db.commit()
+        token = _create_user_token(user_id)
+        notify_admin(f"👤 مستخدم جديد: {email} (#{user_id})")
+        return jsonify({"ok": True, "verified": True, "token": token,
+                        "user": {"id": user_id, "email": email, "username": username, "balance": 0}})
+
+    sent = _send_verification_email(email, code, username)
+    if not sent:
+        # SMTP configured but failed → still create account (degrade gracefully)
+        with get_db() as db:
+            cur = db.execute(
+                "INSERT INTO users (email,username,password_hash) VALUES (?,?,?)",
+                (email, username, ph)
+            )
+            user_id = cur.lastrowid
+            db.execute("DELETE FROM email_verifications WHERE email=?", (email,))
+            db.commit()
+        token = _create_user_token(user_id)
+        notify_admin(f"👤 مستخدم جديد (SMTP fail): {email} (#{user_id})")
+        return jsonify({"ok": True, "verified": True, "token": token,
+                        "user": {"id": user_id, "email": email, "username": username, "balance": 0}})
+
+    return jsonify({"ok": True, "verified": False, "email": email,
+                    "message": "تم إرسال رمز التحقق إلى بريدك الإلكتروني"})
+
+@app.route("/auth/verify-email", methods=["POST"])
+def auth_verify_email():
+    data  = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    code  = (data.get("code") or "").strip()
+
+    if not email or not code:
+        return jsonify({"error": "البريد والرمز مطلوبان"}), 400
+
+    with get_db() as db:
+        row = db.execute(
+            "SELECT * FROM email_verifications WHERE email=? AND expires_at > datetime('now')",
+            (email,)
+        ).fetchone()
+
+    if not row:
+        return jsonify({"error": "الرمز منتهي الصلاحية. أعد التسجيل مرة أخرى"}), 400
+
+    if row["code"] != code:
+        return jsonify({"error": "رمز التحقق خاطئ"}), 400
+
+    with get_db() as db:
+        existing = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
+        if existing:
+            db.execute("DELETE FROM email_verifications WHERE email=?", (email,))
+            db.commit()
+            return jsonify({"error": "البريد مسجل مسبقاً"}), 409
         cur = db.execute(
             "INSERT INTO users (email,username,password_hash) VALUES (?,?,?)",
-            (email, username, hash_password(password))
+            (email, row["username"], row["password_hash"])
         )
         user_id = cur.lastrowid
+        db.execute("DELETE FROM email_verifications WHERE email=?", (email,))
         db.commit()
 
     token = _create_user_token(user_id)
-    return jsonify({"ok": True, "token": token, "user": {"id": user_id, "email": email, "username": username, "balance": 0}})
+    notify_admin(f"👤 مستخدم جديد (تحقق بريد): {email} (#{user_id})")
+    return jsonify({"ok": True, "token": token,
+                    "user": {"id": user_id, "email": email,
+                             "username": row["username"], "balance": 0}})
+
+@app.route("/auth/resend-code", methods=["POST"])
+def auth_resend_code():
+    data  = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    with get_db() as db:
+        row = db.execute("SELECT * FROM email_verifications WHERE email=?", (email,)).fetchone()
+    if not row:
+        return jsonify({"error": "لا يوجد طلب تسجيل لهذا البريد"}), 404
+    code    = "".join(random.choices(string.digits, k=6))
+    expires = (datetime.datetime.utcnow() + datetime.timedelta(minutes=10)).isoformat()
+    with get_db() as db:
+        db.execute("UPDATE email_verifications SET code=?,expires_at=? WHERE email=?",
+                   (code, expires, email))
+        db.commit()
+    _send_verification_email(email, code, row["username"])
+    return jsonify({"ok": True, "message": "تم إعادة إرسال الرمز"})
 
 @app.route("/auth/login", methods=["POST"])
 def auth_login():
@@ -465,33 +621,81 @@ def auth_login():
         "username": user["username"], "balance": user["balance"]
     }})
 
+@app.route("/auth/logout", methods=["POST"])
+def auth_user_logout():
+    token = request.headers.get("X-User-Token", "") or request.cookies.get("user_token", "")
+    if token:
+        with get_db() as db:
+            db.execute("DELETE FROM user_sessions WHERE token=?", (token,))
+            db.commit()
+    return jsonify({"ok": True})
+
 @app.route("/auth/reset-request", methods=["POST"])
 def auth_reset_request():
-    data = request.get_json(silent=True) or {}
+    data  = request.get_json(silent=True) or {}
     email = (data.get("email") or "").strip().lower()
-    # In production: send email with reset link. Here we return generic response.
+    if not email:
+        return jsonify({"error": "البريد مطلوب"}), 400
+    with get_db() as db:
+        user = db.execute("SELECT id,username FROM users WHERE email=?", (email,)).fetchone()
+    if user:
+        code    = "".join(random.choices(string.digits, k=6))
+        expires = (datetime.datetime.utcnow() + datetime.timedelta(minutes=15)).isoformat()
+        with get_db() as db:
+            db.execute("DELETE FROM email_verifications WHERE email=?", (email,))
+            db.execute(
+                "INSERT INTO email_verifications (email,username,password_hash,code,expires_at) VALUES (?,?,?,?,?)",
+                (email, user["username"], "", code, expires)
+            )
+            db.commit()
+        _send_verification_email(email, code, user["username"])
     return jsonify({"ok": True, "message": "إذا كان البريد مسجلاً ستصلك رسالة"})
 
-_user_sessions = {}
+@app.route("/auth/reset-confirm", methods=["POST"])
+def auth_reset_confirm():
+    data     = request.get_json(silent=True) or {}
+    email    = (data.get("email") or "").strip().lower()
+    code     = (data.get("code") or "").strip()
+    new_pass = data.get("password", "")
+    if not email or not code or len(new_pass) < 6:
+        return jsonify({"error": "بيانات غير مكتملة"}), 400
+    with get_db() as db:
+        row = db.execute(
+            "SELECT * FROM email_verifications WHERE email=? AND expires_at > datetime('now')",
+            (email,)
+        ).fetchone()
+    if not row or row["code"] != code:
+        return jsonify({"error": "رمز خاطئ أو منتهي"}), 400
+    with get_db() as db:
+        db.execute("UPDATE users SET password_hash=? WHERE email=?",
+                   (hash_password(new_pass), email))
+        db.execute("DELETE FROM email_verifications WHERE email=?", (email,))
+        db.execute("DELETE FROM user_sessions WHERE user_id=(SELECT id FROM users WHERE email=?)", (email,))
+        db.commit()
+    return jsonify({"ok": True, "message": "تم تغيير كلمة المرور. يرجى تسجيل الدخول"})
 
 def _create_user_token(user_id):
     token = secrets.token_hex(24)
-    _user_sessions[token] = {"user_id": user_id, "created": time.time()}
+    expires = (datetime.datetime.utcnow() + datetime.timedelta(days=30)).isoformat()
+    with get_db() as db:
+        db.execute("INSERT OR REPLACE INTO user_sessions (token,user_id,expires_at) VALUES (?,?,?)",
+                   (token, user_id, expires))
+        db.commit()
     return token
 
 def get_current_user():
     token = request.headers.get("X-User-Token", "") or request.cookies.get("user_token", "")
     if not token:
         return None
-    session_data = _user_sessions.get(token)
-    if not session_data:
-        return None
-    if time.time() - session_data["created"] > 86400 * 30:
-        _user_sessions.pop(token, None)
-        return None
     with get_db() as db:
+        sess = db.execute(
+            "SELECT user_id FROM user_sessions WHERE token=? AND expires_at > datetime('now')",
+            (token,)
+        ).fetchone()
+        if not sess:
+            return None
         user = db.execute("SELECT * FROM users WHERE id=? AND is_banned=0",
-                          (session_data["user_id"],)).fetchone()
+                          (sess["user_id"],)).fetchone()
     return dict(user) if user else None
 
 def require_user(f):
@@ -799,19 +1003,26 @@ def admin_stats():
 @app.route("/admin/users", methods=["GET"])
 @require_admin
 def admin_users():
-    page = int(request.args.get("page", 1))
-    limit = 50
+    page   = int(request.args.get("page", 1))
+    limit  = 50
     offset = (page - 1) * limit
-    search = request.args.get("q", "")
+    search = request.args.get("q", "").strip()
     with get_db() as db:
         if search:
+            # Search by email, username, telegram_id, or numeric ID
+            pat = f"%{search}%"
             users = db.execute(
-                "SELECT * FROM users WHERE email LIKE ? OR username LIKE ? ORDER BY joined_at DESC LIMIT ? OFFSET ?",
-                (f"%{search}%", f"%{search}%", limit, offset)
+                """SELECT * FROM users
+                   WHERE email LIKE ? OR username LIKE ?
+                      OR telegram_id LIKE ? OR CAST(id AS TEXT) = ?
+                   ORDER BY joined_at DESC LIMIT ? OFFSET ?""",
+                (pat, pat, pat, search, limit, offset)
             ).fetchall()
             total = db.execute(
-                "SELECT COUNT(*) as c FROM users WHERE email LIKE ? OR username LIKE ?",
-                (f"%{search}%", f"%{search}%")
+                """SELECT COUNT(*) as c FROM users
+                   WHERE email LIKE ? OR username LIKE ?
+                      OR telegram_id LIKE ? OR CAST(id AS TEXT) = ?""",
+                (pat, pat, pat, search)
             ).fetchone()["c"]
         else:
             users = db.execute(
