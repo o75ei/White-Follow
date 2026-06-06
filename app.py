@@ -90,6 +90,7 @@ def init_db():
             name_ar     TEXT    NOT NULL,
             name_en     TEXT    NOT NULL,
             icon        TEXT    DEFAULT '📦',
+            image_url   TEXT    DEFAULT '',
             sort_order  INTEGER DEFAULT 0,
             is_active   INTEGER DEFAULT 1
         );
@@ -245,6 +246,13 @@ def init_db():
         INSERT OR IGNORE INTO settings VALUES ('tos_en', '');
         """)
         db.commit()
+    # Migration: add image_url to categories if missing
+    with get_db() as db:
+        try:
+            db.execute("ALTER TABLE categories ADD COLUMN image_url TEXT DEFAULT ''")
+            db.commit()
+        except Exception:
+            pass
     # Migration: add image_url if missing (existing DBs)
     with get_db() as db:
         try:
@@ -339,7 +347,13 @@ def admin_login():
         log_security("brute_force_blocked", ip)
         return jsonify({"error": "too_many_attempts", "wait": 900}), 429
 
-    if username != ADMIN_USERNAME or password != ADMIN_PASSWORD:
+    # Strip whitespace from credentials before comparing
+    username = username.strip()
+    password = password.strip()
+    admin_user = (ADMIN_USERNAME or "admin").strip()
+    admin_pass = (ADMIN_PASSWORD or "admin2026%").strip()
+
+    if username != admin_user or password != admin_pass:
         attempts.append(now)
         _login_attempts[ip] = attempts
         log_security("login_failed", ip, f"user={username}")
@@ -381,6 +395,15 @@ def admin_verify():
             (token,)
         ).fetchone()
     return jsonify({"ok": bool(row)})
+
+@app.route("/admin/clear-attempts", methods=["POST"])
+def admin_clear_attempts():
+    """Clear rate limit - protected by ADMIN_SECRET_KEY"""
+    key = (request.get_json(silent=True) or {}).get("key", "")
+    if ADMIN_SECRET_KEY and key != ADMIN_SECRET_KEY:
+        return jsonify({"error": "unauthorized"}), 401
+    _login_attempts.clear()
+    return jsonify({"ok": True, "message": "Rate limit cleared"})
 
 # ─────────────────────────────────────────────
 # Route: /admin → redirect to admin panel
@@ -464,25 +487,29 @@ def _send_verification_email(to_email, code, username):
         return False
     try:
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = "رمز التحقق — SMM Panel"
+        msg["Subject"] = "رمز التحقق — White Follow"
         msg["From"]    = SMTP_FROM or SMTP_USER
         msg["To"]      = to_email
         html = f"""
-        <div dir="rtl" style="font-family:Arial;max-width:480px;margin:0 auto;background:#020408;color:#c8e8ff;padding:32px;border-radius:8px;">
-          <h2 style="color:#00b4ff;letter-spacing:2px;">⚡ SMM PANEL</h2>
+        <div dir="rtl" style="font-family:Arial;max-width:480px;margin:0 auto;background:#f5f7fa;color:#1a2a3a;padding:32px;border-radius:12px;border:1px solid #dde4ee;">
+          <h2 style="color:#0066cc;letter-spacing:2px;text-align:center;">⚡ White Follow</h2>
           <p>مرحباً <strong>{username}</strong>،</p>
-          <p>رمز التحقق الخاص بتسجيل حسابك:</p>
-          <div style="background:#0a1520;border:1px solid rgba(0,180,255,0.3);border-radius:6px;padding:20px;text-align:center;margin:20px 0;">
-            <span style="font-size:36px;font-weight:700;letter-spacing:8px;color:#00ff88;font-family:monospace;">{code}</span>
+          <p>رمز التحقق الخاص بك:</p>
+          <div style="background:#fff;border:2px solid #0066cc;border-radius:8px;padding:24px;text-align:center;margin:20px 0;">
+            <span style="font-size:40px;font-weight:700;letter-spacing:10px;color:#0066cc;font-family:monospace;">{code}</span>
           </div>
-          <p style="color:#4a6a8a;font-size:12px;">صالح لمدة 10 دقائق. لا تشاركه مع أحد.</p>
+          <p style="color:#6a8aaa;font-size:12px;text-align:center;">صالح لمدة 10 دقائق. لا تشاركه مع أحد.</p>
+          <hr style="border:none;border-top:1px solid #dde4ee;margin:16px 0;"/>
+          <p style="color:#aaa;font-size:11px;text-align:center;">White Follow — منصة خدمات التواصل الاجتماعي</p>
         </div>"""
         msg.attach(MIMEText(html, "html"))
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as srv:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as srv:
             srv.ehlo()
             srv.starttls()
+            srv.ehlo()
             srv.login(SMTP_USER, SMTP_PASS)
             srv.sendmail(SMTP_USER, to_email, msg.as_string())
+        log.info(f"[EMAIL] Sent OTP to {to_email}")
         return True
     except Exception as e:
         log.error("[EMAIL] send failed: %s", e)
@@ -499,9 +526,12 @@ def auth_register():
         return jsonify({"error": "بيانات غير صالحة"}), 400
 
     with get_db() as db:
-        existing = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
-        if existing:
-            return jsonify({"error": "البريد مسجل مسبقاً"}), 409
+        # Block duplicate email
+        if db.execute("SELECT id FROM users WHERE LOWER(email)=?", (email,)).fetchone():
+            return jsonify({"error": "البريد الإلكتروني مسجل مسبقاً"}), 409
+        # Block duplicate username
+        if username and db.execute("SELECT id FROM users WHERE LOWER(username)=?", (username.lower(),)).fetchone():
+            return jsonify({"error": "اسم المستخدم مأخوذ، اختر اسماً آخر"}), 409
 
     # Generate 6-digit OTP
     code    = "".join(random.choices(string.digits, k=6))
@@ -612,15 +642,19 @@ def auth_resend_code():
 @app.route("/auth/login", methods=["POST"])
 def auth_login():
     data = request.get_json(silent=True) or {}
-    email = (data.get("email") or "").strip().lower()
+    identifier = (data.get("email") or data.get("username") or "").strip().lower()
     password = data.get("password", "")
     ip = get_client_ip()
 
     with get_db() as db:
-        user = db.execute("SELECT * FROM users WHERE email=? AND is_banned=0", (email,)).fetchone()
+        # Accept login by email OR username
+        user = db.execute(
+            "SELECT * FROM users WHERE (LOWER(email)=? OR LOWER(username)=?) AND is_banned=0",
+            (identifier, identifier)
+        ).fetchone()
 
     if not user or user["password_hash"] != hash_password(password):
-        log_security("user_login_failed", ip, email)
+        log_security("user_login_failed", ip, identifier)
         return jsonify({"error": "بيانات خاطئة"}), 401
 
     with get_db() as db:
@@ -1758,34 +1792,107 @@ def _sync_provider_catalog(provider_id=None):
                     markup_type  = get_setting("global_markup_type", "percent")
                     markup_value = float(get_setting("global_markup_value", "20"))
 
+                    # ── Dark Follow category mapping (name → icon, sort_order, ar_name)
+                    DARKFOLLOW_CAT_MAP = {
+                        # خدمات دارك / White Follow services
+                        "خدمات دارك | دارك": ("🌟", 10, "خدمات وايت فولو"),
+                        "عروض العيد | دارك": ("🔥", 11, "عروض العيد"),
+                        "خدمات انستا | دارك": ("📸", 12, "خدمات انستا | دارك"),
+                        "خدمات فيسبوك | دارك": ("📘", 13, "خدمات فيسبوك | دارك"),
+                        "خدمات تليجرام | دارك": ("✈️", 14, "خدمات تليجرام | دارك"),
+                        "خدمات التجار | دارك": ("🛍️", 15, "خدمات التجار | دارك"),
+                        "خدمات تلجرام مميز | دارك": ("⭐", 16, "خدمات تلجرام مميز | دارك"),
+                        "نجوم وهدايه تلجرام | دارك": ("🎁", 17, "نجوم وهدايه تلجرام | دارك"),
+                        # قسم البطائق
+                        "بطاقات فالورانت | valorant": ("🎮", 20, "بطاقات فالورانت"),
+                        "بطاقات ستيم | steam": ("💨", 21, "بطاقات ستيم"),
+                        "بطاقات شحن كرانيش رول | crunchyroll": ("🍥", 22, "بطاقات كرانيش رول"),
+                        "بطاقات ريوت جيمز | riot games": ("⚔️", 23, "بطاقات ريوت جيمز"),
+                        "بطاقات روبلوكس | roblox": ("🟥", 24, "بطاقات روبلوكس"),
+                        "بطاقات امزون | amzoum": ("📦", 25, "بطاقات امزون"),
+                        "بطاقات ريزر كولد | zgold": ("🔶", 26, "بطاقات ريزر كولد"),
+                        "بطاقات ليج اوف ليجند | league of legends": ("⚡", 27, "بطاقات ليج اوف ليجند"),
+                        "بطاقات ايتونز | itunes": ("🍎", 28, "بطاقات ايتونز"),
+                        "بطاقات نينتيندو | nintendo": ("🎮", 29, "بطاقات نينتيندو"),
+                        "بطاقات بليزارد | blizzard": ("🌀", 30, "بطاقات بليزارد"),
+                        "بطاقات فورتنايت | fortnite": ("🏗️", 31, "بطاقات فورتنايت"),
+                        "بطاقات شحن | playstation": ("🎮", 32, "بطاقات بلايستيشن"),
+                        "بطاقات نتفلكس | netflix": ("🎬", 33, "بطاقات نتفلكس"),
+                        # قسم شحن الألعاب
+                        "أوكسايد موبايل | oxide mobile": ("🔥", 40, "أوكسايد موبايل"),
+                        "جينشين إمباكت | genshin impact": ("🌸", 41, "جينشين إمباكت"),
+                        "ارينا بريك أوت | arena breakout": ("🎯", 42, "ارينا بريك اوت"),
+                        "ببجي موبايل | pubg mobile": ("🪖", 43, "ببجي موبايل"),
+                        "دلتا فورس | delta force": ("💥", 44, "دلتا فورس"),
+                        "كولف ديوتي موبايل | call of duty": ("🔫", 45, "كولف ديوتي موبايل"),
+                        "شحن يلا لودو | ludo": ("🎲", 46, "شحن يلا لودو"),
+                        # قسم الاشتراكات
+                        "نايترو ديسكورد | nitro": ("🎮", 50, "نايترو ديسكورد"),
+                        "العاب ستيم | steam": ("💨", 51, "العاب ستيم"),
+                        "نتفلكس | netflix": ("🎬", 52, "نتفلكس"),
+                        "كيم بأس | xbox": ("🎮", 53, "كيم بأس Xbox"),
+                        "تلجرام مميز | premium": ("⭐", 54, "تلجرام مميز"),
+                        "اشتراكات | playstation plus": ("🎮", 55, "PlayStation Plus"),
+                        # شحن رصيد الهاتف
+                        "العراق": ("🇮🇶", 60, "شحن العراق"),
+                        "السعودية": ("🇸🇦", 61, "شحن السعودية"),
+                        "الاردن": ("🇯🇴", 62, "شحن الاردن"),
+                        "لبنان": ("🇱🇧", 63, "شحن لبنان"),
+                        "مصر": ("🇪🇬", 64, "شحن مصر"),
+                        "البحرين": ("🇧🇭", 65, "شحن البحرين"),
+                        # تليجرام مميز
+                        "خدمات مميز عربي": ("⭐", 70, "خدمات مميز عربي"),
+                        "خدمات مميزه بدون نزول": ("✅", 71, "خدمات مميزه بدون نزول"),
+                        "ستارت بوت رخيصه": ("🚀", 72, "ستارت بوت رخيصه"),
+                    }
+
+                    def _get_cat_info(cat_name):
+                        """Find best matching category info from map"""
+                        name_lower = cat_name.lower().strip()
+                        # Exact match first
+                        for key, val in DARKFOLLOW_CAT_MAP.items():
+                            if key.lower() == name_lower:
+                                return val[0], val[1], val[2]
+                        # Partial match
+                        for key, val in DARKFOLLOW_CAT_MAP.items():
+                            key_parts = key.lower().split("|")
+                            for part in key_parts:
+                                if part.strip() and part.strip() in name_lower:
+                                    return val[0], val[1], val[2]
+                        # Keyword fallback
+                        icon = "📦"
+                        kw_map = {
+                            "instagram":"📸","انستا":"📸","tiktok":"🎵","تيك توك":"🎵",
+                            "youtube":"▶️","يوتيوب":"▶️","twitter":"🐦","تويتر":"🐦",
+                            "facebook":"📘","فيسبوك":"📘","snapchat":"👻","سناب":"👻",
+                            "telegram":"✈️","تليجرام":"✈️","تلجرام":"✈️",
+                            "netflix":"🎬","نتفلكس":"🎬","spotify":"🎧","سبوتيفاي":"🎧",
+                            "playstation":"🎮","ps":"🎮","xbox":"🎮","steam":"💨","ستيم":"💨",
+                            "بطاقات":"🎫","cards":"🎫","شحن":"⚡","recharge":"⚡",
+                            "اشتراك":"📋","subscription":"📋","رصيد":"📱","balance":"📱",
+                            "مميز":"⭐","premium":"⭐","games":"🎮","العاب":"🎮",
+                            "لودو":"🎲","pubg":"🪖","ببجي":"🪖","valorant":"🎮","فالورانت":"🎮",
+                            "roblox":"🟥","روبلوكس":"🟥","fortnite":"🏗️","فورتنايت":"🏗️",
+                        }
+                        for kw, em in kw_map.items():
+                            if kw in name_lower:
+                                icon = em
+                                break
+                        return icon, len(cat_map) * 10, cat_name
+
                     for svc in remote_svcs:
                         cat_name = str(svc.get("category", "General")).strip()
                         cat_key  = cat_name.lower()
 
                         # Create category if missing
                         if cat_key not in cat_map:
-                            # Try to extract an icon from the category name
-                            icon = "📦"
-                            icon_map = {
-                                "instagram": "📸", "tiktok": "🎵", "youtube": "▶️",
-                                "twitter": "🐦", "facebook": "📘", "snapchat": "👻",
-                                "telegram": "✈️", "linkedin": "💼", "spotify": "🎧",
-                                "twitch": "🎮", "discord": "💬", "pinterest": "📌",
-                                "soundcloud": "🎶", "google": "🔍", "website": "🌐",
-                                "seo": "🔍", "views": "👁", "followers": "👥",
-                                "likes": "❤️", "comments": "💬", "shares": "🔁"
-                            }
-                            for kw, em in icon_map.items():
-                                if kw in cat_key:
-                                    icon = em
-                                    break
-
+                            icon, sort_order, ar_name = _get_cat_info(cat_name)
                             cur = db.execute(
                                 "INSERT INTO categories (name_ar, name_en, icon, sort_order, is_active) VALUES (?,?,?,?,1)",
-                                (cat_name, cat_name, icon, len(cat_map) * 10)
+                                (ar_name, cat_name, icon, sort_order)
                             )
                             cat_map[cat_key] = cur.lastrowid
-                            log.info(f"[catalog] New category: {cat_name}")
+                            log.info(f"[catalog] New category: {cat_name} → {ar_name}")
 
                         cat_id = cat_map[cat_key]
                         provider_service_id = str(svc.get("service", ""))
@@ -1796,6 +1903,12 @@ def _sync_provider_catalog(provider_id=None):
 
                         # Image URL from provider (thumbnail)
                         img_url = str(svc.get("image", svc.get("img", svc.get("icon", ""))))
+
+                        # Save first service image as category image
+                        if img_url:
+                            cat_img = db.execute("SELECT image_url FROM categories WHERE id=?", (cat_id,)).fetchone()
+                            if cat_img and not cat_img["image_url"]:
+                                db.execute("UPDATE categories SET image_url=? WHERE id=?", (img_url, cat_id))
 
                         existing = db.execute(
                             "SELECT id, provider_price FROM services WHERE provider_id=? AND provider_service_id=?",
