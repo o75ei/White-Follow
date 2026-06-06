@@ -631,10 +631,10 @@ textarea.form-control{resize:vertical;min-height:80px;}
           <div style="overflow-x:auto;">
             <table id="users-table">
               <thead><tr>
-                <th>#</th><th>البريد / المستخدم</th><th>الرصيد</th>
+                <th>ID</th><th>البريد / المستخدم</th><th>معرف تيليجرام</th><th>الرصيد</th>
                 <th>الطلبات</th><th>الحالة</th><th>تاريخ التسجيل</th><th>إجراء</th>
               </tr></thead>
-              <tbody id="users-tbody"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;">جارٍ التحميل...</td></tr></tbody>
+              <tbody id="users-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px;">جارٍ التحميل...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -1267,22 +1267,25 @@ async function loadUsers(q='') {
 
 function renderUsers(users) {
   const tb = document.getElementById('users-tbody');
-  if (!users.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;">لا يوجد مستخدمون</td></tr>'; return; }
+  if (!users.length) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px;">لا يوجد مستخدمون</td></tr>'; return; }
   tb.innerHTML = users.map(u => `
     <tr>
-      <td style="font-family:var(--mono);font-size:11px;">#${u.id}</td>
+      <td style="font-family:var(--mono);font-size:12px;color:var(--cyan);">#${u.id}</td>
       <td>
-        <div style="font-size:13px;">${u.email||'—'}</div>
-        <div style="font-size:10px;color:var(--muted);">${u.username||''}</div>
+        <div style="font-size:13px;font-weight:600;">${u.email||'—'}</div>
+        <div style="font-size:10px;color:var(--muted);font-family:var(--mono);">@${u.username||'—'}</div>
       </td>
-      <td style="color:var(--green);font-family:var(--mono);">$${(u.balance||0).toFixed(2)}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--muted);">
+        ${u.telegram_id ? `<span style="color:var(--cyan);">${u.telegram_id}</span>` : '<span style="color:var(--muted);">—</span>'}
+      </td>
+      <td style="color:var(--green);font-family:var(--mono);font-weight:700;">$${(u.balance||0).toFixed(2)}</td>
       <td style="font-family:var(--mono);">${u.orders_count||0}</td>
       <td>${u.is_banned ? '<span class="badge badge-cancelled">محظور</span>' : '<span class="badge badge-active">نشط</span>'}</td>
       <td style="font-size:11px;color:var(--muted);">${formatDate(u.joined_at)}</td>
       <td>
         <div style="display:flex;gap:4px;flex-wrap:wrap;">
-          <button class="btn btn-success btn-xs" onclick="openBalanceModal(${u.id},'${u.email||''}')">💰</button>
-          <button class="btn btn-danger btn-xs" onclick="banUser(${u.id},${u.is_banned?0:1})">${u.is_banned?'🔓':'🚫'}</button>
+          <button class="btn btn-success btn-xs" onclick="openBalanceModal(${u.id},'${u.email||''}',${(u.balance||0).toFixed(2)})">💰 شحن</button>
+          <button class="btn btn-danger btn-xs" onclick="banUser(${u.id},${u.is_banned?0:1})">${u.is_banned?'🔓 رفع':'🚫 حظر'}</button>
         </div>
       </td>
     </tr>
@@ -1291,9 +1294,9 @@ function renderUsers(users) {
 
 function searchUsers(q) { if (q.length > 2 || q.length === 0) loadUsers(q); }
 
-function openBalanceModal(uid, email) {
+function openBalanceModal(uid, email, currentBalance) {
   document.getElementById('bal-uid').value = uid;
-  document.getElementById('bal-email').textContent = email;
+  document.getElementById('bal-email').innerHTML = `${email}<br><span style="font-family:var(--mono);font-size:11px;color:var(--green);">الرصيد الحالي: $${currentBalance||0}</span>`;
   document.getElementById('bal-amount').value = '';
   openModal('modal-balance');
 }
