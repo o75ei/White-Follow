@@ -1,488 +1,1458 @@
-from flask import Flask, request, jsonify, send_file
+"""
+SMM Panel Reseller Bot — Full Backend
+Railway-compatible | Flask + SQLite | Telegram WebApp
+"""
+
+from flask import Flask, request, jsonify, send_file, redirect, session, make_response
 from flask_cors import CORS
-import requests
-import os
-import threading
-import json
-import firebase_admin
-from firebase_admin import credentials, firestore
+import requests, os, threading, json, time, hashlib, hmac, secrets
+import sqlite3, datetime, logging
+from functools import wraps
 
+# ─────────────────────────────────────────────
+# App Init
+# ─────────────────────────────────────────────
 app = Flask(__name__)
-ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "")
-# السماح لجميع المصادر — الموقع يُفتح من المتصفح العادي وتلغرام WebApp
-CORS(app, origins="*", supports_credentials=False)
+app.secret_key = os.environ.get("SECRET_KEY", secrets.token_hex(32))
+CORS(app, origins="*", supports_credentials=True)
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger("smm")
 
-# ── Firebase Admin SDK ─────────────────────────────────────
-_fb_creds_json = os.environ.get("FIREBASE_CREDENTIALS", "")
-if _fb_creds_json:
-    _fb_creds_dict = json.loads(_fb_creds_json)
-    cred = credentials.Certificate(_fb_creds_dict)
-    firebase_admin.initialize_app(cred)
-    db = firestore.client()
-else:
-    db = None
-
-# ── إعدادات من Railway Environment Variables ──────────────
-DARKFOLLOW_API_URL = "https://darkfollow.shop/api/v2"
-DARKFOLLOW_API_KEY = os.environ.get("DARKFOLLOW_API_KEY", "")
+# ─────────────────────────────────────────────
+# Environment Variables
+# ─────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID   = os.environ.get("TELEGRAM_CHAT_ID", "")
-ADMIN_SECRET_KEY   = os.environ.get("ADMIN_SECRET_KEY", "")   # ⚠️ يجب تعيينه في Railway
-# رابط موقعك على Railway (يُحدَّث بعد النشر)
-WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://YOUR-APP.up.railway.app/app2")
-SUPPORT_USERNAME = "o75ei"
+ADMIN_USERNAME     = os.environ.get("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD     = os.environ.get("ADMIN_PASSWORD", "")
+ADMIN_SECRET_KEY   = os.environ.get("ADMIN_SECRET_KEY", "")
+WEBAPP_URL         = os.environ.get("WEBAPP_URL", "https://YOUR-APP.up.railway.app")
+SUPPORT_USERNAME   = os.environ.get("SUPPORT_USERNAME", "support")
 
-def _check_admin(req):
-    """يتحقق من مفتاح الأدمن في Header أو JSON"""
-    key = req.headers.get("X-Admin-Key", "") or (req.get_json(silent=True) or {}).get("admin_key", "")
-    return ADMIN_SECRET_KEY and key == ADMIN_SECRET_KEY
+# ─────────────────────────────────────────────
+# Database — SQLite (Railway persistent volume or ephemeral)
+# ─────────────────────────────────────────────
+DB_PATH = os.environ.get("DB_PATH", "/data/smm.db")
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
-# ────────────────────────────────────────────────────────────
-# دوال مساعدة
-# ────────────────────────────────────────────────────────────
+def get_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+def init_db():
+    with get_db() as db:
+        db.executescript("""
+        CREATE TABLE IF NOT EXISTS users (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            telegram_id TEXT    UNIQUE,
+            email       TEXT    UNIQUE,
+            username    TEXT,
+            password_hash TEXT,
+            balance     REAL    DEFAULT 0,
+            total_charged REAL  DEFAULT 0,
+            total_spent REAL    DEFAULT 0,
+            orders_count INTEGER DEFAULT 0,
+            is_banned   INTEGER DEFAULT 0,
+            language    TEXT    DEFAULT 'ar',
+            joined_at   TEXT    DEFAULT (datetime('now')),
+            last_seen   TEXT    DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS providers (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            name        TEXT    NOT NULL,
+            api_url     TEXT    NOT NULL,
+            api_key     TEXT    NOT NULL,
+            balance     REAL    DEFAULT 0,
+            is_active   INTEGER DEFAULT 1,
+            created_at  TEXT    DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS categories (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            name_ar     TEXT    NOT NULL,
+            name_en     TEXT    NOT NULL,
+            icon        TEXT    DEFAULT '📦',
+            sort_order  INTEGER DEFAULT 0,
+            is_active   INTEGER DEFAULT 1
+        );
+
+        CREATE TABLE IF NOT EXISTS services (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            provider_id     INTEGER REFERENCES providers(id),
+            provider_service_id TEXT,
+            category_id     INTEGER REFERENCES categories(id),
+            name_ar         TEXT    NOT NULL,
+            name_en         TEXT    NOT NULL,
+            description_ar  TEXT    DEFAULT '',
+            description_en  TEXT    DEFAULT '',
+            type            TEXT    DEFAULT 'Default',
+            min_qty         INTEGER DEFAULT 10,
+            max_qty         INTEGER DEFAULT 10000,
+            provider_price  REAL    DEFAULT 0,
+            markup_type     TEXT    DEFAULT 'percent',
+            markup_value    REAL    DEFAULT 20,
+            final_price     REAL    DEFAULT 0,
+            estimated_time  TEXT    DEFAULT '',
+            is_active       INTEGER DEFAULT 1,
+            created_at      TEXT    DEFAULT (datetime('now')),
+            updated_at      TEXT    DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS orders (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id         INTEGER REFERENCES users(id),
+            service_id      INTEGER REFERENCES services(id),
+            provider_order_id TEXT,
+            link            TEXT    NOT NULL,
+            quantity        INTEGER NOT NULL,
+            price           REAL    NOT NULL,
+            status          TEXT    DEFAULT 'pending',
+            remains         INTEGER DEFAULT 0,
+            start_count     INTEGER DEFAULT 0,
+            notes           TEXT    DEFAULT '',
+            created_at      TEXT    DEFAULT (datetime('now')),
+            updated_at      TEXT    DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS payments (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id         INTEGER REFERENCES users(id),
+            amount          REAL    NOT NULL,
+            method          TEXT    NOT NULL,
+            status          TEXT    DEFAULT 'pending',
+            transaction_id  TEXT,
+            proof_url       TEXT,
+            admin_note      TEXT,
+            created_at      TEXT    DEFAULT (datetime('now')),
+            processed_at    TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS payment_gateways (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            name        TEXT    NOT NULL,
+            type        TEXT    NOT NULL,
+            details_ar  TEXT    DEFAULT '',
+            details_en  TEXT    DEFAULT '',
+            is_active   INTEGER DEFAULT 1,
+            is_auto     INTEGER DEFAULT 0,
+            config_json TEXT    DEFAULT '{}'
+        );
+
+        CREATE TABLE IF NOT EXISTS tickets (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id     INTEGER REFERENCES users(id),
+            subject     TEXT    NOT NULL,
+            status      TEXT    DEFAULT 'open',
+            priority    TEXT    DEFAULT 'normal',
+            created_at  TEXT    DEFAULT (datetime('now')),
+            updated_at  TEXT    DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS ticket_messages (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticket_id   INTEGER REFERENCES tickets(id),
+            sender_type TEXT    NOT NULL,
+            message     TEXT    NOT NULL,
+            created_at  TEXT    DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS translations (
+            id      INTEGER PRIMARY KEY AUTOINCREMENT,
+            lang    TEXT    NOT NULL,
+            key     TEXT    NOT NULL,
+            value   TEXT    NOT NULL,
+            UNIQUE(lang, key)
+        );
+
+        CREATE TABLE IF NOT EXISTS admin_sessions (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            token       TEXT    UNIQUE NOT NULL,
+            ip          TEXT,
+            user_agent  TEXT,
+            created_at  TEXT    DEFAULT (datetime('now')),
+            expires_at  TEXT    NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS security_log (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_type  TEXT    NOT NULL,
+            ip          TEXT,
+            details     TEXT,
+            created_at  TEXT    DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS settings (
+            key     TEXT PRIMARY KEY,
+            value   TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS cron_log (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            job_name    TEXT,
+            status      TEXT,
+            details     TEXT,
+            duration_ms INTEGER,
+            ran_at      TEXT    DEFAULT (datetime('now'))
+        );
+
+        -- Default settings
+        INSERT OR IGNORE INTO settings VALUES ('site_name', 'SMM Panel');
+        INSERT OR IGNORE INTO settings VALUES ('global_markup_type', 'percent');
+        INSERT OR IGNORE INTO settings VALUES ('global_markup_value', '20');
+        INSERT OR IGNORE INTO settings VALUES ('currency', 'USD');
+        INSERT OR IGNORE INTO settings VALUES ('min_deposit', '1');
+        INSERT OR IGNORE INTO settings VALUES ('maintenance_mode', '0');
+        INSERT OR IGNORE INTO settings VALUES ('faq_ar', '[]');
+        INSERT OR IGNORE INTO settings VALUES ('faq_en', '[]');
+        INSERT OR IGNORE INTO settings VALUES ('tos_ar', '');
+        INSERT OR IGNORE INTO settings VALUES ('tos_en', '');
+        """)
+        db.commit()
+    log.info("✅ Database initialized")
+
+# ─────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────
+def calc_price(provider_price, markup_type, markup_value):
+    if markup_type == 'percent':
+        return round(provider_price * (1 + markup_value / 100), 4)
+    elif markup_type == 'fixed':
+        return round(provider_price + markup_value, 4)
+    return provider_price
+
+def hash_password(pw):
+    return hashlib.sha256(pw.encode()).hexdigest()
+
+def get_setting(key, default=""):
+    with get_db() as db:
+        row = db.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+        return row["value"] if row else default
+
+def set_setting(key, value):
+    with get_db() as db:
+        db.execute("INSERT OR REPLACE INTO settings VALUES (?,?)", (key, value))
+        db.commit()
+
 def tg(method, payload):
-    """استدعاء Telegram Bot API"""
+    if not TELEGRAM_BOT_TOKEN:
+        return {}
     try:
-        r = requests.post(
-            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/{method}",
-            json=payload, timeout=10
-        )
+        r = requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/{method}",
+                          json=payload, timeout=10)
         return r.json()
     except Exception as e:
-        print(f"[TG ERROR] {e}")
+        log.error(f"[TG] {e}")
         return {}
 
-def send_notify(text):
-    """إشعار لصاحب البوت"""
-    if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
-        tg("sendMessage", {"chat_id": TELEGRAM_CHAT_ID,
-                           "text": text, "parse_mode": "HTML"})
+def notify_admin(text):
+    if TELEGRAM_CHAT_ID:
+        tg("sendMessage", {"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "HTML"})
 
-def set_bot_commands():
-    """تفعيل أوامر البوت"""
-    tg("setMyCommands", {"commands": [
-        {"command": "start", "description": "فتح التطبيق"},
-        {"command": "support", "description": "الدعم الفني"}
-    ]})
+def log_security(event_type, ip, details=""):
+    with get_db() as db:
+        db.execute("INSERT INTO security_log (event_type,ip,details) VALUES (?,?,?)",
+                   (event_type, ip, details))
+        db.commit()
 
-# ────────────────────────────────────────────────────────────
-# Webhook — يستقبل رسائل تلغرام
-# ────────────────────────────────────────────────────────────
+def get_client_ip():
+    return request.headers.get("X-Forwarded-For", request.remote_addr or "unknown").split(",")[0].strip()
+
+# ─────────────────────────────────────────────
+# Admin Auth
+# ─────────────────────────────────────────────
+ADMIN_SESSION_HOURS = 8
+MAX_LOGIN_ATTEMPTS = 5
+_login_attempts = {}
+
+def require_admin(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.headers.get("X-Admin-Token", "") or request.cookies.get("admin_token", "")
+        if not token:
+            return jsonify({"error": "unauthorized"}), 401
+        with get_db() as db:
+            row = db.execute(
+                "SELECT * FROM admin_sessions WHERE token=? AND expires_at > datetime('now')",
+                (token,)
+            ).fetchone()
+        if not row:
+            return jsonify({"error": "session expired"}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route("/admin/login", methods=["POST"])
+def admin_login():
+    ip = get_client_ip()
+    data = request.get_json(silent=True) or {}
+    username = data.get("username", "")
+    password = data.get("password", "")
+
+    # Rate limiting
+    now = time.time()
+    attempts = _login_attempts.get(ip, [])
+    attempts = [t for t in attempts if now - t < 900]
+    if len(attempts) >= MAX_LOGIN_ATTEMPTS:
+        log_security("brute_force_blocked", ip)
+        return jsonify({"error": "too_many_attempts", "wait": 900}), 429
+
+    if username != ADMIN_USERNAME or (ADMIN_PASSWORD and password != ADMIN_PASSWORD):
+        attempts.append(now)
+        _login_attempts[ip] = attempts
+        log_security("login_failed", ip, f"user={username}")
+        return jsonify({"error": "invalid_credentials"}), 403
+
+    _login_attempts.pop(ip, None)
+    token = secrets.token_hex(32)
+    expires = (datetime.datetime.utcnow() + datetime.timedelta(hours=ADMIN_SESSION_HOURS)).isoformat()
+    with get_db() as db:
+        db.execute("INSERT INTO admin_sessions (token,ip,user_agent,expires_at) VALUES (?,?,?,?)",
+                   (token, ip, request.headers.get("User-Agent",""), expires))
+        db.commit()
+
+    log_security("login_success", ip, f"user={username}")
+    resp = make_response(jsonify({"ok": True, "token": token}))
+    resp.set_cookie("admin_token", token, httponly=True, samesite="Strict",
+                    max_age=ADMIN_SESSION_HOURS * 3600)
+    return resp
+
+@app.route("/admin/logout", methods=["POST"])
+@require_admin
+def admin_logout():
+    token = request.headers.get("X-Admin-Token", "") or request.cookies.get("admin_token", "")
+    with get_db() as db:
+        db.execute("DELETE FROM admin_sessions WHERE token=?", (token,))
+        db.commit()
+    resp = make_response(jsonify({"ok": True}))
+    resp.delete_cookie("admin_token")
+    return resp
+
+@app.route("/admin/verify", methods=["POST"])
+def admin_verify():
+    token = request.headers.get("X-Admin-Token", "") or request.cookies.get("admin_token", "")
+    if not token:
+        return jsonify({"ok": False}), 401
+    with get_db() as db:
+        row = db.execute(
+            "SELECT id FROM admin_sessions WHERE token=? AND expires_at > datetime('now')",
+            (token,)
+        ).fetchone()
+    return jsonify({"ok": bool(row)})
+
+# ─────────────────────────────────────────────
+# Route: /admin → redirect to admin panel
+# ─────────────────────────────────────────────
+@app.route("/admin")
+def admin_redirect():
+    return send_file("admin.html")
+
+@app.route("/")
+def home():
+    return send_file("index.html")
+
+@app.route("/app")
+@app.route("/app2")
+def serve_app():
+    return send_file("index.html")
+
+@app.route("/health")
+def health():
+    return jsonify({"ok": True, "time": datetime.datetime.utcnow().isoformat()})
+
+# ─────────────────────────────────────────────
+# Webhook Telegram
+# ─────────────────────────────────────────────
 @app.route("/webhook", methods=["POST"])
 def webhook():
     update = request.get_json()
     if not update:
         return "ok"
-
     msg = update.get("message", {})
     chat_id = msg.get("chat", {}).get("id")
-    text    = msg.get("text", "")
-    user    = msg.get("from", {})
-    name    = user.get("first_name", "")
+    text = msg.get("text", "")
+    user = msg.get("from", {})
+    name = user.get("first_name", "User")
+    tg_id = str(user.get("id", ""))
 
     if not chat_id:
         return "ok"
 
-    # ── /start ─────────────────────────────────────────
+    # Auto-register user
+    if tg_id:
+        with get_db() as db:
+            db.execute("""
+                INSERT OR IGNORE INTO users (telegram_id, username)
+                VALUES (?, ?)
+            """, (tg_id, user.get("username", name)))
+            db.execute("UPDATE users SET last_seen=datetime('now') WHERE telegram_id=?", (tg_id,))
+            db.commit()
+
     if text.startswith("/start"):
         tg("sendMessage", {
             "chat_id": chat_id,
-            "text": (
-                f"أهلاً {name}! 👋\n\n"
-                "مرحباً بك في <b>White Follow</b> 🌟\n"
-                "اختر من القائمة:"
-            ),
+            "text": f"👋 أهلاً <b>{name}</b>!\n\nمرحباً بك في بوت إدارة خدمات SMM.\nاضغط الزر أدناه لفتح التطبيق:",
             "parse_mode": "HTML",
             "reply_markup": {
                 "inline_keyboard": [
-                    [
-                        {
-                            "text": "🚀 فتح التطبيق",
-                            "url": WEBAPP_URL
-                        }
-                    ],
-                    [
-                        {
-                            "text": "💬 الدعم الفني",
-                            "url": f"https://t.me/{SUPPORT_USERNAME}"
-                        }
-                    ]
+                    [{"text": "🚀 فتح التطبيق", "web_app": {"url": WEBAPP_URL}}],
+                    [{"text": "💬 الدعم الفني", "url": f"https://t.me/{SUPPORT_USERNAME}"}]
                 ]
             }
         })
-
-    # ── /support ───────────────────────────────────────
     elif text.startswith("/support"):
         tg("sendMessage", {
             "chat_id": chat_id,
-            "text": "للتواصل مع الدعم الفني اضغط الزر أدناه 👇",
+            "text": "للدعم الفني راسلنا عبر:",
             "reply_markup": {
                 "inline_keyboard": [[
-                    {"text": "💬 تواصل مع الدعم",
-                     "url": f"https://t.me/{SUPPORT_USERNAME}"}
+                    {"text": "💬 تواصل مع الدعم", "url": f"https://t.me/{SUPPORT_USERNAME}"}
                 ]]
             }
         })
-
     return "ok"
 
-# ────────────────────────────────────────────────────────────
-# يخدم ملف الموقع داخل تلغرام WebApp
-# ────────────────────────────────────────────────────────────
-@app.route("/app")
-@app.route("/app2")
-def serve_app():
-    """يفتح الموقع — يعمل على /app و /app2"""
-    from flask import make_response
-    response = make_response(send_file("index.html"))
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    return response
+# ─────────────────────────────────────────────
+# User Auth (Web)
+# ─────────────────────────────────────────────
+@app.route("/auth/register", methods=["POST"])
+def auth_register():
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password", "")
+    username = (data.get("username") or email.split("@")[0]).strip()
 
-# ────────────────────────────────────────────────────────────
-# API الطلبات
-# ────────────────────────────────────────────────────────────
-@app.route("/order", methods=["POST"])
-def place_order():
-    data     = request.get_json()
-    service  = data.get("service")
-    link     = data.get("link")
-    quantity = data.get("quantity", 1)
+    if not email or not password or len(password) < 6:
+        return jsonify({"error": "بيانات غير صالحة"}), 400
 
-    if not service or not link:
-        return jsonify({"error": "service و link مطلوبان"}), 400
+    with get_db() as db:
+        existing = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
+        if existing:
+            return jsonify({"error": "البريد مسجل مسبقاً"}), 409
+        cur = db.execute(
+            "INSERT INTO users (email,username,password_hash) VALUES (?,?,?)",
+            (email, username, hash_password(password))
+        )
+        user_id = cur.lastrowid
+        db.commit()
 
-    try:
-        resp   = requests.post(DARKFOLLOW_API_URL, data={
-            "key": DARKFOLLOW_API_KEY, "action": "add",
-            "service": service, "link": link, "quantity": quantity
-        }, timeout=15)
-        result = resp.json()
+    token = _create_user_token(user_id)
+    return jsonify({"ok": True, "token": token, "user": {"id": user_id, "email": email, "username": username, "balance": 0}})
 
-        if result.get("order"):
-            send_notify(
-                f"✅ <b>طلب جديد!</b>\n"
-                f"📦 الخدمة: <code>{service}</code>\n"
-                f"🔗 الرابط: {link}\n"
-                f"🔢 الكمية: {quantity}\n"
-                f"🆔 رقم الطلب: <b>{result['order']}</b>"
-            )
-            return jsonify({"order": result["order"]})
-        else:
-            return jsonify({"error": result.get("error", "خطأ")}), 400
+@app.route("/auth/login", methods=["POST"])
+def auth_login():
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password", "")
+    ip = get_client_ip()
 
-    except Exception as e:
-        print(f"[/order ERROR] {e}")
-        return jsonify({"error": "خطأ في السيرفر"}), 500
+    with get_db() as db:
+        user = db.execute("SELECT * FROM users WHERE email=? AND is_banned=0", (email,)).fetchone()
 
-@app.route("/balance")
-def get_balance():
-    try:
-        resp = requests.post(DARKFOLLOW_API_URL, data={
-            "key": DARKFOLLOW_API_KEY, "action": "balance"
-        }, timeout=10)
-        return jsonify(resp.json())
-    except:
-        return jsonify({"error": "فشل"}), 500
+    if not user or user["password_hash"] != hash_password(password):
+        log_security("user_login_failed", ip, email)
+        return jsonify({"error": "بيانات خاطئة"}), 401
 
-@app.route("/")
-def home():
-    return jsonify({"status": "✅ السيرفر شغال"})
+    with get_db() as db:
+        db.execute("UPDATE users SET last_seen=datetime('now') WHERE id=?", (user["id"],))
+        db.commit()
 
-@app.route("/health")
-def health():
-    return jsonify({"ok": True, "status": "running"})
+    token = _create_user_token(user["id"])
+    return jsonify({"ok": True, "token": token, "user": {
+        "id": user["id"], "email": user["email"],
+        "username": user["username"], "balance": user["balance"]
+    }})
 
-@app.route("/admin-panel")
-def serve_admin_panel():
-    from flask import make_response
-    response = make_response(send_file("admin-panel.html"))
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    return response
+@app.route("/auth/reset-request", methods=["POST"])
+def auth_reset_request():
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    # In production: send email with reset link. Here we return generic response.
+    return jsonify({"ok": True, "message": "إذا كان البريد مسجلاً ستصلك رسالة"})
 
-# ────────────────────────────────────────────────────────────
-# User Endpoints — إدارة المستخدمين عبر Firestore
-# ────────────────────────────────────────────────────────────
+_user_sessions = {}
 
-@app.route("/user/sync", methods=["POST"])
-def user_sync():
-    """يُستدعى عند تسجيل دخول أي مستخدم — يحفظ بياناته في Firestore"""
-    if not db:
-        return jsonify({"error": "Firebase غير مفعّل"}), 503
-    data = request.get_json()
-    uid  = data.get("uid")
-    if not uid:
-        return jsonify({"error": "uid مطلوب"}), 400
-    ref = db.collection("users").document(uid)
-    doc = ref.get()
-    if doc.exists:
-        # حدّث فقط الحقول القابلة للتغيير (لا تمسح الرصيد)
-        ref.update({
-            "email":        data.get("email", ""),
-            "provider":     data.get("provider", ""),
-            "totalCharged": data.get("totalCharged", 0),
-            "totalSpent":   data.get("totalSpent", 0),
-            "orders":       data.get("orders", 0),
-        })
-    else:
-        # مستخدم جديد — أنشئ الوثيقة برصيد 0
-        ref.set({
-            "uid":          uid,
-            "email":        data.get("email", ""),
-            "provider":     data.get("provider", ""),
-            "balance":      0,
-            "totalCharged": 0,
-            "totalSpent":   0,
-            "orders":       0,
-            "joinedAt":     data.get("joinedAt", ""),
-        })
+def _create_user_token(user_id):
+    token = secrets.token_hex(24)
+    _user_sessions[token] = {"user_id": user_id, "created": time.time()}
+    return token
+
+def get_current_user():
+    token = request.headers.get("X-User-Token", "") or request.cookies.get("user_token", "")
+    if not token:
+        return None
+    session_data = _user_sessions.get(token)
+    if not session_data:
+        return None
+    if time.time() - session_data["created"] > 86400 * 30:
+        _user_sessions.pop(token, None)
+        return None
+    with get_db() as db:
+        user = db.execute("SELECT * FROM users WHERE id=? AND is_banned=0",
+                          (session_data["user_id"],)).fetchone()
+    return dict(user) if user else None
+
+def require_user(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            return jsonify({"error": "يجب تسجيل الدخول"}), 401
+        request.current_user = user
+        return f(*args, **kwargs)
+    return decorated
+
+# ─────────────────────────────────────────────
+# User Endpoints
+# ─────────────────────────────────────────────
+@app.route("/user/me", methods=["GET"])
+@require_user
+def user_me():
+    u = request.current_user
+    return jsonify({"id": u["id"], "email": u["email"], "username": u["username"],
+                    "balance": u["balance"], "language": u["language"],
+                    "joined_at": u["joined_at"]})
+
+@app.route("/user/orders", methods=["GET"])
+@require_user
+def user_orders():
+    user = request.current_user
+    with get_db() as db:
+        rows = db.execute("""
+            SELECT o.*, s.name_ar, s.name_en FROM orders o
+            LEFT JOIN services s ON s.id=o.service_id
+            WHERE o.user_id=? ORDER BY o.created_at DESC LIMIT 100
+        """, (user["id"],)).fetchall()
+    return jsonify({"orders": [dict(r) for r in rows]})
+
+@app.route("/user/language", methods=["POST"])
+@require_user
+def user_set_language():
+    data = request.get_json(silent=True) or {}
+    lang = data.get("lang", "ar")
+    if lang not in ("ar", "en"):
+        return jsonify({"error": "invalid lang"}), 400
+    with get_db() as db:
+        db.execute("UPDATE users SET language=? WHERE id=?", (lang, request.current_user["id"]))
+        db.commit()
     return jsonify({"ok": True})
 
-@app.route("/user/balance", methods=["POST"])
-def user_balance():
-    """شحن رصيد مستخدم — للأدمن فقط"""
-    if not _check_admin(request):
-        return jsonify({"error": "غير مصرح"}), 403
-    if not db:
-        return jsonify({"error": "Firebase غير مفعّل"}), 503
-    data    = request.get_json()
-    uid     = data.get("uid")
-    amount  = data.get("amount")
-    if not uid or amount is None:
-        return jsonify({"error": "uid و amount مطلوبان"}), 400
-    ref = db.collection("users").document(uid)
-    doc = ref.get()
-    if not doc.exists:
-        return jsonify({"error": "المستخدم غير موجود"}), 404
-    current = doc.to_dict().get("balance", 0)
-    new_bal = current + float(amount)
-    ref.update({
-        "balance":      new_bal,
-        "totalCharged": firestore.Increment(float(amount))
+# ─────────────────────────────────────────────
+# Services (Public)
+# ─────────────────────────────────────────────
+@app.route("/services", methods=["GET"])
+def services_public():
+    with get_db() as db:
+        cats = db.execute(
+            "SELECT * FROM categories WHERE is_active=1 ORDER BY sort_order"
+        ).fetchall()
+        svcs = db.execute("""
+            SELECT s.*, c.name_ar as cat_name_ar, c.name_en as cat_name_en
+            FROM services s LEFT JOIN categories c ON c.id=s.category_id
+            WHERE s.is_active=1 ORDER BY s.category_id, s.id
+        """).fetchall()
+    return jsonify({
+        "categories": [dict(c) for c in cats],
+        "services": [dict(s) for s in svcs]
     })
-    return jsonify({"ok": True, "newBalance": new_bal})
 
-@app.route("/user/find", methods=["GET"])
-def user_find():
-    """جلب بيانات مستخدم واحد بالـ uid — للأدمن وللمستخدم نفسه"""
-    if not db:
-        return jsonify({"error": "Firebase غير مفعّل"}), 503
-    uid = request.args.get("uid", "").strip()
-    if not uid:
-        return jsonify({"error": "uid مطلوب"}), 400
-    doc = db.collection("users").document(uid).get()
-    if not doc.exists:
-        return jsonify({"error": "المستخدم غير موجود"}), 404
-    return jsonify(doc.to_dict())
-
-@app.route("/user/check", methods=["GET"])
-def user_check():
-    """تحقق إذا البريد مسجل مسبقاً"""
-    if not db:
-        return jsonify({"exists": False})
-    email = request.args.get("email", "").strip().lower()
-    if not email:
-        return jsonify({"exists": False})
-    docs = db.collection("users").where("email", "==", email).limit(1).get()
-    return jsonify({"exists": len(docs) > 0})
-
-@app.route("/user/list", methods=["GET"])
-@app.route("/admin/users", methods=["GET"])
-def user_list():
-    """قائمة كل المستخدمين — للأدمن (يعمل على /user/list و /admin/users)"""
-    if not _check_admin(request):
-        return jsonify({"error": "غير مصرح"}), 403
-    if not db:
-        return jsonify({"users": [], "total": 0})
-    docs = db.collection("users").order_by("joinedAt", direction=firestore.Query.DESCENDING).limit(200).get()
-    users = [d.to_dict() for d in docs]
-    return jsonify({"users": users, "total": len(users)})
-
-
-
-# ────────────────────────────────────────────────────────────
-@app.route("/services/list", methods=["GET"])
-def services_list():
-    """جلب أسعار الخدمات من دارك فولو"""
-    try:
-        resp = requests.post(DARKFOLLOW_API_URL, data={
-            "key": DARKFOLLOW_API_KEY,
-            "action": "services"
-        })
-        data = resp.json()
-        services = {str(s["service"]): s for s in data}
-        return jsonify({"ok": True, "services": services})
-    except Exception as e:
-        print(f"[services_list ERROR] {e}")
-        return jsonify({"ok": False, "error": "خطأ في جلب الخدمات"})
-
-@app.route("/admin/markup", methods=["GET"])
-def admin_markup_get():
-    """جلب هامش الربح من Firestore — للأدمن فقط"""
-    if not _check_admin(request):
-        return jsonify({"error": "غير مصرح"}), 403
-    if not db:
-        return jsonify({"markup": 1.0})
-    doc = db.collection("settings").document("admin").get()
-    if doc.exists:
-        return jsonify({"markup": doc.to_dict().get("markup", 1.0)})
-    return jsonify({"markup": 1.0})
-
-@app.route("/admin/markup", methods=["POST"])
-def admin_markup_set():
-    """حفظ هامش الربح في Firestore — للأدمن فقط"""
-    if not _check_admin(request):
-        return jsonify({"error": "غير مصرح"}), 403
-    if not db:
-        return jsonify({"error": "Firebase غير مفعّل"}), 503
+# ─────────────────────────────────────────────
+# Orders (User)
+# ─────────────────────────────────────────────
+@app.route("/order/place", methods=["POST"])
+@require_user
+def place_order():
+    user = request.current_user
     data = request.get_json(silent=True) or {}
-    markup = data.get("markup")
-    if markup is None or not isinstance(markup, (int, float)) or float(markup) < 0:
-        return jsonify({"error": "markup يجب أن يكون رقماً ≥ 0"}), 400
-    db.collection("settings").document("admin").set({"markup": float(markup)}, merge=True)
-    return jsonify({"ok": True, "markup": float(markup)})
+    service_id = data.get("service_id")
+    link = (data.get("link") or "").strip()
+    quantity = int(data.get("quantity", 0))
 
-@app.route("/admin/verify", methods=["POST"])
-def admin_verify():
-    """التحقق من مفتاح الأدمن — لا يكشف المفتاح، فقط يرد بـ ok/false"""
-    if not ADMIN_SECRET_KEY:
-        return jsonify({"ok": False, "error": "ADMIN_SECRET_KEY غير مضبوط"}), 503
+    if not service_id or not link or not quantity:
+        return jsonify({"error": "بيانات ناقصة"}), 400
+
+    with get_db() as db:
+        svc = db.execute("SELECT * FROM services WHERE id=? AND is_active=1", (service_id,)).fetchone()
+        if not svc:
+            return jsonify({"error": "الخدمة غير موجودة"}), 404
+
+        if quantity < svc["min_qty"] or quantity > svc["max_qty"]:
+            return jsonify({"error": f"الكمية يجب بين {svc['min_qty']} و {svc['max_qty']}"}), 400
+
+        total_cost = round(svc["final_price"] * quantity / 1000, 4)
+        if user["balance"] < total_cost:
+            return jsonify({"error": "رصيد غير كافٍ"}), 402
+
+        # Deduct balance
+        db.execute("UPDATE users SET balance=balance-?, total_spent=total_spent+?, orders_count=orders_count+1 WHERE id=?",
+                   (total_cost, total_cost, user["id"]))
+
+        # Place order with provider
+        provider = db.execute("SELECT * FROM providers WHERE id=? AND is_active=1",
+                              (svc["provider_id"],)).fetchone()
+
+    provider_order_id = None
+    if provider:
+        try:
+            resp = requests.post(provider["api_url"], data={
+                "key": provider["api_key"], "action": "add",
+                "service": svc["provider_service_id"],
+                "link": link, "quantity": quantity
+            }, timeout=15)
+            r = resp.json()
+            provider_order_id = str(r.get("order", ""))
+        except Exception as e:
+            log.error(f"[order] provider error: {e}")
+
+    with get_db() as db:
+        cur = db.execute("""
+            INSERT INTO orders (user_id,service_id,provider_order_id,link,quantity,price)
+            VALUES (?,?,?,?,?,?)
+        """, (user["id"], service_id, provider_order_id, link, quantity, total_cost))
+        order_id = cur.lastrowid
+        db.commit()
+
+    notify_admin(f"🛒 طلب جديد #{order_id}\n👤 المستخدم: {user['email']}\n💰 {total_cost} $")
+    return jsonify({"ok": True, "order_id": order_id, "cost": total_cost})
+
+@app.route("/order/status/<int:order_id>", methods=["GET"])
+@require_user
+def order_status(order_id):
+    user = request.current_user
+    with get_db() as db:
+        order = db.execute(
+            "SELECT * FROM orders WHERE id=? AND user_id=?", (order_id, user["id"])
+        ).fetchone()
+    if not order:
+        return jsonify({"error": "غير موجود"}), 404
+    return jsonify(dict(order))
+
+# ─────────────────────────────────────────────
+# Payments (User)
+# ─────────────────────────────────────────────
+@app.route("/payment/gateways", methods=["GET"])
+def payment_gateways():
+    lang = request.args.get("lang", "ar")
+    with get_db() as db:
+        gws = db.execute("SELECT * FROM payment_gateways WHERE is_active=1").fetchall()
+    result = []
+    for g in gws:
+        d = dict(g)
+        d["details"] = d[f"details_{lang}"] if lang == "ar" else d["details_en"]
+        result.append(d)
+    return jsonify({"gateways": result})
+
+@app.route("/payment/submit", methods=["POST"])
+@require_user
+def payment_submit():
+    user = request.current_user
     data = request.get_json(silent=True) or {}
-    key  = data.get("admin_key", "")
-    if key == ADMIN_SECRET_KEY:
-        return jsonify({"ok": True})
-    return jsonify({"ok": False}), 403
+    amount = float(data.get("amount", 0))
+    method = data.get("method", "")
+    tx_id  = data.get("transaction_id", "")
+    proof  = data.get("proof_url", "")
 
-# ────────────────────────────────────────────────────────────
-# رصيد الأدمن من دارك فولو — للأدمن فقط
-# ────────────────────────────────────────────────────────────
-@app.route("/admin/darkfollow-balance", methods=["GET"])
-def admin_darkfollow_balance():
-    """جلب رصيد حساب دارك فولو — للأدمن فقط"""
-    if not _check_admin(request):
-        return jsonify({"error": "غير مصرح"}), 403
-    try:
-        resp = requests.post(DARKFOLLOW_API_URL, data={
-            "key": DARKFOLLOW_API_KEY,
-            "action": "balance"
-        }, timeout=10)
-        data = resp.json()
-        # دارك فولو قد يرجع balance أو funds
-        balance = data.get("balance", data.get("funds", data.get("Balance", 0)))
-        return jsonify({"balance": balance, "raw": data})
-    except Exception as e:
-        print(f"[admin_darkfollow_balance ERROR] {e}")
-        return jsonify({"error": "خطأ في جلب الرصيد", "balance": 0}), 200
+    min_dep = float(get_setting("min_deposit", "1"))
+    if amount < min_dep:
+        return jsonify({"error": f"الحد الأدنى للإيداع {min_dep}$"}), 400
 
-@app.route("/order/status", methods=["GET"])
-def order_status():
-    """استعلام حالة طلب واحد من دارك فولو"""
-    order_id = request.args.get("order_id", "").strip()
-    if not order_id:
-        return jsonify({"error": "order_id مطلوب"}), 400
-    try:
-        resp = requests.post(DARKFOLLOW_API_URL, data={
-            "key": DARKFOLLOW_API_KEY,
-            "action": "status",
-            "order": order_id
-        }, timeout=10)
-        return jsonify(resp.json())
-    except Exception as e:
-        print(f"[API ERROR] {e}")
-        return jsonify({"error": "خطأ في السيرفر"}), 500
+    with get_db() as db:
+        cur = db.execute("""
+            INSERT INTO payments (user_id,amount,method,transaction_id,proof_url)
+            VALUES (?,?,?,?,?)
+        """, (user["id"], amount, method, tx_id, proof))
+        pay_id = cur.lastrowid
+        db.commit()
 
-@app.route("/orders/status-bulk", methods=["POST"])
-def orders_status_bulk():
-    """استعلام حالة طلبات متعددة دفعة واحدة — يُستدعى من الكرون"""
-    data = request.get_json()
-    order_ids = data.get("orders", [])
-    if not order_ids or not isinstance(order_ids, list):
-        return jsonify({"error": "orders مطلوب (array)"}), 400
-    # دارك فولو يقبل حتى 100 طلب في استعلام واحد
-    ids_str = ",".join(str(i) for i in order_ids[:100])
-    try:
-        resp = requests.post(DARKFOLLOW_API_URL, data={
-            "key": DARKFOLLOW_API_KEY,
-            "action": "status",
-            "order": ids_str
-        }, timeout=15)
-        return jsonify(resp.json())
-    except Exception as e:
-        print(f"[API ERROR] {e}")
-        return jsonify({"error": "خطأ في السيرفر"}), 500
+    notify_admin(f"💳 طلب دفع جديد #{pay_id}\n👤 {user['email']}\n💰 {amount}$\n📝 {method}")
+    return jsonify({"ok": True, "payment_id": pay_id})
 
-# ────────────────────────────────────────────────────────────
-# Cron Job — تحديث حالة الطلبات المعلقة في Firestore
-# ────────────────────────────────────────────────────────────
-def _cron_sync_orders():
-    """
-    يُشغَّل كل 60 ثانية.
-    يجلب الطلبات pending/active من Firestore ويستعلم عن حالتها من دارك فولو،
-    ثم يحدّث status و remains و progress في Firestore.
-    """
-    if not db:
-        return
-    try:
-        # جلب الطلبات غير المكتملة فقط
-        pending_docs = (
-            db.collection("orders")
-            .where("status", "in", ["pending", "active", "partial"])
-            .limit(100)
-            .get()
+# ─────────────────────────────────────────────
+# Tickets (User)
+# ─────────────────────────────────────────────
+@app.route("/tickets", methods=["GET"])
+@require_user
+def user_tickets():
+    user = request.current_user
+    with get_db() as db:
+        tickets = db.execute(
+            "SELECT * FROM tickets WHERE user_id=? ORDER BY updated_at DESC", (user["id"],)
+        ).fetchall()
+    return jsonify({"tickets": [dict(t) for t in tickets]})
+
+@app.route("/tickets/create", methods=["POST"])
+@require_user
+def create_ticket():
+    user = request.current_user
+    data = request.get_json(silent=True) or {}
+    subject = data.get("subject", "").strip()
+    message = data.get("message", "").strip()
+    if not subject or not message:
+        return jsonify({"error": "موضوع ورسالة مطلوبان"}), 400
+
+    with get_db() as db:
+        cur = db.execute(
+            "INSERT INTO tickets (user_id,subject) VALUES (?,?)", (user["id"], subject)
         )
-        if not pending_docs:
-            return
+        ticket_id = cur.lastrowid
+        db.execute(
+            "INSERT INTO ticket_messages (ticket_id,sender_type,message) VALUES (?,?,?)",
+            (ticket_id, "user", message)
+        )
+        db.commit()
 
-        order_map = {doc.to_dict().get("darkfollow_id"): doc
-                     for doc in pending_docs
-                     if doc.to_dict().get("darkfollow_id")}
+    notify_admin(f"🎫 تذكرة جديدة #{ticket_id}\n👤 {user['email']}\n📌 {subject}")
+    return jsonify({"ok": True, "ticket_id": ticket_id})
 
-        if not order_map:
-            return
+@app.route("/tickets/<int:ticket_id>/messages", methods=["GET"])
+@require_user
+def ticket_messages(ticket_id):
+    user = request.current_user
+    with get_db() as db:
+        ticket = db.execute(
+            "SELECT * FROM tickets WHERE id=? AND user_id=?", (ticket_id, user["id"])
+        ).fetchone()
+        if not ticket:
+            return jsonify({"error": "غير موجود"}), 404
+        msgs = db.execute(
+            "SELECT * FROM ticket_messages WHERE ticket_id=? ORDER BY created_at", (ticket_id,)
+        ).fetchall()
+    return jsonify({"ticket": dict(ticket), "messages": [dict(m) for m in msgs]})
 
-        ids_str = ",".join(str(k) for k in order_map.keys())
-        resp = requests.post(DARKFOLLOW_API_URL, data={
-            "key": DARKFOLLOW_API_KEY,
-            "action": "status",
-            "order": ids_str
-        }, timeout=20)
-        results = resp.json()  # { "order_id": { "status": ..., "remains": ..., "charge": ... } }
+@app.route("/tickets/<int:ticket_id>/reply", methods=["POST"])
+@require_user
+def ticket_reply(ticket_id):
+    user = request.current_user
+    data = request.get_json(silent=True) or {}
+    message = data.get("message", "").strip()
+    if not message:
+        return jsonify({"error": "رسالة مطلوبة"}), 400
 
-        for order_id_str, info in results.items():
-            doc_ref = order_map.get(order_id_str)
-            if not doc_ref:
-                continue
-            new_status  = str(info.get("status", "pending")).lower()
-            remains     = info.get("remains", 0)
-            charge      = info.get("charge", 0)
-            doc_ref.reference.update({
-                "status":    new_status,
-                "remains":   remains,
-                "charge":    charge,
-                "updatedAt": firestore.SERVER_TIMESTAMP
-            })
+    with get_db() as db:
+        ticket = db.execute(
+            "SELECT * FROM tickets WHERE id=? AND user_id=?", (ticket_id, user["id"])
+        ).fetchone()
+        if not ticket:
+            return jsonify({"error": "غير موجود"}), 404
+        db.execute(
+            "INSERT INTO ticket_messages (ticket_id,sender_type,message) VALUES (?,?,?)",
+            (ticket_id, "user", message)
+        )
+        db.execute("UPDATE tickets SET updated_at=datetime('now'), status='open' WHERE id=?", (ticket_id,))
+        db.commit()
+
+    return jsonify({"ok": True})
+
+# ─────────────────────────────────────────────
+# Translations (Public)
+# ─────────────────────────────────────────────
+@app.route("/translations/<lang>", methods=["GET"])
+def get_translations(lang):
+    if lang not in ("ar", "en"):
+        return jsonify({"error": "invalid lang"}), 400
+    with get_db() as db:
+        rows = db.execute("SELECT key, value FROM translations WHERE lang=?", (lang,)).fetchall()
+    return jsonify({r["key"]: r["value"] for r in rows})
+
+@app.route("/settings/public", methods=["GET"])
+def public_settings():
+    keys = ["site_name", "currency", "min_deposit", "maintenance_mode", "faq_ar", "faq_en", "tos_ar", "tos_en"]
+    with get_db() as db:
+        rows = db.execute(f"SELECT key, value FROM settings WHERE key IN ({','.join('?'*len(keys))})", keys).fetchall()
+    return jsonify({r["key"]: r["value"] for r in rows})
+
+# ─────────────────────────────────────────────
+# ADMIN — Dashboard Stats
+# ─────────────────────────────────────────────
+@app.route("/admin/stats", methods=["GET"])
+@require_admin
+def admin_stats():
+    with get_db() as db:
+        total_users   = db.execute("SELECT COUNT(*) as c FROM users").fetchone()["c"]
+        total_orders  = db.execute("SELECT COUNT(*) as c FROM orders").fetchone()["c"]
+        total_revenue = db.execute("SELECT SUM(price) as s FROM orders WHERE status!='cancelled'").fetchone()["s"] or 0
+        pending_pay   = db.execute("SELECT COUNT(*) as c FROM payments WHERE status='pending'").fetchone()["c"]
+        open_tickets  = db.execute("SELECT COUNT(*) as c FROM tickets WHERE status='open'").fetchone()["c"]
+        today_orders  = db.execute(
+            "SELECT COUNT(*) as c FROM orders WHERE date(created_at)=date('now')"
+        ).fetchone()["c"]
+        monthly = db.execute("""
+            SELECT strftime('%Y-%m',created_at) as month, SUM(price) as rev
+            FROM orders WHERE status!='cancelled'
+            GROUP BY month ORDER BY month DESC LIMIT 12
+        """).fetchall()
+    return jsonify({
+        "total_users": total_users,
+        "total_orders": total_orders,
+        "total_revenue": round(total_revenue, 2),
+        "pending_payments": pending_pay,
+        "open_tickets": open_tickets,
+        "today_orders": today_orders,
+        "monthly_revenue": [dict(r) for r in monthly]
+    })
+
+# ─────────────────────────────────────────────
+# ADMIN — Users
+# ─────────────────────────────────────────────
+@app.route("/admin/users", methods=["GET"])
+@require_admin
+def admin_users():
+    page = int(request.args.get("page", 1))
+    limit = 50
+    offset = (page - 1) * limit
+    search = request.args.get("q", "")
+    with get_db() as db:
+        if search:
+            users = db.execute(
+                "SELECT * FROM users WHERE email LIKE ? OR username LIKE ? ORDER BY joined_at DESC LIMIT ? OFFSET ?",
+                (f"%{search}%", f"%{search}%", limit, offset)
+            ).fetchall()
+            total = db.execute(
+                "SELECT COUNT(*) as c FROM users WHERE email LIKE ? OR username LIKE ?",
+                (f"%{search}%", f"%{search}%")
+            ).fetchone()["c"]
+        else:
+            users = db.execute(
+                "SELECT * FROM users ORDER BY joined_at DESC LIMIT ? OFFSET ?", (limit, offset)
+            ).fetchall()
+            total = db.execute("SELECT COUNT(*) as c FROM users").fetchone()["c"]
+    return jsonify({"users": [dict(u) for u in users], "total": total, "page": page})
+
+@app.route("/admin/users/<int:uid>/balance", methods=["POST"])
+@require_admin
+def admin_add_balance(uid):
+    data = request.get_json(silent=True) or {}
+    amount = float(data.get("amount", 0))
+    with get_db() as db:
+        db.execute(
+            "UPDATE users SET balance=balance+?, total_charged=total_charged+? WHERE id=?",
+            (amount, amount, uid)
+        )
+        db.commit()
+    return jsonify({"ok": True})
+
+@app.route("/admin/users/<int:uid>/ban", methods=["POST"])
+@require_admin
+def admin_ban_user(uid):
+    data = request.get_json(silent=True) or {}
+    banned = int(data.get("banned", 1))
+    with get_db() as db:
+        db.execute("UPDATE users SET is_banned=? WHERE id=?", (banned, uid))
+        db.commit()
+    return jsonify({"ok": True})
+
+# ─────────────────────────────────────────────
+# ADMIN — Providers
+# ─────────────────────────────────────────────
+@app.route("/admin/providers", methods=["GET"])
+@require_admin
+def admin_get_providers():
+    with get_db() as db:
+        rows = db.execute("SELECT * FROM providers ORDER BY id").fetchall()
+    return jsonify({"providers": [dict(r) for r in rows]})
+
+@app.route("/admin/providers", methods=["POST"])
+@require_admin
+def admin_add_provider():
+    data = request.get_json(silent=True) or {}
+    name    = data.get("name", "").strip()
+    api_url = data.get("api_url", "").strip()
+    api_key = data.get("api_key", "").strip()
+    if not name or not api_url or not api_key:
+        return jsonify({"error": "name, api_url, api_key مطلوبة"}), 400
+    with get_db() as db:
+        cur = db.execute(
+            "INSERT INTO providers (name,api_url,api_key) VALUES (?,?,?)",
+            (name, api_url, api_key)
+        )
+        db.commit()
+        provider_id = cur.lastrowid
+    return jsonify({"ok": True, "id": provider_id})
+
+@app.route("/admin/providers/<int:pid>", methods=["PUT"])
+@require_admin
+def admin_update_provider(pid):
+    data = request.get_json(silent=True) or {}
+    with get_db() as db:
+        db.execute("""
+            UPDATE providers SET name=COALESCE(?,name),
+            api_url=COALESCE(?,api_url), api_key=COALESCE(?,api_key),
+            is_active=COALESCE(?,is_active) WHERE id=?
+        """, (data.get("name"), data.get("api_url"), data.get("api_key"), data.get("is_active"), pid))
+        db.commit()
+    return jsonify({"ok": True})
+
+@app.route("/admin/providers/<int:pid>/test", methods=["POST"])
+@require_admin
+def admin_test_provider(pid):
+    with get_db() as db:
+        p = db.execute("SELECT * FROM providers WHERE id=?", (pid,)).fetchone()
+    if not p:
+        return jsonify({"error": "غير موجود"}), 404
+    try:
+        resp = requests.post(p["api_url"], data={"key": p["api_key"], "action": "balance"}, timeout=10)
+        data = resp.json()
+        balance = data.get("balance", data.get("Balance", data.get("funds", 0)))
+        with get_db() as db:
+            db.execute("UPDATE providers SET balance=? WHERE id=?", (float(balance), pid))
+            db.commit()
+        return jsonify({"ok": True, "balance": balance, "raw": data})
     except Exception as e:
-        print(f"[CRON ERROR] order sync: {e}")
+        return jsonify({"ok": False, "error": str(e)}), 500
 
-def _start_cron():
-    """يبدأ خيط الكرون في الخلفية"""
-    import time
+@app.route("/admin/providers/<int:pid>/services", methods=["GET"])
+@require_admin
+def admin_fetch_provider_services(pid):
+    with get_db() as db:
+        p = db.execute("SELECT * FROM providers WHERE id=?", (pid,)).fetchone()
+    if not p:
+        return jsonify({"error": "غير موجود"}), 404
+    try:
+        resp = requests.post(p["api_url"], data={"key": p["api_key"], "action": "services"}, timeout=20)
+        data = resp.json()
+        return jsonify({"ok": True, "services": data[:200] if isinstance(data, list) else data})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+# ─────────────────────────────────────────────
+# ADMIN — Categories & Services
+# ─────────────────────────────────────────────
+@app.route("/admin/categories", methods=["GET"])
+@require_admin
+def admin_categories():
+    with get_db() as db:
+        rows = db.execute("SELECT * FROM categories ORDER BY sort_order").fetchall()
+    return jsonify({"categories": [dict(r) for r in rows]})
+
+@app.route("/admin/categories", methods=["POST"])
+@require_admin
+def admin_add_category():
+    data = request.get_json(silent=True) or {}
+    with get_db() as db:
+        cur = db.execute(
+            "INSERT INTO categories (name_ar,name_en,icon,sort_order) VALUES (?,?,?,?)",
+            (data.get("name_ar",""), data.get("name_en",""), data.get("icon","📦"), data.get("sort_order",0))
+        )
+        db.commit()
+    return jsonify({"ok": True, "id": cur.lastrowid})
+
+@app.route("/admin/categories/<int:cid>", methods=["PUT"])
+@require_admin
+def admin_update_category(cid):
+    data = request.get_json(silent=True) or {}
+    with get_db() as db:
+        db.execute("""UPDATE categories SET name_ar=COALESCE(?,name_ar),
+            name_en=COALESCE(?,name_en), icon=COALESCE(?,icon),
+            sort_order=COALESCE(?,sort_order), is_active=COALESCE(?,is_active) WHERE id=?""",
+            (data.get("name_ar"), data.get("name_en"), data.get("icon"),
+             data.get("sort_order"), data.get("is_active"), cid))
+        db.commit()
+    return jsonify({"ok": True})
+
+@app.route("/admin/services", methods=["GET"])
+@require_admin
+def admin_services():
+    page = int(request.args.get("page", 1))
+    limit = 100
+    offset = (page - 1) * limit
+    with get_db() as db:
+        rows = db.execute("""
+            SELECT s.*, c.name_ar as cat_name, p.name as prov_name
+            FROM services s
+            LEFT JOIN categories c ON c.id=s.category_id
+            LEFT JOIN providers p ON p.id=s.provider_id
+            ORDER BY s.category_id, s.id LIMIT ? OFFSET ?
+        """, (limit, offset)).fetchall()
+        total = db.execute("SELECT COUNT(*) as c FROM services").fetchone()["c"]
+    return jsonify({"services": [dict(r) for r in rows], "total": total})
+
+@app.route("/admin/services", methods=["POST"])
+@require_admin
+def admin_add_service():
+    data = request.get_json(silent=True) or {}
+    provider_price = float(data.get("provider_price", 0))
+    markup_type = data.get("markup_type", "percent")
+    markup_value = float(data.get("markup_value", 20))
+    final_price = calc_price(provider_price, markup_type, markup_value)
+
+    with get_db() as db:
+        cur = db.execute("""
+            INSERT INTO services (provider_id, provider_service_id, category_id,
+            name_ar, name_en, description_ar, description_en,
+            min_qty, max_qty, provider_price, markup_type, markup_value,
+            final_price, estimated_time, type)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (
+            data.get("provider_id"), data.get("provider_service_id"), data.get("category_id"),
+            data.get("name_ar",""), data.get("name_en",""),
+            data.get("description_ar",""), data.get("description_en",""),
+            data.get("min_qty",10), data.get("max_qty",10000),
+            provider_price, markup_type, markup_value, final_price,
+            data.get("estimated_time",""), data.get("type","Default")
+        ))
+        db.commit()
+    return jsonify({"ok": True, "id": cur.lastrowid, "final_price": final_price})
+
+@app.route("/admin/services/<int:sid>", methods=["PUT"])
+@require_admin
+def admin_update_service(sid):
+    data = request.get_json(silent=True) or {}
+    with get_db() as db:
+        svc = db.execute("SELECT * FROM services WHERE id=?", (sid,)).fetchone()
+        if not svc:
+            return jsonify({"error": "غير موجود"}), 404
+        provider_price = float(data.get("provider_price", svc["provider_price"]))
+        markup_type    = data.get("markup_type", svc["markup_type"])
+        markup_value   = float(data.get("markup_value", svc["markup_value"]))
+        final_price    = calc_price(provider_price, markup_type, markup_value)
+        db.execute("""UPDATE services SET
+            category_id=COALESCE(?,category_id), name_ar=COALESCE(?,name_ar),
+            name_en=COALESCE(?,name_en), description_ar=COALESCE(?,description_ar),
+            description_en=COALESCE(?,description_en), min_qty=COALESCE(?,min_qty),
+            max_qty=COALESCE(?,max_qty), provider_price=?,
+            markup_type=?, markup_value=?, final_price=?,
+            estimated_time=COALESCE(?,estimated_time),
+            is_active=COALESCE(?,is_active), updated_at=datetime('now')
+            WHERE id=?""", (
+            data.get("category_id"), data.get("name_ar"), data.get("name_en"),
+            data.get("description_ar"), data.get("description_en"),
+            data.get("min_qty"), data.get("max_qty"),
+            provider_price, markup_type, markup_value, final_price,
+            data.get("estimated_time"), data.get("is_active"), sid
+        ))
+        db.commit()
+    return jsonify({"ok": True, "final_price": final_price})
+
+@app.route("/admin/services/import", methods=["POST"])
+@require_admin
+def admin_import_services():
+    data = request.get_json(silent=True) or {}
+    provider_id  = data.get("provider_id")
+    markup_type  = data.get("markup_type", "percent")
+    markup_value = float(data.get("markup_value", 20))
+    services     = data.get("services", [])
+    category_id  = data.get("category_id")
+    imported = 0
+
+    with get_db() as db:
+        for s in services:
+            try:
+                provider_price = float(s.get("rate", s.get("price", 0)))
+                final_price    = calc_price(provider_price, markup_type, markup_value)
+                db.execute("""
+                    INSERT OR IGNORE INTO services
+                    (provider_id, provider_service_id, category_id, name_ar, name_en,
+                     min_qty, max_qty, provider_price, markup_type, markup_value,
+                     final_price, type)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                """, (
+                    provider_id, str(s.get("service","")), category_id,
+                    s.get("name",""), s.get("name",""),
+                    int(s.get("min",10)), int(s.get("max",10000)),
+                    provider_price, markup_type, markup_value, final_price,
+                    s.get("type","Default")
+                ))
+                imported += 1
+            except Exception as e:
+                log.error(f"import service error: {e}")
+        db.commit()
+    return jsonify({"ok": True, "imported": imported})
+
+@app.route("/admin/services/reprice", methods=["POST"])
+@require_admin
+def admin_reprice_services():
+    """Update all service prices from provider and apply markup"""
+    data = request.get_json(silent=True) or {}
+    provider_id = data.get("provider_id")
+    with get_db() as db:
+        p = db.execute("SELECT * FROM providers WHERE id=?", (provider_id,)).fetchone()
+        if not p:
+            return jsonify({"error": "Provider not found"}), 404
+    try:
+        resp = requests.post(p["api_url"], data={"key": p["api_key"], "action": "services"}, timeout=20)
+        provider_svcs = {str(s["service"]): s for s in resp.json()}
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    updated = 0
+    with get_db() as db:
+        svcs = db.execute("SELECT * FROM services WHERE provider_id=?", (provider_id,)).fetchall()
+        for svc in svcs:
+            ps = provider_svcs.get(str(svc["provider_service_id"]))
+            if ps:
+                new_provider_price = float(ps.get("rate", ps.get("price", svc["provider_price"])))
+                new_final = calc_price(new_provider_price, svc["markup_type"], svc["markup_value"])
+                db.execute("""UPDATE services SET provider_price=?, final_price=?,
+                    updated_at=datetime('now') WHERE id=?""",
+                    (new_provider_price, new_final, svc["id"]))
+                updated += 1
+        db.commit()
+    return jsonify({"ok": True, "updated": updated})
+
+# ─────────────────────────────────────────────
+# ADMIN — Payments
+# ─────────────────────────────────────────────
+@app.route("/admin/payments", methods=["GET"])
+@require_admin
+def admin_payments():
+    status = request.args.get("status", "")
+    with get_db() as db:
+        if status:
+            rows = db.execute("""
+                SELECT p.*, u.email, u.username FROM payments p
+                LEFT JOIN users u ON u.id=p.user_id
+                WHERE p.status=? ORDER BY p.created_at DESC LIMIT 100
+            """, (status,)).fetchall()
+        else:
+            rows = db.execute("""
+                SELECT p.*, u.email, u.username FROM payments p
+                LEFT JOIN users u ON u.id=p.user_id
+                ORDER BY p.created_at DESC LIMIT 100
+            """).fetchall()
+    return jsonify({"payments": [dict(r) for r in rows]})
+
+@app.route("/admin/payments/<int:pid>/approve", methods=["POST"])
+@require_admin
+def admin_approve_payment(pid):
+    with get_db() as db:
+        pay = db.execute("SELECT * FROM payments WHERE id=?", (pid,)).fetchone()
+        if not pay:
+            return jsonify({"error": "غير موجود"}), 404
+        if pay["status"] != "pending":
+            return jsonify({"error": "تمت المعالجة مسبقاً"}), 400
+        db.execute("""UPDATE payments SET status='approved', processed_at=datetime('now') WHERE id=?""", (pid,))
+        db.execute("UPDATE users SET balance=balance+?, total_charged=total_charged+? WHERE id=?",
+                   (pay["amount"], pay["amount"], pay["user_id"]))
+        db.commit()
+    return jsonify({"ok": True})
+
+@app.route("/admin/payments/<int:pid>/reject", methods=["POST"])
+@require_admin
+def admin_reject_payment(pid):
+    data = request.get_json(silent=True) or {}
+    note = data.get("note", "")
+    with get_db() as db:
+        db.execute("""UPDATE payments SET status='rejected', admin_note=?, processed_at=datetime('now') WHERE id=?""",
+                   (note, pid))
+        db.commit()
+    return jsonify({"ok": True})
+
+@app.route("/admin/payment-gateways", methods=["GET"])
+@require_admin
+def admin_get_gateways():
+    with get_db() as db:
+        rows = db.execute("SELECT * FROM payment_gateways ORDER BY id").fetchall()
+    return jsonify({"gateways": [dict(r) for r in rows]})
+
+@app.route("/admin/payment-gateways", methods=["POST"])
+@require_admin
+def admin_add_gateway():
+    data = request.get_json(silent=True) or {}
+    with get_db() as db:
+        cur = db.execute("""INSERT INTO payment_gateways (name,type,details_ar,details_en,is_active,is_auto,config_json)
+            VALUES (?,?,?,?,?,?,?)""", (
+            data.get("name",""), data.get("type","manual"),
+            data.get("details_ar",""), data.get("details_en",""),
+            data.get("is_active",1), data.get("is_auto",0),
+            json.dumps(data.get("config",{}))
+        ))
+        db.commit()
+    return jsonify({"ok": True, "id": cur.lastrowid})
+
+@app.route("/admin/payment-gateways/<int:gid>", methods=["PUT"])
+@require_admin
+def admin_update_gateway(gid):
+    data = request.get_json(silent=True) or {}
+    with get_db() as db:
+        db.execute("""UPDATE payment_gateways SET name=COALESCE(?,name),
+            details_ar=COALESCE(?,details_ar), details_en=COALESCE(?,details_en),
+            is_active=COALESCE(?,is_active) WHERE id=?""",
+            (data.get("name"), data.get("details_ar"), data.get("details_en"), data.get("is_active"), gid))
+        db.commit()
+    return jsonify({"ok": True})
+
+# ─────────────────────────────────────────────
+# ADMIN — Orders
+# ─────────────────────────────────────────────
+@app.route("/admin/orders", methods=["GET"])
+@require_admin
+def admin_orders():
+    status = request.args.get("status", "")
+    page = int(request.args.get("page", 1))
+    limit = 50
+    offset = (page - 1) * limit
+    with get_db() as db:
+        if status:
+            rows = db.execute("""
+                SELECT o.*, u.email, s.name_ar FROM orders o
+                LEFT JOIN users u ON u.id=o.user_id
+                LEFT JOIN services s ON s.id=o.service_id
+                WHERE o.status=? ORDER BY o.created_at DESC LIMIT ? OFFSET ?
+            """, (status, limit, offset)).fetchall()
+        else:
+            rows = db.execute("""
+                SELECT o.*, u.email, s.name_ar FROM orders o
+                LEFT JOIN users u ON u.id=o.user_id
+                LEFT JOIN services s ON s.id=o.service_id
+                ORDER BY o.created_at DESC LIMIT ? OFFSET ?
+            """, (limit, offset)).fetchall()
+    return jsonify({"orders": [dict(r) for r in rows]})
+
+# ─────────────────────────────────────────────
+# ADMIN — Tickets
+# ─────────────────────────────────────────────
+@app.route("/admin/tickets", methods=["GET"])
+@require_admin
+def admin_tickets():
+    with get_db() as db:
+        rows = db.execute("""
+            SELECT t.*, u.email, u.username FROM tickets t
+            LEFT JOIN users u ON u.id=t.user_id
+            ORDER BY t.updated_at DESC LIMIT 100
+        """).fetchall()
+    return jsonify({"tickets": [dict(r) for r in rows]})
+
+@app.route("/admin/tickets/<int:tid>/reply", methods=["POST"])
+@require_admin
+def admin_ticket_reply(tid):
+    data = request.get_json(silent=True) or {}
+    message = data.get("message", "").strip()
+    if not message:
+        return jsonify({"error": "رسالة مطلوبة"}), 400
+    with get_db() as db:
+        db.execute("INSERT INTO ticket_messages (ticket_id,sender_type,message) VALUES (?,?,?)",
+                   (tid, "admin", message))
+        db.execute("UPDATE tickets SET status='answered', updated_at=datetime('now') WHERE id=?", (tid,))
+        db.commit()
+    return jsonify({"ok": True})
+
+@app.route("/admin/tickets/<int:tid>/messages", methods=["GET"])
+@require_admin
+def admin_ticket_msgs(tid):
+    with get_db() as db:
+        msgs = db.execute(
+            "SELECT * FROM ticket_messages WHERE ticket_id=? ORDER BY created_at", (tid,)
+        ).fetchall()
+    return jsonify({"messages": [dict(m) for m in msgs]})
+
+# ─────────────────────────────────────────────
+# ADMIN — Translations
+# ─────────────────────────────────────────────
+@app.route("/admin/translations", methods=["GET"])
+@require_admin
+def admin_get_translations():
+    lang = request.args.get("lang", "ar")
+    with get_db() as db:
+        rows = db.execute("SELECT * FROM translations WHERE lang=? ORDER BY key", (lang,)).fetchall()
+    return jsonify({"translations": [dict(r) for r in rows]})
+
+@app.route("/admin/translations", methods=["POST"])
+@require_admin
+def admin_save_translation():
+    data = request.get_json(silent=True) or {}
+    lang  = data.get("lang", "ar")
+    key   = data.get("key", "").strip()
+    value = data.get("value", "")
+    if not key:
+        return jsonify({"error": "key مطلوب"}), 400
+    with get_db() as db:
+        db.execute("INSERT OR REPLACE INTO translations (lang,key,value) VALUES (?,?,?)",
+                   (lang, key, value))
+        db.commit()
+    return jsonify({"ok": True})
+
+@app.route("/admin/translations/bulk", methods=["POST"])
+@require_admin
+def admin_bulk_translations():
+    data = request.get_json(silent=True) or {}
+    lang = data.get("lang", "ar")
+    items = data.get("items", {})
+    with get_db() as db:
+        for key, value in items.items():
+            db.execute("INSERT OR REPLACE INTO translations (lang,key,value) VALUES (?,?,?)",
+                       (lang, key, value))
+        db.commit()
+    return jsonify({"ok": True, "saved": len(items)})
+
+# ─────────────────────────────────────────────
+# ADMIN — Settings
+# ─────────────────────────────────────────────
+@app.route("/admin/settings", methods=["GET"])
+@require_admin
+def admin_get_settings():
+    with get_db() as db:
+        rows = db.execute("SELECT key, value FROM settings").fetchall()
+    return jsonify({r["key"]: r["value"] for r in rows})
+
+@app.route("/admin/settings", methods=["POST"])
+@require_admin
+def admin_save_settings():
+    data = request.get_json(silent=True) or {}
+    with get_db() as db:
+        for key, value in data.items():
+            db.execute("INSERT OR REPLACE INTO settings VALUES (?,?)", (key, str(value)))
+        db.commit()
+    return jsonify({"ok": True})
+
+# ─────────────────────────────────────────────
+# ADMIN — Security Log
+# ─────────────────────────────────────────────
+@app.route("/admin/security-log", methods=["GET"])
+@require_admin
+def admin_security_log():
+    with get_db() as db:
+        rows = db.execute(
+            "SELECT * FROM security_log ORDER BY created_at DESC LIMIT 500"
+        ).fetchall()
+    return jsonify({"logs": [dict(r) for r in rows]})
+
+# ─────────────────────────────────────────────
+# ADMIN — Cron Log
+# ─────────────────────────────────────────────
+@app.route("/admin/cron-log", methods=["GET"])
+@require_admin
+def admin_cron_log():
+    with get_db() as db:
+        rows = db.execute(
+            "SELECT * FROM cron_log ORDER BY ran_at DESC LIMIT 200"
+        ).fetchall()
+    return jsonify({"logs": [dict(r) for r in rows]})
+
+@app.route("/admin/cron/run", methods=["POST"])
+@require_admin
+def admin_run_cron():
+    data = request.get_json(silent=True) or {}
+    job = data.get("job", "sync_orders")
+    if job == "sync_orders":
+        threading.Thread(target=_cron_sync_orders, daemon=True).start()
+    return jsonify({"ok": True, "job": job})
+
+# ─────────────────────────────────────────────
+# ADMIN — Profit Report
+# ─────────────────────────────────────────────
+@app.route("/admin/reports/profit", methods=["GET"])
+@require_admin
+def admin_profit():
+    with get_db() as db:
+        monthly = db.execute("""
+            SELECT strftime('%Y-%m', o.created_at) as month,
+                   COUNT(*) as total_orders,
+                   SUM(o.price) as revenue,
+                   SUM(s.provider_price * o.quantity / 1000.0) as cost
+            FROM orders o
+            LEFT JOIN services s ON s.id=o.service_id
+            WHERE o.status != 'cancelled'
+            GROUP BY month ORDER BY month DESC LIMIT 12
+        """).fetchall()
+    result = []
+    for r in monthly:
+        d = dict(r)
+        cost = d.get("cost") or 0
+        rev  = d.get("revenue") or 0
+        d["profit"] = round(rev - cost, 2)
+        result.append(d)
+    return jsonify({"monthly": result})
+
+# ─────────────────────────────────────────────
+# Cron Job: Sync Orders
+# ─────────────────────────────────────────────
+def _cron_sync_orders():
+    start = time.time()
+    status = "ok"
+    details = ""
+    try:
+        with get_db() as db:
+            pending = db.execute("""
+                SELECT o.*, p.api_url, p.api_key
+                FROM orders o
+                JOIN services s ON s.id=o.service_id
+                JOIN providers p ON p.id=s.provider_id
+                WHERE o.status IN ('pending','active','partial')
+                AND o.provider_order_id IS NOT NULL
+                AND o.provider_order_id != ''
+                LIMIT 100
+            """).fetchall()
+
+        if not pending:
+            return
+
+        # Group by provider
+        by_provider = {}
+        for o in pending:
+            key = (o["api_url"], o["api_key"])
+            by_provider.setdefault(key, []).append(o)
+
+        updated = 0
+        for (api_url, api_key), orders in by_provider.items():
+            ids = ",".join(o["provider_order_id"] for o in orders)
+            try:
+                resp = requests.post(api_url, data={
+                    "key": api_key, "action": "status", "order": ids
+                }, timeout=20)
+                results = resp.json()
+
+                with get_db() as db:
+                    for o in orders:
+                        info = results.get(str(o["provider_order_id"]), {})
+                        if not info:
+                            continue
+                        new_status = str(info.get("status","pending")).lower()
+                        remains = info.get("remains", 0)
+                        db.execute("""UPDATE orders SET status=?, remains=?,
+                            updated_at=datetime('now') WHERE id=?""",
+                            (new_status, remains, o["id"]))
+                        updated += 1
+                    db.commit()
+            except Exception as e:
+                log.error(f"[cron] provider sync error: {e}")
+
+        details = f"updated={updated}"
+        ms = int((time.time() - start) * 1000)
+        with get_db() as db:
+            db.execute("INSERT INTO cron_log (job_name,status,details,duration_ms) VALUES (?,?,?,?)",
+                       ("sync_orders", status, details, ms))
+            db.commit()
+
+    except Exception as e:
+        log.error(f"[cron] fatal: {e}")
+        with get_db() as db:
+            db.execute("INSERT INTO cron_log (job_name,status,details,duration_ms) VALUES (?,?,?,?)",
+                       ("sync_orders", "error", str(e), int((time.time()-start)*1000)))
+            db.commit()
+
+def _cron_loop():
     while True:
         time.sleep(60)
         _cron_sync_orders()
 
-# ────────────────────────────────────────────────────────────
-# تشغيل الكرون وأوامر البوت — يعمل مع Flask المباشر وGunicorn
-# ────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
+# External cron endpoint (for cron-job.org etc.)
+# ─────────────────────────────────────────────
+@app.route("/cron/sync", methods=["GET","POST"])
+def cron_sync():
+    key = request.args.get("key","") or (request.get_json(silent=True) or {}).get("key","")
+    if ADMIN_SECRET_KEY and key != ADMIN_SECRET_KEY:
+        return jsonify({"error": "unauthorized"}), 401
+    threading.Thread(target=_cron_sync_orders, daemon=True).start()
+    return jsonify({"ok": True, "message": "cron triggered"})
+
+# ─────────────────────────────────────────────
+# Startup
+# ─────────────────────────────────────────────
 def _startup():
-    threading.Thread(target=set_bot_commands, daemon=True).start()
-    threading.Thread(target=_start_cron, daemon=True).start()
+    init_db()
+    if TELEGRAM_BOT_TOKEN:
+        threading.Thread(target=lambda: tg("setMyCommands", {"commands": [
+            {"command": "start", "description": "فتح التطبيق"},
+            {"command": "support", "description": "الدعم الفني"}
+        ]}), daemon=True).start()
+    threading.Thread(target=_cron_loop, daemon=True).start()
+    log.info("✅ SMM Panel started")
 
 _startup()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=False)
