@@ -198,6 +198,16 @@ body::before{
 .form-ctrl option{background:#091422;}
 select.form-ctrl{cursor:pointer;}
 
+.main-cat-row{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:14px 16px;display:flex;align-items:center;gap:14px;
+  cursor:pointer;transition:all .2s;
+}
+.main-cat-row:hover,.main-cat-row:active{border-color:var(--cyan);background:var(--card2);}
+.main-cat-row .mcr-img{width:48px;height:48px;border-radius:10px;object-fit:cover;flex-shrink:0;background:var(--bg2);}
+.main-cat-row .mcr-icon{width:48px;height:48px;border-radius:10px;background:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+.main-cat-row .mcr-name{flex:1;font-size:15px;font-weight:700;color:var(--text);}
+.main-cat-row .mcr-arrow{color:var(--muted);font-size:18px;}
 .cat-card{
   background:var(--card);border:1px solid var(--border);border-radius:10px;
   padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;
@@ -506,49 +516,62 @@ select.form-ctrl{cursor:pointer;}
     <div class="page" id="pg-new-order">
       <div class="section-title-h" data-t="order.title">🚀 طلب جديد</div>
 
-      <!-- Category cards like Dark Follow -->
-      <div class="form-grp">
-        <label class="form-lbl" data-t="order.category">اختر الفئة</label>
-        <div id="cat-cards-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:8px;"></div>
-        <select id="sel-cat" class="form-ctrl" onchange="filterServices()" style="display:none;">
-          <option value="">اختر الفئة...</option>
-        </select>
+      <!-- Level 1: Main categories -->
+      <div id="view-main-cats">
+        <div id="main-cats-grid" style="display:flex;flex-direction:column;gap:10px;"></div>
       </div>
 
-      <div class="form-grp">
-        <label class="form-lbl" data-t="order.service">الخدمة</label>
-        <select id="sel-svc" class="form-ctrl" onchange="onServiceSelect()">
-          <option value="" data-t="order.select_svc">اختر الخدمة...</option>
-        </select>
+      <!-- Level 2: Sub categories -->
+      <div id="view-sub-cats" style="display:none;">
+        <button onclick="goBackToMain()" style="background:none;border:none;color:var(--cyan);font-size:14px;cursor:pointer;padding:4px 0 12px 0;display:flex;align-items:center;gap:6px;">
+          ← رجوع للأقسام الرئيسية
+        </button>
+        <div id="main-cat-title" style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:14px;"></div>
+        <div id="sub-cats-grid" style="display:flex;flex-direction:column;gap:10px;"></div>
       </div>
 
-      <div class="service-info-card" id="svc-info-card">
-        <img id="sic-img" src="" alt="" style="display:none;width:100%;max-height:120px;object-fit:cover;border-radius:6px;margin-bottom:10px;"/>
-        <div class="sic-row"><span data-t="order.price_per_1k">السعر / 1000</span><span class="sic-val" id="sic-price">—</span></div>
-        <div class="sic-row"><span data-t="order.min">الحد الأدنى</span><span class="sic-val" id="sic-min">—</span></div>
-        <div class="sic-row"><span data-t="order.max">الحد الأقصى</span><span class="sic-val" id="sic-max">—</span></div>
-        <div class="sic-row" id="sic-time-row"><span data-t="order.est_time">وقت الإنجاز</span><span class="sic-val" id="sic-time">—</span></div>
-        <div style="margin-top:8px;font-size:11px;color:var(--muted);" id="sic-desc"></div>
-      </div>
+      <!-- Level 3: Services -->
+      <div id="view-services" style="display:none;">
+        <button onclick="goBackToSub()" style="background:none;border:none;color:var(--cyan);font-size:14px;cursor:pointer;padding:4px 0 12px 0;display:flex;align-items:center;gap:6px;">
+          ← رجوع للأقسام الفرعية
+        </button>
+        <div id="sub-cat-title" style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:14px;"></div>
 
-      <div class="form-grp">
-        <label class="form-lbl" data-t="order.link">الرابط</label>
-        <input type="url" id="ord-link" class="form-ctrl" placeholder="https://..." dir="ltr" oninput="calcOrderPrice()"/>
-      </div>
+        <div class="form-grp">
+          <label class="form-lbl" data-t="order.service">الخدمة</label>
+          <select id="sel-svc" class="form-ctrl" onchange="onServiceSelect()">
+            <option value="" data-t="order.select_svc">اختر الخدمة...</option>
+          </select>
+        </div>
 
-      <div class="form-grp">
-        <label class="form-lbl" data-t="order.quantity">الكمية</label>
-        <input type="number" id="ord-qty" class="form-ctrl" placeholder="100" oninput="calcOrderPrice()"/>
-      </div>
+        <div class="service-info-card" id="svc-info-card">
+          <img id="sic-img" src="" alt="" style="display:none;width:100%;max-height:120px;object-fit:cover;border-radius:6px;margin-bottom:10px;"/>
+          <div class="sic-row"><span data-t="order.price_per_1k">السعر / 1000</span><span class="sic-val" id="sic-price">—</span></div>
+          <div class="sic-row"><span data-t="order.min">الحد الأدنى</span><span class="sic-val" id="sic-min">—</span></div>
+          <div class="sic-row"><span data-t="order.max">الحد الأقصى</span><span class="sic-val" id="sic-max">—</span></div>
+          <div class="sic-row" id="sic-time-row"><span data-t="order.est_time">وقت الإنجاز</span><span class="sic-val" id="sic-time">—</span></div>
+          <div style="margin-top:8px;font-size:11px;color:var(--muted);" id="sic-desc"></div>
+        </div>
 
-      <div class="price-preview" id="price-preview">
-        <span class="pp-label" data-t="order.total_cost">التكلفة الإجمالية</span>
-        <span class="pp-value" id="pp-val">$0.00</span>
-      </div>
+        <div class="form-grp">
+          <label class="form-lbl" data-t="order.link">الرابط</label>
+          <input type="url" id="ord-link" class="form-ctrl" placeholder="https://..." dir="ltr" oninput="calcOrderPrice()"/>
+        </div>
 
-      <button class="btn btn-primary btn-full" id="btn-place-order" onclick="placeOrder()">
-        <span data-t="order.place_btn">✅ تأكيد الطلب</span>
-      </button>
+        <div class="form-grp">
+          <label class="form-lbl" data-t="order.quantity">الكمية</label>
+          <input type="number" id="ord-qty" class="form-ctrl" placeholder="100" oninput="calcOrderPrice()"/>
+        </div>
+
+        <div class="price-preview" id="price-preview">
+          <span class="pp-label" data-t="order.total_cost">التكلفة الإجمالية</span>
+          <span class="pp-value" id="pp-val">$0.00</span>
+        </div>
+
+        <button class="btn btn-primary btn-full" id="btn-place-order" onclick="placeOrder()">
+          <span data-t="order.place_btn">✅ تأكيد الطلب</span>
+        </button>
+      </div><!-- /view-services -->
     </div>
 
     <!-- ── ORDERS ── -->
@@ -1102,62 +1125,150 @@ async function loadPublicSettings() {
 }
 
 function initNewOrder() {
-  if (!_services.length) { loadServices().then(fillCategorySelect); return; }
-  fillCategorySelect();
+  if (!_services.length) { loadServices().then(renderMainCats); return; }
+  renderMainCats();
 }
 
-function fillCategorySelect() {
-  // Fill hidden select (for filterServices logic)
-  const sel = document.getElementById('sel-cat');
-  sel.innerHTML = `<option value="">${t('order.select_cat')}</option>` +
-    _categories.map(c => `<option value="${c.id}">${c.icon} ${_lang === 'ar' ? c.name_ar : c.name_en}</option>`).join('');
+// ══════════════════════════════════════════════
+// HIERARCHICAL CATEGORY SYSTEM
+// ══════════════════════════════════════════════
 
-  // Fill visual card grid
-  const grid = document.getElementById('cat-cards-grid');
-  if (grid) {
-    grid.innerHTML = _categories.map(c => {
-      const name = _lang === 'ar' ? c.name_ar : c.name_en;
-      // Use category image if available, fallback to icon emoji
-      const imgHtml = c.image_url
-        ? `<img src="${c.image_url}" alt="${name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><div class="cat-icon-fallback" style="display:none;">${c.icon||'📦'}</div>`
-        : `<div class="cat-icon-fallback">${c.icon||'📦'}</div>`;
-      return `<div class="cat-card" id="catcard-${c.id}" onclick="selectCatCard(${c.id})">
-        ${imgHtml}
-        <div class="cat-name">${name}</div>
-      </div>`;
-    }).join('');
+// ── خريطة الأقسام الرئيسية وأقسامها الفرعية ──
+const MAIN_CATS = [
+  {
+    id: 'white',
+    name_ar: 'خدمات وايت فولو',
+    icon: '🌟',
+    keywords: ['خدمات دارك', 'خدمات انستا', 'خدمات فيسبوك', 'خدمات تليجرام', 'خدمات التجار', 'خدمات تلجرام مميز', 'نجوم وهدايه', 'عروض العيد']
+  },
+  {
+    id: 'cards',
+    name_ar: 'قسم البطائق',
+    icon: '🎫',
+    keywords: ['بطاقات ايتونز', 'itunes', 'بطاقات نينتيندو', 'nintendo', 'بطاقات بليزارد', 'blizzard', 'بطاقات فورتنايت', 'fortnite', 'بطاقات شحن', 'playstation', 'بطاقات فالورانت', 'valorant', 'بطاقات ستيم', 'steam', 'كرانيش', 'crunchyroll', 'ريوت', 'riot', 'روبلوكس', 'roblox', 'امزون', 'amzoum', 'ريزر', 'zgold', 'ليج', 'league']
+  },
+  {
+    id: 'games',
+    name_ar: 'قسم شحن الألعاب',
+    icon: '🎮',
+    keywords: ['اوكسايد', 'oxide', 'جينشين', 'genshin', 'ببجي', 'pubg', 'دلتا فورس', 'delta force', 'ارينا', 'arena', 'كولف ديوتي', 'call of duty', 'لودو', 'ludo']
+  },
+  {
+    id: 'subs',
+    name_ar: 'قسم الاشتراكات',
+    icon: '📋',
+    keywords: ['نايترو', 'nitro', 'العاب ستيم', 'نتفلكس', 'netflix', 'كيم بأس', 'xbox', 'تلجرام مميز | premium', 'premium', 'اشتراكات | playstation', 'playstation plus']
+  },
+  {
+    id: 'phone',
+    name_ar: 'شحن رصيد الهاتف',
+    icon: '📱',
+    keywords: ['العراق', 'السعودية', 'الاردن', 'لبنان', 'مصر', 'البحرين']
+  },
+  {
+    id: 'tgprem',
+    name_ar: 'تليجرام مميز',
+    icon: '⭐',
+    keywords: ['خدمات مميز عربي', 'خدمات مميزه بدون نزول', 'ستارت بوت']
   }
+];
 
-  if (_selCat) { sel.value = _selCat; highlightCatCard(_selCat); }
-  filterServices();
+// ── تحديد الأقسام الفرعية حسب الكلمات المفتاحية ──
+function getSubCatsForMain(mainId) {
+  const main = MAIN_CATS.find(m => m.id === mainId);
+  if (!main) return [];
+  return _categories.filter(c => {
+    const name = (c.name_ar || c.name_en || '').toLowerCase();
+    return main.keywords.some(kw => name.includes(kw.toLowerCase()));
+  });
 }
 
-function selectCatCard(catId) {
-  const sel = document.getElementById('sel-cat');
-  sel.value = catId;
-  highlightCatCard(catId);
-  filterServices();
-  // Scroll to service selector
-  document.getElementById('sel-svc').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+// ── عرض الأقسام الرئيسية ──
+function renderMainCats() {
+  document.getElementById('view-main-cats').style.display = '';
+  document.getElementById('view-sub-cats').style.display = 'none';
+  document.getElementById('view-services').style.display = 'none';
+
+  const grid = document.getElementById('main-cats-grid');
+  grid.innerHTML = MAIN_CATS.map(mc => {
+    // Find image from first matching sub-category
+    const subs = getSubCatsForMain(mc.id);
+    const imgUrl = subs.length && subs[0].image_url ? subs[0].image_url : '';
+    const imgHtml = imgUrl
+      ? `<img class="mcr-img" src="${imgUrl}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt=""/><div class="mcr-icon" style="display:none;">${mc.icon}</div>`
+      : `<div class="mcr-icon">${mc.icon}</div>`;
+    return `<div class="main-cat-row" onclick="openMainCat('${mc.id}')">
+      ${imgHtml}
+      <div class="mcr-name">${mc.name_ar}</div>
+      <div class="mcr-arrow">›</div>
+    </div>`;
+  }).join('');
 }
 
-function highlightCatCard(catId) {
-  document.querySelectorAll('.cat-card').forEach(el => el.classList.remove('active'));
-  const card = document.getElementById(`catcard-${catId}`);
-  if (card) card.classList.add('active');
+// ── عرض الأقسام الفرعية ──
+function openMainCat(mainId) {
+  const main = MAIN_CATS.find(m => m.id === mainId);
+  if (!main) return;
+  window._currentMainId = mainId;
+
+  const subs = getSubCatsForMain(mainId);
+  document.getElementById('view-main-cats').style.display = 'none';
+  document.getElementById('view-sub-cats').style.display = '';
+  document.getElementById('view-services').style.display = 'none';
+  document.getElementById('main-cat-title').textContent = main.name_ar;
+
+  const grid = document.getElementById('sub-cats-grid');
+  if (!subs.length) {
+    grid.innerHTML = '<p style="color:var(--muted);text-align:center;padding:20px;">لا توجد أقسام فرعية بعد — انتظر المزامنة</p>';
+    return;
+  }
+  grid.innerHTML = subs.map(c => {
+    const name = _lang === 'ar' ? (c.name_ar || c.name_en) : (c.name_en || c.name_ar);
+    const imgHtml = c.image_url
+      ? `<img class="mcr-img" src="${c.image_url}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt=""/><div class="mcr-icon" style="display:none;">${c.icon||'📦'}</div>`
+      : `<div class="mcr-icon">${c.icon||'📦'}</div>`;
+    return `<div class="main-cat-row" onclick="openSubCat(${c.id}, '${name.replace(/'/g,"\\'")}')">
+      ${imgHtml}
+      <div class="mcr-name">${name}</div>
+      <div class="mcr-arrow">›</div>
+    </div>`;
+  }).join('');
 }
 
-function filterServices() {
-  const catId = document.getElementById('sel-cat').value;
+// ── عرض الخدمات داخل القسم الفرعي ──
+function openSubCat(catId, catName) {
+  window._currentCatId = catId;
+  document.getElementById('view-main-cats').style.display = 'none';
+  document.getElementById('view-sub-cats').style.display = 'none';
+  document.getElementById('view-services').style.display = '';
+  document.getElementById('sub-cat-title').textContent = catName;
+
   const sel = document.getElementById('sel-svc');
-  const filtered = catId
-    ? _services.filter(s => String(s.category_id) === String(catId))
-    : _services;
-  sel.innerHTML = `<option value="">${t('order.select_svc')}</option>` +
+  const filtered = _services.filter(s => String(s.category_id) === String(catId));
+  sel.innerHTML = `<option value="">اختر الخدمة...</option>` +
     filtered.map(s => `<option value="${s.id}">${_lang === 'ar' ? s.name_ar : s.name_en}</option>`).join('');
   document.getElementById('svc-info-card').classList.remove('show');
   document.getElementById('price-preview').classList.remove('show');
 }
+
+// ── أزرار الرجوع ──
+function goBackToMain() {
+  document.getElementById('view-main-cats').style.display = '';
+  document.getElementById('view-sub-cats').style.display = 'none';
+  document.getElementById('view-services').style.display = 'none';
+}
+
+function goBackToSub() {
+  document.getElementById('view-main-cats').style.display = 'none';
+  document.getElementById('view-sub-cats').style.display = '';
+  document.getElementById('view-services').style.display = 'none';
+}
+
+// Keep for compatibility
+function fillCategorySelect() { renderMainCats(); }
+function filterServices() {}
+function selectCatCard() {}
+function highlightCatCard() {}
 
 function onServiceSelect() {
   const id = document.getElementById('sel-svc').value;
