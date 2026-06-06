@@ -11,21 +11,21 @@
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 :root{
-  --bg:       #020408;
-  --bg2:      #040b14;
-  --card:     #060e18;
-  --card2:    #091422;
-  --border:   rgba(0,180,255,0.1);
-  --border2:  rgba(0,180,255,0.22);
-  --cyan:     #00b4ff;
-  --cyan2:    #0055bb;
-  --glow:     rgba(0,180,255,0.15);
-  --red:      #ff2244;
-  --green:    #00ff88;
-  --yellow:   #ffd700;
-  --text:     #c8e8ff;
-  --text2:    #7aa8cc;
-  --muted:    #3a5a7a;
+  --bg:       #f5f7fa;
+  --bg2:      #eef1f5;
+  --card:     #ffffff;
+  --card2:    #f0f4f8;
+  --border:   rgba(0,100,200,0.12);
+  --border2:  rgba(0,100,200,0.25);
+  --cyan:     #0066cc;
+  --cyan2:    #004499;
+  --glow:     rgba(0,100,200,0.1);
+  --red:      #e02040;
+  --green:    #00aa55;
+  --yellow:   #f0a000;
+  --text:     #1a2a3a;
+  --text2:    #3a5a7a;
+  --muted:    #8aa8c8;
   --font:     'Tajawal',sans-serif;
   --mono:     'Share Tech Mono',monospace;
   --title:    'Rajdhani',sans-serif;
@@ -37,8 +37,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
 body::before{
   content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   background-image:
-    linear-gradient(rgba(0,180,255,0.025) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(0,180,255,0.025) 1px,transparent 1px);
+    linear-gradient(rgba(0,100,200,0.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,100,200,0.04) 1px,transparent 1px);
   background-size:32px 32px;
 }
 
@@ -512,6 +512,7 @@ select.form-ctrl{cursor:pointer;}
       </div>
 
       <div class="service-info-card" id="svc-info-card">
+        <img id="sic-img" src="" alt="" style="display:none;width:100%;max-height:120px;object-fit:cover;border-radius:6px;margin-bottom:10px;"/>
         <div class="sic-row"><span data-t="order.price_per_1k">السعر / 1000</span><span class="sic-val" id="sic-price">—</span></div>
         <div class="sic-row"><span data-t="order.min">الحد الأدنى</span><span class="sic-val" id="sic-min">—</span></div>
         <div class="sic-row"><span data-t="order.max">الحد الأقصى</span><span class="sic-val" id="sic-max">—</span></div>
@@ -608,6 +609,47 @@ select.form-ctrl{cursor:pointer;}
       <div id="tos-content"><div class="spinner"></div></div>
     </div>
 
+    <!-- Account Profile Page -->
+    <div class="page" id="pg-account">
+      <div class="section-title-h">👤 حسابي</div>
+      <div class="card" style="padding:20px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+          <div style="width:56px;height:56px;border-radius:50%;background:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;flex-shrink:0;">
+            👤
+          </div>
+          <div>
+            <div id="acc-username" style="font-size:18px;font-weight:700;color:var(--text);"></div>
+            <div id="acc-email" style="font-size:12px;color:var(--muted);margin-top:2px;"></div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div style="background:var(--bg2);border-radius:6px;padding:12px;text-align:center;">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">💰 الرصيد</div>
+            <div id="acc-balance" style="font-size:18px;font-weight:700;color:var(--green);"></div>
+          </div>
+          <div style="background:var(--bg2);border-radius:6px;padding:12px;text-align:center;">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">🛒 إجمالي الطلبات</div>
+            <div id="acc-orders" style="font-size:18px;font-weight:700;color:var(--cyan);"></div>
+          </div>
+          <div style="background:var(--bg2);border-radius:6px;padding:12px;text-align:center;">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">💳 إجمالي الشحن</div>
+            <div id="acc-charged" style="font-size:18px;font-weight:700;color:var(--text);"></div>
+          </div>
+          <div style="background:var(--bg2);border-radius:6px;padding:12px;text-align:center;">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">💸 إجمالي الإنفاق</div>
+            <div id="acc-spent" style="font-size:18px;font-weight:700;color:var(--yellow);"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="padding:16px;margin-bottom:12px;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">📅 تاريخ التسجيل</div>
+        <div id="acc-joined" style="font-size:13px;color:var(--text);"></div>
+      </div>
+      <button class="btn-auth" style="max-width:100%;margin-top:8px;background:linear-gradient(135deg,#e02040,#aa0020);" onclick="doLogout()">
+        🚪 تسجيل الخروج
+      </button>
+    </div>
+
   </div><!-- /content -->
 
   <!-- Bottom Nav -->
@@ -628,9 +670,9 @@ select.form-ctrl{cursor:pointer;}
       <span class="bn-icon">💳</span>
       <span data-t="nav.funds">شحن</span>
     </div>
-    <div class="bn-item" id="bn-more" onclick="showPage('faq')">
-      <span class="bn-icon">❓</span>
-      <span data-t="nav.faq">مساعدة</span>
+    <div class="bn-item" id="bn-account" onclick="showPage('account')">
+      <span class="bn-icon">👤</span>
+      <span>حسابي</span>
     </div>
   </nav>
 </div>
@@ -952,11 +994,13 @@ function showApp() {
 // ═══════════════════════════════════════════
 const pageMap = {
   'home':'pg-home','new-order':'pg-new-order','orders':'pg-orders',
-  'funds':'pg-funds','tickets':'pg-tickets','faq':'pg-faq','tos':'pg-tos'
+  'funds':'pg-funds','tickets':'pg-tickets','faq':'pg-faq','tos':'pg-tos',
+  'account':'pg-account'
 };
 const bnMap = {
   'home':'bn-home','new-order':'bn-new-order','orders':'bn-orders',
-  'funds':'bn-funds','faq':'bn-more','tos':'bn-more','tickets':'bn-more'
+  'funds':'bn-funds','faq':'bn-account','tos':'bn-account','tickets':'bn-account',
+  'account':'bn-account'
 };
 
 function showPage(name) {
@@ -972,9 +1016,32 @@ function showPage(name) {
     home: loadHome, orders: loadOrders,
     funds: loadGateways, tickets: loadTickets,
     faq: loadFaq, tos: loadTos,
-    'new-order': initNewOrder
+    'new-order': initNewOrder,
+    account: loadAccountProfile
   };
   if (loaders[name]) loaders[name]();
+}
+
+// ═══════════════════════════════════════════
+// ACCOUNT PROFILE
+// ═══════════════════════════════════════════
+async function loadAccountProfile() {
+  const d = await api('/user/me');
+  if (!d.id) return;
+  document.getElementById('acc-username').textContent = d.username || '—';
+  document.getElementById('acc-email').textContent    = d.email    || '—';
+  document.getElementById('acc-balance').textContent  = (d.balance||0).toFixed(2) + ' $';
+  document.getElementById('acc-orders').textContent   = d.orders_count || 0;
+  document.getElementById('acc-charged').textContent  = (d.total_charged||0).toFixed(2) + ' $';
+  document.getElementById('acc-spent').textContent    = (d.total_spent||0).toFixed(2) + ' $';
+  document.getElementById('acc-joined').textContent   = formatDate(d.joined_at);
+}
+
+async function doLogout() {
+  await api('/auth/logout', {method:'POST'});
+  localStorage.removeItem('user_token');
+  localStorage.removeItem('user_data');
+  location.reload();
 }
 
 // ═══════════════════════════════════════════
@@ -1052,6 +1119,18 @@ function onServiceSelect() {
   document.getElementById('sic-time-row').style.display = svc.estimated_time ? 'flex' : 'none';
   const lang = _lang;
   document.getElementById('sic-desc').textContent = lang === 'ar' ? svc.description_ar : svc.description_en;
+
+  // Show service image if available
+  const imgEl = document.getElementById('sic-img');
+  if (imgEl) {
+    if (svc.image_url) {
+      imgEl.src = svc.image_url;
+      imgEl.style.display = 'block';
+    } else {
+      imgEl.style.display = 'none';
+    }
+  }
+
   document.getElementById('svc-info-card').classList.add('show');
   document.getElementById('ord-qty').min = svc.min_qty;
   document.getElementById('ord-qty').max = svc.max_qty;
