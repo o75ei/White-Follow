@@ -11,21 +11,21 @@
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
 :root{
-  --bg:       #020408;
-  --bg2:      #040a10;
-  --card:     #060d16;
-  --card2:    #0a1520;
-  --border:   rgba(0,180,255,0.12);
-  --border2:  rgba(0,180,255,0.25);
-  --cyan:     #00b4ff;
-  --cyan2:    #0066cc;
-  --cyan-dim: rgba(0,180,255,0.08);
-  --crack:    #1a3a5c;
-  --red:      #ff2244;
-  --green:    #00ff88;
-  --yellow:   #ffd700;
-  --text:     #c8e8ff;
-  --muted:    #4a6a8a;
+  --bg:       #f5f7fa;
+  --bg2:      #eef1f5;
+  --card:     #ffffff;
+  --card2:    #f0f4f8;
+  --border:   rgba(0,100,200,0.12);
+  --border2:  rgba(0,100,200,0.25);
+  --cyan:     #0066cc;
+  --cyan2:    #004499;
+  --cyan-dim: rgba(0,100,200,0.07);
+  --crack:    #c0d8f0;
+  --red:      #e02040;
+  --green:    #00aa55;
+  --yellow:   #f0a000;
+  --text:     #1a2a3a;
+  --muted:    #6a8aaa;
   --font:     'Tajawal', sans-serif;
   --mono:     'Share Tech Mono', monospace;
   --title:    'Rajdhani', sans-serif;
@@ -37,16 +37,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
 body::before{
   content:'';position:fixed;inset:0;
   background-image:
-    linear-gradient(rgba(0,180,255,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,180,255,0.03) 1px, transparent 1px);
+    linear-gradient(rgba(0,100,200,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,100,200,0.05) 1px, transparent 1px);
   background-size:40px 40px;
   pointer-events:none;z-index:0;
 }
 body::after{
   content:'';position:fixed;inset:0;
   background:
-    radial-gradient(ellipse 80% 40% at 50% -10%, rgba(0,100,200,0.15) 0%, transparent 70%),
-    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(0,60,120,0.10) 0%, transparent 60%);
+    radial-gradient(ellipse 80% 40% at 50% -10%, rgba(0,100,200,0.05) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(0,60,200,0.03) 0%, transparent 60%);
   pointer-events:none;z-index:0;
 }
 
@@ -608,6 +608,12 @@ textarea.form-control{resize:vertical;min-height:80px;}
           <div class="stat-card yellow"><span class="stat-icon">🛒</span><div class="stat-label">الطلبات</div><div class="stat-value" id="s-orders">—</div><div class="stat-sub"><span id="s-today">0</span> اليوم</div></div>
           <div class="stat-card red"><span class="stat-icon">💳</span><div class="stat-label">مدفوعات معلقة</div><div class="stat-value" id="s-pay">—</div><div class="stat-sub">تحتاج مراجعة</div></div>
           <div class="stat-card cyan"><span class="stat-icon">🎫</span><div class="stat-label">تذاكر مفتوحة</div><div class="stat-value" id="s-tickets">—</div><div class="stat-sub">تحتاج رد</div></div>
+          <div class="stat-card green" id="provider-balance-card" style="cursor:pointer;" onclick="refreshProviderBalances()">
+            <span class="stat-icon">🏦</span>
+            <div class="stat-label">رصيد Dark Follow</div>
+            <div class="stat-value" id="s-prov-balance">—</div>
+            <div class="stat-sub">🔄 انقر للتحديث</div>
+          </div>
         </div>
         <div class="section-card">
           <div class="section-head"><span class="section-title">📊 إيرادات شهرية</span></div>
@@ -1252,6 +1258,34 @@ async function loadDashboard() {
       <div class="chart-label">${(m.month||'').slice(5)}</div>
     </div>
   `).join('');
+
+  // Load provider balances
+  refreshProviderBalances(true);
+}
+
+async function refreshProviderBalances(silent=false) {
+  const el = document.getElementById('s-prov-balance');
+  if (!silent) { el.textContent = '⏳'; }
+  try {
+    // First try to force-refresh from API for first provider
+    const provD = await api('/admin/providers/balances');
+    const provs = provD.providers || [];
+    if (provs.length) {
+      // Also do a live refresh on first provider
+      if (!silent) {
+        const ref = await api(`/admin/providers/${provs[0].id}/refresh-balance`, {method:'POST'});
+        if (ref.ok) {
+          el.textContent = '$' + parseFloat(ref.balance).toFixed(2);
+          if (!silent) toast(`✅ رصيد ${ref.name}: $${parseFloat(ref.balance).toFixed(2)}`, 'success');
+          return;
+        }
+      }
+      const total = provs.reduce((s, p) => s + (p.balance||0), 0);
+      el.textContent = '$' + total.toFixed(2);
+    } else {
+      el.textContent = '—';
+    }
+  } catch(e) { el.textContent = 'خطأ'; }
 }
 
 // ═══════════════════════════════════════════
@@ -1272,8 +1306,8 @@ function renderUsers(users) {
     <tr>
       <td style="font-family:var(--mono);font-size:12px;color:var(--cyan);">#${u.id}</td>
       <td>
-        <div style="font-size:13px;font-weight:600;">${u.email||'—'}</div>
-        <div style="font-size:10px;color:var(--muted);font-family:var(--mono);">@${u.username||'—'}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--cyan);">@${u.username||'—'}</div>
+        <div style="font-size:11px;color:var(--muted);">${u.email||'—'}</div>
       </td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--muted);">
         ${u.telegram_id ? `<span style="color:var(--cyan);">${u.telegram_id}</span>` : '<span style="color:var(--muted);">—</span>'}
@@ -1292,7 +1326,10 @@ function renderUsers(users) {
   `).join('');
 }
 
-function searchUsers(q) { if (q.length > 2 || q.length === 0) loadUsers(q); }
+function searchUsers(q) {
+  if (q.length === 0) { loadUsers(''); return; }
+  if (q.length >= 2) loadUsers(q);
+}
 
 function openBalanceModal(uid, email, currentBalance) {
   document.getElementById('bal-uid').value = uid;
@@ -1411,7 +1448,10 @@ async function loadProviders() {
         <td><div style="font-size:13px;font-weight:600;">${p.name}</div><div style="font-size:10px;color:var(--muted);font-family:var(--mono);direction:ltr;">${p.api_url}</div></td>
         <td style="color:var(--green);font-family:var(--mono);">$${(p.balance||0).toFixed(2)}</td>
         <td>${p.is_active?'<span class="badge badge-active">نشط</span>':'<span class="badge badge-cancelled">معطل</span>'}</td>
-        <td><button class="btn btn-primary btn-xs" onclick="testProvider(${p.id})">🔍 فحص</button></td>
+        <td style="display:flex;gap:4px;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-xs" onclick="testProvider(${p.id})">🔍 فحص</button>
+          <button class="btn btn-success btn-xs" onclick="syncCatalog(${p.id})">🔄 مزامنة الخدمات</button>
+        </td>
       </tr>
     `).join('')}</tbody>
   </table>`;
@@ -1435,6 +1475,19 @@ async function testProvider(id) {
   const d = await api(`/admin/providers/${id}/test`, {method:'POST'});
   if (d.ok) { toast(`✅ رصيد المزود: $${d.balance}`,'success'); loadProviders(); }
   else toast(`❌ ${d.error||'فشل الاتصال'}`,'error');
+}
+
+async function syncCatalog(providerId) {
+  toast('⌛ جارٍ مزامنة الخدمات والأقسام من المورد...', 'info');
+  const d = await api('/admin/cron/run', {
+    method: 'POST',
+    body: JSON.stringify({ job: 'sync_catalog', provider_id: providerId })
+  });
+  if (d.ok) {
+    toast('✅ بدأت المزامنة في الخلفية. انتظر 30 ثانية ثم أعد تحميل الخدمات.', 'success');
+  } else {
+    toast(d.error || 'خطأ في المزامنة', 'error');
+  }
 }
 
 // ═══════════════════════════════════════════
