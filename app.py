@@ -31,6 +31,10 @@ ADMIN_SECRET_KEY   = os.environ.get("ADMIN_SECRET_KEY", "")
 WEBAPP_URL         = os.environ.get("WEBAPP_URL", "https://YOUR-APP.up.railway.app")
 SUPPORT_USERNAME   = os.environ.get("SUPPORT_USERNAME", "support")
 
+# Dark Follow provider (auto-registered on startup)
+DARKFOLLOW_API_KEY = os.environ.get("DARKFOLLOW_API_KEY", "")
+DARKFOLLOW_API_URL = os.environ.get("DARKFOLLOW_API_URL", "https://darkfollow.shop/api/v2")
+
 # SMTP — Email Verification
 SMTP_HOST     = os.environ.get("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT     = int(os.environ.get("SMTP_PORT", "587"))
@@ -107,6 +111,7 @@ def init_db():
             markup_value    REAL    DEFAULT 20,
             final_price     REAL    DEFAULT 0,
             estimated_time  TEXT    DEFAULT '',
+            image_url       TEXT    DEFAULT '',
             is_active       INTEGER DEFAULT 1,
             created_at      TEXT    DEFAULT (datetime('now')),
             updated_at      TEXT    DEFAULT (datetime('now'))
@@ -240,6 +245,13 @@ def init_db():
         INSERT OR IGNORE INTO settings VALUES ('tos_en', '');
         """)
         db.commit()
+    # Migration: add image_url if missing (existing DBs)
+    with get_db() as db:
+        try:
+            db.execute("ALTER TABLE services ADD COLUMN image_url TEXT DEFAULT ''")
+            db.commit()
+        except Exception:
+            pass  # column already exists
     log.info("✅ Database initialized")
 
 # ─────────────────────────────────────────────
@@ -715,9 +727,14 @@ def require_user(f):
 @require_user
 def user_me():
     u = request.current_user
-    return jsonify({"id": u["id"], "email": u["email"], "username": u["username"],
-                    "balance": u["balance"], "language": u["language"],
-                    "joined_at": u["joined_at"]})
+    return jsonify({
+        "id": u["id"], "email": u["email"], "username": u["username"],
+        "balance": u["balance"], "language": u["language"],
+        "joined_at": u["joined_at"], "last_seen": u["last_seen"],
+        "orders_count": u["orders_count"],
+        "total_charged": u.get("total_charged", 0),
+        "total_spent":   u.get("total_spent", 0)
+    })
 
 @app.route("/user/orders", methods=["GET"])
 @require_user
@@ -1538,7 +1555,64 @@ def admin_run_cron():
     job = data.get("job", "sync_orders")
     if job == "sync_orders":
         threading.Thread(target=_cron_sync_orders, daemon=True).start()
+    elif job == "sync_catalog":
+        provider_id = data.get("provider_id")
+        threading.Thread(target=_sync_provider_catalog, args=(provider_id,), daemon=True).start()
+    elif job == "sync_balance":
+        threading.Thread(target=_sync_provider_balance, daemon=True).start()
     return jsonify({"ok": True, "job": job})
+
+# ─────────────────────────────────────────────
+# ADMIN — Provider Live Balance (Direct)
+# ─────────────────────────────────────────────
+@app.route("/admin/providers/balances", methods=["GET"])
+@require_admin
+def admin_provider_balances():
+    """Return all provider balances (from DB — updated by cron)"""
+    with get_db() as db:
+        rows = db.execute("SELECT id, name, balance, api_url FROM providers WHERE is_active=1").fetchall()
+    return jsonify({"providers": [dict(r) for r in rows]})
+
+@app.route("/admin/providers/<int:pid>/refresh-balance", methods=["POST"])
+@require_admin
+def admin_refresh_provider_balance(pid):
+    """Force-refresh balance from provider API right now"""
+    with get_db() as db:
+        p = db.execute("SELECT * FROM providers WHERE id=?", (pid,)).fetchone()
+    if not p:
+        return jsonify({"error": "غير موجود"}), 404
+    try:
+        resp = requests.post(p["api_url"], data={"key": p["api_key"], "action": "balance"}, timeout=10)
+        data = resp.json()
+        bal = float(data.get("balance", data.get("Balance", data.get("funds", 0))))
+        with get_db() as db:
+            db.execute("UPDATE providers SET balance=? WHERE id=?", (bal, pid))
+            db.commit()
+        return jsonify({"ok": True, "balance": bal, "name": p["name"]})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+# ─────────────────────────────────────────────
+# ADMIN — User find by username
+# ─────────────────────────────────────────────
+@app.route("/admin/users/find", methods=["GET"])
+@require_admin
+def admin_find_user():
+    q = request.args.get("q", "").strip()
+    if not q:
+        return jsonify({"error": "q مطلوب"}), 400
+    with get_db() as db:
+        pat = f"%{q}%"
+        users = db.execute("""
+            SELECT id, email, username, telegram_id, balance,
+                   total_charged, total_spent, orders_count,
+                   is_banned, joined_at, last_seen
+            FROM users
+            WHERE username LIKE ? OR email LIKE ?
+               OR telegram_id LIKE ? OR CAST(id AS TEXT) = ?
+            ORDER BY joined_at DESC LIMIT 20
+        """, (pat, pat, pat, q)).fetchall()
+    return jsonify({"users": [dict(u) for u in users]})
 
 # ─────────────────────────────────────────────
 # ADMIN — Profit Report
@@ -1634,9 +1708,177 @@ def _cron_sync_orders():
             db.commit()
 
 def _cron_loop():
+    _catalog_counter = 0
     while True:
         time.sleep(60)
         _cron_sync_orders()
+        _sync_provider_balance()
+        _catalog_counter += 1
+        if _catalog_counter >= 5:   # every 5 minutes
+            _catalog_counter = 0
+            _sync_provider_catalog()
+
+# ─────────────────────────────────────────────
+# Auto-Sync Dark Follow: Categories + Services + Images
+# ─────────────────────────────────────────────
+def _sync_provider_catalog(provider_id=None):
+    """
+    Fetches all services from provider API and auto-creates
+    categories + services with thumbnail images.
+    Runs every 5 minutes via cron loop.
+    """
+    start = time.time()
+    try:
+        with get_db() as db:
+            if provider_id:
+                providers = db.execute("SELECT * FROM providers WHERE id=? AND is_active=1", (provider_id,)).fetchall()
+            else:
+                providers = db.execute("SELECT * FROM providers WHERE is_active=1").fetchall()
+
+        if not providers:
+            return
+
+        for prov in providers:
+            try:
+                resp = requests.post(prov["api_url"], data={"key": prov["api_key"], "action": "services"}, timeout=30)
+                remote_svcs = resp.json()
+                if not isinstance(remote_svcs, list):
+                    continue
+
+                # ── Build category map from remote services ──
+                cat_map = {}  # category_name → local category id
+                with get_db() as db:
+                    existing_cats = db.execute("SELECT id, name_en FROM categories").fetchall()
+                    for c in existing_cats:
+                        cat_map[c["name_en"].strip().lower()] = c["id"]
+
+                # ── Process each remote service ──
+                remote_ids = set()
+                with get_db() as db:
+                    markup_type  = get_setting("global_markup_type", "percent")
+                    markup_value = float(get_setting("global_markup_value", "20"))
+
+                    for svc in remote_svcs:
+                        cat_name = str(svc.get("category", "General")).strip()
+                        cat_key  = cat_name.lower()
+
+                        # Create category if missing
+                        if cat_key not in cat_map:
+                            # Try to extract an icon from the category name
+                            icon = "📦"
+                            icon_map = {
+                                "instagram": "📸", "tiktok": "🎵", "youtube": "▶️",
+                                "twitter": "🐦", "facebook": "📘", "snapchat": "👻",
+                                "telegram": "✈️", "linkedin": "💼", "spotify": "🎧",
+                                "twitch": "🎮", "discord": "💬", "pinterest": "📌",
+                                "soundcloud": "🎶", "google": "🔍", "website": "🌐",
+                                "seo": "🔍", "views": "👁", "followers": "👥",
+                                "likes": "❤️", "comments": "💬", "shares": "🔁"
+                            }
+                            for kw, em in icon_map.items():
+                                if kw in cat_key:
+                                    icon = em
+                                    break
+
+                            cur = db.execute(
+                                "INSERT INTO categories (name_ar, name_en, icon, sort_order, is_active) VALUES (?,?,?,?,1)",
+                                (cat_name, cat_name, icon, len(cat_map) * 10)
+                            )
+                            cat_map[cat_key] = cur.lastrowid
+                            log.info(f"[catalog] New category: {cat_name}")
+
+                        cat_id = cat_map[cat_key]
+                        provider_service_id = str(svc.get("service", ""))
+                        remote_ids.add(provider_service_id)
+
+                        provider_price = float(svc.get("rate", svc.get("price", 0)))
+                        final_price    = calc_price(provider_price, markup_type, markup_value)
+
+                        # Image URL from provider (thumbnail)
+                        img_url = str(svc.get("image", svc.get("img", svc.get("icon", ""))))
+
+                        existing = db.execute(
+                            "SELECT id, provider_price FROM services WHERE provider_id=? AND provider_service_id=?",
+                            (prov["id"], provider_service_id)
+                        ).fetchone()
+
+                        if existing:
+                            # Update price + image if changed
+                            if existing["provider_price"] != provider_price:
+                                db.execute("""
+                                    UPDATE services SET
+                                        provider_price=?, final_price=?,
+                                        category_id=?, image_url=?,
+                                        updated_at=datetime('now')
+                                    WHERE id=?
+                                """, (provider_price, final_price, cat_id, img_url, existing["id"]))
+                            else:
+                                # Still update image_url & category
+                                db.execute("""
+                                    UPDATE services SET category_id=?, image_url=?, updated_at=datetime('now')
+                                    WHERE id=?
+                                """, (cat_id, img_url, existing["id"]))
+                        else:
+                            svc_name = str(svc.get("name", "")).strip()
+                            db.execute("""
+                                INSERT INTO services
+                                (provider_id, provider_service_id, category_id,
+                                 name_ar, name_en, description_ar, description_en,
+                                 min_qty, max_qty, provider_price, markup_type, markup_value,
+                                 final_price, type, image_url, is_active)
+                                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)
+                            """, (
+                                prov["id"], provider_service_id, cat_id,
+                                svc_name, svc_name, "", "",
+                                int(svc.get("min", 10)), int(svc.get("max", 10000)),
+                                provider_price, markup_type, markup_value,
+                                final_price, str(svc.get("type", "Default")), img_url
+                            ))
+                            log.info(f"[catalog] New service: {provider_service_id} {svc_name}")
+
+                    # ── Deactivate services no longer in provider ──
+                    all_local = db.execute(
+                        "SELECT id, provider_service_id FROM services WHERE provider_id=?", (prov["id"],)
+                    ).fetchall()
+                    for ls in all_local:
+                        if ls["provider_service_id"] not in remote_ids:
+                            db.execute("UPDATE services SET is_active=0 WHERE id=?", (ls["id"],))
+                            log.info(f"[catalog] Deactivated service: {ls['provider_service_id']}")
+
+                    db.commit()
+                log.info(f"[catalog] Synced {len(remote_svcs)} services from provider #{prov['id']}")
+
+            except Exception as e:
+                log.error(f"[catalog] provider #{prov['id']} error: {e}")
+
+        ms = int((time.time() - start) * 1000)
+        with get_db() as db:
+            db.execute("INSERT INTO cron_log (job_name,status,details,duration_ms) VALUES (?,?,?,?)",
+                       ("sync_catalog", "ok", f"providers={len(providers)}", ms))
+            db.commit()
+
+    except Exception as e:
+        log.error(f"[catalog] fatal: {e}")
+
+
+def _sync_provider_balance():
+    """Fetch and update provider balances from their APIs"""
+    try:
+        with get_db() as db:
+            providers = db.execute("SELECT * FROM providers WHERE is_active=1").fetchall()
+        for prov in providers:
+            try:
+                resp = requests.post(prov["api_url"], data={"key": prov["api_key"], "action": "balance"}, timeout=10)
+                data = resp.json()
+                bal = float(data.get("balance", data.get("Balance", data.get("funds", 0))))
+                with get_db() as db:
+                    db.execute("UPDATE providers SET balance=? WHERE id=?", (bal, prov["id"]))
+                    db.commit()
+                log.info(f"[balance] Provider #{prov['id']} balance: {bal}")
+            except Exception as e:
+                log.error(f"[balance] provider #{prov['id']}: {e}")
+    except Exception as e:
+        log.error(f"[balance] fatal: {e}")
 
 # ─────────────────────────────────────────────
 # External cron endpoint (for cron-job.org etc.)
@@ -1660,6 +1902,29 @@ def _startup():
             {"command": "support", "description": "الدعم الفني"}
         ]}), daemon=True).start()
     threading.Thread(target=_cron_loop, daemon=True).start()
+    # Auto-register Dark Follow provider from env vars
+    if DARKFOLLOW_API_KEY:
+        with get_db() as db:
+            existing = db.execute(
+                "SELECT id FROM providers WHERE api_url=?", (DARKFOLLOW_API_URL,)
+            ).fetchone()
+            if not existing:
+                db.execute(
+                    "INSERT INTO providers (name, api_url, api_key, is_active) VALUES (?,?,?,1)",
+                    ("Dark Follow", DARKFOLLOW_API_URL, DARKFOLLOW_API_KEY)
+                )
+                db.commit()
+                log.info("✅ Dark Follow provider auto-registered")
+            else:
+                # Update API key in case it changed
+                db.execute(
+                    "UPDATE providers SET api_key=?, api_url=? WHERE id=?",
+                    (DARKFOLLOW_API_KEY, DARKFOLLOW_API_URL, existing["id"])
+                )
+                db.commit()
+    # Initial sync on boot
+    threading.Thread(target=_sync_provider_balance, daemon=True).start()
+    threading.Thread(target=_sync_provider_catalog, daemon=True).start()
     log.info("✅ SMM Panel started")
 
 _startup()
