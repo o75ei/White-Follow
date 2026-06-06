@@ -198,6 +198,15 @@ body::before{
 .form-ctrl option{background:#091422;}
 select.form-ctrl{cursor:pointer;}
 
+.cat-card{
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;
+  cursor:pointer;transition:all .2s;text-align:center;
+}
+.cat-card:hover,.cat-card.active{border-color:var(--cyan);background:var(--card2);box-shadow:0 2px 12px var(--glow);}
+.cat-card img{width:44px;height:44px;border-radius:50%;object-fit:cover;background:var(--bg2);}
+.cat-card .cat-icon-fallback{width:44px;height:44px;border-radius:50%;background:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:22px;}
+.cat-card .cat-name{font-size:11px;color:var(--text);font-weight:600;line-height:1.3;}
 .service-info-card{
   background:rgba(0,180,255,0.04);border:1px solid var(--border2);
   border-radius:6px;padding:14px;margin-bottom:16px;
@@ -497,10 +506,12 @@ select.form-ctrl{cursor:pointer;}
     <div class="page" id="pg-new-order">
       <div class="section-title-h" data-t="order.title">🚀 طلب جديد</div>
 
+      <!-- Category cards like Dark Follow -->
       <div class="form-grp">
-        <label class="form-lbl" data-t="order.category">الفئة</label>
-        <select id="sel-cat" class="form-ctrl" onchange="filterServices()">
-          <option value="" data-t="order.select_cat">اختر الفئة...</option>
+        <label class="form-lbl" data-t="order.category">اختر الفئة</label>
+        <div id="cat-cards-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:8px;"></div>
+        <select id="sel-cat" class="form-ctrl" onchange="filterServices()" style="display:none;">
+          <option value="">اختر الفئة...</option>
         </select>
       </div>
 
@@ -884,7 +895,15 @@ async function doRegister() {
   }).then(r=>r.json()).catch(()=>({error:'network'}));
 
   if (!d.ok) {
-    errEl.textContent = d.error || 'حدث خطأ';
+    const errMsg = d.error || 'حدث خطأ';
+    // Translate common errors to Arabic
+    if (errMsg.includes('البريد الإلكتروني مسجل') || errMsg.includes('البريد مسجل')) {
+      errEl.textContent = '📧 هذا البريد الإلكتروني مسجل مسبقاً — يمكنك تسجيل الدخول مباشرة';
+    } else if (errMsg.includes('اسم المستخدم مأخوذ')) {
+      errEl.textContent = '👤 اسم المستخدم مأخوذ — اختر اسماً آخر';
+    } else {
+      errEl.textContent = errMsg;
+    }
     errEl.classList.add('show'); return;
   }
   // If already verified (SMTP disabled) → go straight to app
@@ -1088,11 +1107,44 @@ function initNewOrder() {
 }
 
 function fillCategorySelect() {
+  // Fill hidden select (for filterServices logic)
   const sel = document.getElementById('sel-cat');
   sel.innerHTML = `<option value="">${t('order.select_cat')}</option>` +
     _categories.map(c => `<option value="${c.id}">${c.icon} ${_lang === 'ar' ? c.name_ar : c.name_en}</option>`).join('');
-  if (_selCat) sel.value = _selCat;
+
+  // Fill visual card grid
+  const grid = document.getElementById('cat-cards-grid');
+  if (grid) {
+    grid.innerHTML = _categories.map(c => {
+      const name = _lang === 'ar' ? c.name_ar : c.name_en;
+      // Use category image if available, fallback to icon emoji
+      const imgHtml = c.image_url
+        ? `<img src="${c.image_url}" alt="${name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><div class="cat-icon-fallback" style="display:none;">${c.icon||'📦'}</div>`
+        : `<div class="cat-icon-fallback">${c.icon||'📦'}</div>`;
+      return `<div class="cat-card" id="catcard-${c.id}" onclick="selectCatCard(${c.id})">
+        ${imgHtml}
+        <div class="cat-name">${name}</div>
+      </div>`;
+    }).join('');
+  }
+
+  if (_selCat) { sel.value = _selCat; highlightCatCard(_selCat); }
   filterServices();
+}
+
+function selectCatCard(catId) {
+  const sel = document.getElementById('sel-cat');
+  sel.value = catId;
+  highlightCatCard(catId);
+  filterServices();
+  // Scroll to service selector
+  document.getElementById('sel-svc').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function highlightCatCard(catId) {
+  document.querySelectorAll('.cat-card').forEach(el => el.classList.remove('active'));
+  const card = document.getElementById(`catcard-${catId}`);
+  if (card) card.classList.add('active');
 }
 
 function filterServices() {
