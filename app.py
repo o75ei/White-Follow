@@ -27,6 +27,7 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID   = os.environ.get("TELEGRAM_CHAT_ID", "")
 ADMIN_USERNAME     = os.environ.get("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD     = os.environ.get("ADMIN_PASSWORD", "admin2026%")
+ADMIN_PIN          = os.environ.get("ADMIN_PIN", "2026")   # Simple 4-digit PIN
 ADMIN_SECRET_KEY   = os.environ.get("ADMIN_SECRET_KEY", "")
 WEBAPP_URL         = os.environ.get("WEBAPP_URL", "https://YOUR-APP.up.railway.app")
 SUPPORT_USERNAME   = os.environ.get("SUPPORT_USERNAME", "support")
@@ -352,36 +353,29 @@ def require_admin(f):
 @app.route("/admin/login", methods=["POST"])
 def admin_login():
     data = request.get_json(silent=True) or {}
-    username = (data.get("username") or "").strip()
-    password = (data.get("password") or "").strip()
+    pin = str(data.get("pin") or data.get("password") or "").strip()
+    correct_pin = str(ADMIN_PIN or "2026").strip()
 
-    # Simple direct comparison — no rate limit, no complexity
-    ADMIN_USER = (ADMIN_USERNAME or "admin").strip()
-    ADMIN_PASS = (ADMIN_PASSWORD or "admin2026%").strip()
+    if pin != correct_pin:
+        return jsonify({"error": "الرمز خاطئ"}), 403
 
-    if username != ADMIN_USER or password != ADMIN_PASS:
-        return jsonify({"error": "invalid_credentials"}), 403
-
-    # Generate simple token and store in memory + DB
     token = secrets.token_hex(32)
-    expires = (datetime.datetime.utcnow() + datetime.timedelta(hours=720)).isoformat()  # 30 days
     try:
         with get_db() as db:
             db.execute("INSERT INTO admin_sessions (token,ip,user_agent,expires_at) VALUES (?,?,?,?)",
-                       (token, get_client_ip(), request.headers.get("User-Agent",""), expires))
+                       (token, get_client_ip(), request.headers.get("User-Agent",""), "9999-12-31"))
             db.commit()
     except Exception:
         pass
 
     resp = make_response(jsonify({"ok": True, "token": token}))
-    resp.set_cookie("admin_token", token, httponly=True, samesite="Lax",
-                    max_age=720 * 3600)
+    resp.set_cookie("admin_token", token, httponly=True, samesite="Lax", max_age=720*3600)
     return resp
 
 @app.route("/admin/logout", methods=["POST"])
 @require_admin
 def admin_logout():
-    token = request.headers.get("X-Admin-Token", "") or request.cookies.get("admin_token", "")
+    token = request.headers.get("X-Admin-Token","") or request.cookies.get("admin_token","")
     try:
         with get_db() as db:
             db.execute("DELETE FROM admin_sessions WHERE token=?", (token,))
@@ -394,17 +388,12 @@ def admin_logout():
 
 @app.route("/admin/verify", methods=["POST"])
 def admin_verify():
-    token = request.headers.get("X-Admin-Token", "") or request.cookies.get("admin_token", "")
+    token = request.headers.get("X-Admin-Token","") or request.cookies.get("admin_token","")
     if not token:
         return jsonify({"ok": False}), 401
-    # Also accept if token matches a freshly-generated in-memory check
-    ADMIN_USER = (ADMIN_USERNAME or "admin").strip()
-    ADMIN_PASS = (ADMIN_PASSWORD or "admin2026%").strip()
     try:
         with get_db() as db:
-            row = db.execute(
-                "SELECT id FROM admin_sessions WHERE token=?", (token,)
-            ).fetchone()
+            row = db.execute("SELECT id FROM admin_sessions WHERE token=?", (token,)).fetchone()
         return jsonify({"ok": bool(row)})
     except Exception:
         return jsonify({"ok": False})
@@ -551,43 +540,16 @@ def auth_register():
         )
         db.commit()
 
-    # If SMTP not configured or EMAIL_VERIFY disabled → auto-confirm
-    if EMAIL_VERIFY == "0" or not SMTP_USER:
-        with get_db() as db:
-            cur = db.execute(
-                "INSERT INTO users (email,username,password_hash) VALUES (?,?,?)",
-                (email, username, ph)
-            )
-            user_id = cur.lastrowid
-            uid = f"WF-{user_id:06d}"
-            db.execute("UPDATE users SET uid=? WHERE id=?", (uid, user_id))
-            db.execute("DELETE FROM email_verifications WHERE email=?", (email,))
-            db.commit()
-        token = _create_user_token(user_id)
-        notify_admin(f"👤 مستخدم جديد: {email} (#{user_id})")
-        return jsonify({"ok": True, "verified": True, "token": token,
-                        "user": {"id": user_id, "email": email, "username": username, "balance": 0}})
-
-    sent = _send_verification_email(email, code, username)
-    if not sent:
-        # SMTP configured but failed → still create account (degrade gracefully)
-        with get_db() as db:
-            cur = db.execute(
-                "INSERT INTO users (email,username,password_hash) VALUES (?,?,?)",
-                (email, username, ph)
-            )
-            user_id = cur.lastrowid
-            uid = f"WF-{user_id:06d}"
-            db.execute("UPDATE users SET uid=? WHERE id=?", (uid, user_id))
-            db.execute("DELETE FROM email_verifications WHERE email=?", (email,))
-            db.commit()
-        token = _create_user_token(user_id)
-        notify_admin(f"👤 مستخدم جديد (SMTP fail): {email} (#{user_id})")
-        return jsonify({"ok": True, "verified": True, "token": token,
-                        "user": {"id": user_id, "email": email, "username": username, "balance": 0}})
+    # Always require OTP - send via EmailJS from frontend
+    # Try SMTP as backup (optional)
+    try:
+        if SMTP_USER and SMTP_PASS:
+            _send_verification_email(email, code, username)
+    except Exception:
+        pass  # EmailJS handles delivery
 
     return jsonify({"ok": True, "verified": False, "email": email,
-                    "code": code,  # Frontend sends via EmailJS
+                    "code": code,
                     "message": "أدخل رمز التحقق المرسل إلى بريدك الإلكتروني"})
 
 @app.route("/auth/verify-email", methods=["POST"])
