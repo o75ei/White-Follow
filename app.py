@@ -935,11 +935,21 @@ def place_order():
     place_failed = False
     if provider:
         try:
-            resp = requests.post(provider["api_url"], data={
-                "key": provider["api_key"], "action": "add",
-                "service": svc["provider_service_id"],
-                "link": link, "quantity": quantity
-            }, timeout=15)
+            api_url = provider["api_url"]
+            api_key = provider["api_key"]
+            if "darkfollow" in api_url.lower():
+                base_url = api_url.rstrip("/").split("?")[0]
+                encoded_link = requests.utils.quote(link, safe="")
+                url = f"{base_url}?action=add&key={api_key}&service={svc['provider_service_id']}&link={encoded_link}&quantity={quantity}"
+                log.info(f"[order] Dark Follow detected, using GET request")
+                log.info(f"[order] Dark Follow URL: {url[:80]}...")
+                resp = requests.get(url, timeout=15)
+            else:
+                resp = requests.post(api_url, data={
+                    "key": api_key, "action": "add",
+                    "service": svc["provider_service_id"],
+                    "link": link, "quantity": quantity
+                }, timeout=15)
             r = resp.json()
             provider_order_id = str(r.get("order", ""))
             if not provider_order_id or "error" in r:
@@ -1350,7 +1360,15 @@ def admin_test_provider(pid):
     if not p:
         return jsonify({"error": "غير موجود"}), 404
     try:
-        resp = requests.post(p["api_url"], data={"key": p["api_key"], "action": "balance"}, timeout=10)
+        api_url = p["api_url"]
+        api_key = p["api_key"]
+        if "darkfollow" in api_url.lower():
+            base_url = api_url.rstrip("/").split("?")[0]
+            url = f"{base_url}?action=balance&key={api_key}"
+            log.info(f"[test_provider] Dark Follow detected, using GET request")
+            resp = requests.get(url, timeout=10)
+        else:
+            resp = requests.post(api_url, data={"key": api_key, "action": "balance"}, timeout=10)
         data = resp.json()
         balance = data.get("balance", data.get("Balance", data.get("funds", 0)))
         with get_db() as db:
@@ -1368,7 +1386,16 @@ def admin_fetch_provider_services(pid):
     if not p:
         return jsonify({"error": "غير موجود"}), 404
     try:
-        resp = requests.post(p["api_url"], data={"key": p["api_key"], "action": "services"}, timeout=20)
+        api_url = p["api_url"]
+        api_key = p["api_key"]
+        if "darkfollow" in api_url.lower():
+            base_url = api_url.rstrip("/").split("?")[0]
+            url = f"{base_url}?action=services&key={api_key}"
+            log.info(f"[fetch_services] Dark Follow detected, using GET request")
+            log.info(f"[fetch_services] Dark Follow URL: {url[:60]}...")
+            resp = requests.get(url, timeout=20)
+        else:
+            resp = requests.post(api_url, data={"key": api_key, "action": "services"}, timeout=20)
         data = resp.json()
         return jsonify({"ok": True, "services": data[:200] if isinstance(data, list) else data})
     except Exception as e:
@@ -1529,7 +1556,14 @@ def admin_reprice_services():
         if not p:
             return jsonify({"error": "Provider not found"}), 404
     try:
-        resp = requests.post(p["api_url"], data={"key": p["api_key"], "action": "services"}, timeout=20)
+        api_url = p["api_url"]
+        api_key = p["api_key"]
+        if "darkfollow" in api_url.lower():
+            base_url = api_url.rstrip("/").split("?")[0]
+            url = f"{base_url}?action=services&key={api_key}"
+            resp = requests.get(url, timeout=20)
+        else:
+            resp = requests.post(api_url, data={"key": api_key, "action": "services"}, timeout=20)
         provider_svcs = {str(s["service"]): s for s in resp.json()}
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1903,9 +1937,15 @@ def _cron_sync_orders():
         for (api_url, api_key), orders in by_provider.items():
             ids = ",".join(o["provider_order_id"] for o in orders)
             try:
-                resp = requests.post(api_url, data={
-                    "key": api_key, "action": "status", "order": ids
-                }, timeout=20)
+                if "darkfollow" in api_url.lower():
+                    base_url = api_url.rstrip("/").split("?")[0]
+                    url = f"{base_url}?action=status&key={api_key}&order={ids}"
+                    log.info(f"[cron] Dark Follow status check, using GET request")
+                    resp = requests.get(url, timeout=20)
+                else:
+                    resp = requests.post(api_url, data={
+                        "key": api_key, "action": "status", "order": ids
+                    }, timeout=20)
                 results = resp.json()
 
                 with get_db() as db:
@@ -1970,9 +2010,19 @@ def _sync_provider_catalog(provider_id=None):
 
         for prov in providers:
             try:
-                resp = requests.post(prov["api_url"], data={"key": prov["api_key"], "action": "services"}, timeout=30)
+                api_url = prov["api_url"]
+                api_key = prov["api_key"]
+                if "darkfollow" in api_url.lower():
+                    base_url = api_url.rstrip("/").split("?")[0]
+                    url = f"{base_url}?action=services&key={api_key}"
+                    log.info(f"[catalog] Dark Follow detected, using GET request")
+                    log.info(f"[catalog] Dark Follow URL: {url[:60]}...")
+                    resp = requests.get(url, timeout=30)
+                else:
+                    resp = requests.post(api_url, data={"key": api_key, "action": "services"}, timeout=30)
                 remote_svcs = resp.json()
                 if not isinstance(remote_svcs, list):
+                    log.error(f"[catalog] provider #{prov['id']} returned non-list: type={type(remote_svcs).__name__}, content={str(remote_svcs)[:200]}")
                     continue
 
                 # ── Build category map from remote services ──
@@ -2177,7 +2227,15 @@ def _sync_provider_balance():
             providers = db.execute("SELECT * FROM providers WHERE is_active=1").fetchall()
         for prov in providers:
             try:
-                resp = requests.post(prov["api_url"], data={"key": prov["api_key"], "action": "balance"}, timeout=10)
+                api_url = prov["api_url"]
+                api_key = prov["api_key"]
+                if "darkfollow" in api_url.lower():
+                    base_url = api_url.rstrip("/").split("?")[0]
+                    url = f"{base_url}?action=balance&key={api_key}"
+                    log.info(f"[balance] Dark Follow detected, using GET request")
+                    resp = requests.get(url, timeout=10)
+                else:
+                    resp = requests.post(api_url, data={"key": api_key, "action": "balance"}, timeout=10)
                 data = resp.json()
                 bal = float(data.get("balance", data.get("Balance", data.get("funds", 0))))
                 with get_db() as db:
@@ -2213,24 +2271,32 @@ def _startup():
     threading.Thread(target=_cron_loop, daemon=True).start()
     # Auto-register Dark Follow provider from env vars
     if DARKFOLLOW_API_KEY:
+        # Strip query params — store only base URL
+        clean_url = DARKFOLLOW_API_URL.rstrip("/").split("?")[0]
         with get_db() as db:
             existing = db.execute(
-                "SELECT id FROM providers WHERE api_url=?", (DARKFOLLOW_API_URL,)
+                "SELECT id FROM providers WHERE api_url=?", (clean_url,)
             ).fetchone()
+            if not existing:
+                # Also check old URL with query params in case of migration
+                existing = db.execute(
+                    "SELECT id FROM providers WHERE api_url LIKE ?", (f"{clean_url}%",)
+                ).fetchone()
             if not existing:
                 db.execute(
                     "INSERT INTO providers (name, api_url, api_key, is_active) VALUES (?,?,?,1)",
-                    ("Dark Follow", DARKFOLLOW_API_URL, DARKFOLLOW_API_KEY)
+                    ("Dark Follow", clean_url, DARKFOLLOW_API_KEY)
                 )
                 db.commit()
                 log.info("✅ Dark Follow provider auto-registered")
             else:
-                # Update API key in case it changed
+                # Update API key and clean URL in case it changed
                 db.execute(
                     "UPDATE providers SET api_key=?, api_url=? WHERE id=?",
-                    (DARKFOLLOW_API_KEY, DARKFOLLOW_API_URL, existing["id"])
+                    (DARKFOLLOW_API_KEY, clean_url, existing["id"])
                 )
                 db.commit()
+                log.info(f"✅ Dark Follow provider updated (id={existing['id']})")
     # Initial sync on boot
     threading.Thread(target=_sync_provider_balance, daemon=True).start()
     threading.Thread(target=_sync_provider_catalog, daemon=True).start()
