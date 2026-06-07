@@ -16,7 +16,13 @@ from functools import wraps
 # ─────────────────────────────────────────────
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", secrets.token_hex(32))
-CORS(app, origins="*", supports_credentials=True)
+# Use WEBAPP_URL for CORS if set, else allow all origins for dev
+_cors_origins = os.environ.get("WEBAPP_URL", "*")
+if _cors_origins and _cors_origins != "*":
+    CORS(app, origins=[_cors_origins, "http://localhost:3000", "http://localhost:5000"],
+         supports_credentials=True)
+else:
+    CORS(app, origins="*", supports_credentials=True)
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("smm")
 
@@ -592,7 +598,7 @@ def auth_verify_email():
     token = _create_user_token(user_id)
     notify_admin(f"👤 مستخدم جديد (تحقق بريد): {email} (#{user_id})")
     return jsonify({"ok": True, "token": token,
-                    "user": {"id": user_id, "email": email,
+                    "user": {"id": user_id, "uid": uid, "email": email,
                              "username": row["username"], "balance": 0}})
 
 @app.route("/auth/resend-code", methods=["POST"])
@@ -635,8 +641,10 @@ def auth_login():
         db.commit()
 
     token = _create_user_token(user["id"])
+    uid = user.get("uid") or f"WF-{user['id']:06d}"
     return jsonify({"ok": True, "token": token, "user": {
-        "id": user["id"], "email": user["email"],
+        "id": user["id"], "uid": uid,
+        "email": user["email"],
         "username": user["username"], "balance": user["balance"]
     }})
 
@@ -775,11 +783,20 @@ def user_orders():
     user = request.current_user
     with get_db() as db:
         rows = db.execute("""
-            SELECT o.*, s.name_ar, s.name_en FROM orders o
+            SELECT o.*, s.name_ar as service_name, s.name_en,
+                   s.image_url as service_image
+            FROM orders o
             LEFT JOIN services s ON s.id=o.service_id
-            WHERE o.user_id=? ORDER BY o.created_at DESC LIMIT 100
+            WHERE o.user_id=? ORDER BY o.created_at DESC LIMIT 200
         """, (user["id"],)).fetchall()
-    return jsonify({"orders": [dict(r) for r in rows]})
+    orders = []
+    for r in rows:
+        d = dict(r)
+        d["service_name"] = d.get("service_name") or d.get("name_en") or f"خدمة #{d.get('service_id','')}"
+        d["charge"] = d.get("price", 0)
+        d["start_count"] = d.get("start_count") or 0
+        orders.append(d)
+    return jsonify({"ok": True, "orders": orders})
 
 @app.route("/user/language", methods=["POST"])
 @require_user
@@ -798,19 +815,63 @@ def user_set_language():
 # ─────────────────────────────────────────────
 @app.route("/services", methods=["GET"])
 def services_public():
+    category  = request.args.get("category", "").strip()
+    search    = request.args.get("search", "").strip()
+    lang      = request.args.get("lang", "ar")
+
+    where_clauses = ["s.is_active=1"]
+    params = []
+
+    if category:
+        where_clauses.append("s.category_id=?")
+        params.append(category)
+
+    if search:
+        pat = f"%{search}%"
+        where_clauses.append(
+            "(s.name_ar LIKE ? OR s.name_en LIKE ? OR s.description_ar LIKE ? OR s.description_en LIKE ?)"
+        )
+        params.extend([pat, pat, pat, pat])
+
+    where_sql = " AND ".join(where_clauses)
+
     with get_db() as db:
-        cats = db.execute(
-            "SELECT * FROM categories WHERE is_active=1 ORDER BY sort_order"
-        ).fetchall()
-        svcs = db.execute("""
-            SELECT s.*, c.name_ar as cat_name_ar, c.name_en as cat_name_en
-            FROM services s LEFT JOIN categories c ON c.id=s.category_id
-            WHERE s.is_active=1 ORDER BY s.category_id, s.id
-        """).fetchall()
-    return jsonify({
-        "categories": [dict(c) for c in cats],
-        "services": [dict(s) for s in svcs]
-    })
+        svcs = db.execute(f"""
+            SELECT s.id,
+                   CASE WHEN ? = 'ar' THEN s.name_ar ELSE COALESCE(NULLIF(s.name_en,''),s.name_ar) END as name,
+                   s.final_price as rate,
+                   s.min_qty as min,
+                   s.max_qty as max,
+                   s.category_id as category,
+                   s.type,
+                   s.image_url as image,
+                   CASE WHEN ? = 'ar' THEN s.description_ar ELSE COALESCE(NULLIF(s.description_en,''),s.description_ar) END as description,
+                   s.estimated_time,
+                   s.provider_service_id,
+                   s.name_ar, s.name_en,
+                   s.image_url as image_url
+            FROM services s
+            WHERE {where_sql}
+            ORDER BY s.category_id, s.id
+        """, [lang, lang] + params).fetchall()
+
+        if not category and not search:
+            cats = db.execute(
+                "SELECT * FROM categories WHERE is_active=1 ORDER BY sort_order"
+            ).fetchall()
+        else:
+            cats = []
+
+    result_svcs = []
+    for s in svcs:
+        d = dict(s)
+        d["rate"] = d.get("rate") or 0
+        result_svcs.append(d)
+
+    resp = {"ok": True, "services": result_svcs, "data": result_svcs}
+    if cats:
+        resp["categories"] = [dict(c) for c in cats]
+    return jsonify(resp)
 
 # ─────────────────────────────────────────────
 # Orders (User)
@@ -820,15 +881,38 @@ def services_public():
 def place_order():
     user = request.current_user
     data = request.get_json(silent=True) or {}
-    service_id = data.get("service_id")
-    link = (data.get("link") or "").strip()
-    quantity = int(data.get("quantity", 0))
 
-    if not service_id or not link or not quantity:
-        return jsonify({"error": "بيانات ناقصة"}), 400
+    # Accept 'service' (provider_service_id) OR 'service_id' (local id)
+    service_id        = data.get("service_id")
+    provider_svc_id   = data.get("service")   # frontend sends this
+    link              = (data.get("link") or "").strip()
+    quantity          = int(data.get("quantity", 0))
+
+    # Validate URL
+    import re as _re
+    if not link or not _re.match(r'^https?://', link):
+        return jsonify({"error": "الرابط غير صالح، يجب أن يبدأ بـ http:// أو https://"}), 400
+    if not quantity:
+        return jsonify({"error": "الكمية مطلوبة"}), 400
 
     with get_db() as db:
-        svc = db.execute("SELECT * FROM services WHERE id=? AND is_active=1", (service_id,)).fetchone()
+        if service_id:
+            svc = db.execute("SELECT * FROM services WHERE id=? AND is_active=1", (service_id,)).fetchone()
+        elif provider_svc_id:
+            svc = db.execute(
+                "SELECT * FROM services WHERE provider_service_id=? AND is_active=1",
+                (str(provider_svc_id),)
+            ).fetchone()
+            if not svc:
+                # Try by local id if it's numeric
+                try:
+                    svc = db.execute("SELECT * FROM services WHERE id=? AND is_active=1",
+                                     (int(provider_svc_id),)).fetchone()
+                except Exception:
+                    pass
+        else:
+            return jsonify({"error": "معرف الخدمة مطلوب"}), 400
+
         if not svc:
             return jsonify({"error": "الخدمة غير موجودة"}), 404
 
@@ -839,15 +923,16 @@ def place_order():
         if user["balance"] < total_cost:
             return jsonify({"error": "رصيد غير كافٍ"}), 402
 
-        # Deduct balance
+        # Deduct balance BEFORE placing
         db.execute("UPDATE users SET balance=balance-?, total_spent=total_spent+?, orders_count=orders_count+1 WHERE id=?",
                    (total_cost, total_cost, user["id"]))
+        db.commit()
 
-        # Place order with provider
         provider = db.execute("SELECT * FROM providers WHERE id=? AND is_active=1",
                               (svc["provider_id"],)).fetchone()
 
     provider_order_id = None
+    place_failed = False
     if provider:
         try:
             resp = requests.post(provider["api_url"], data={
@@ -857,19 +942,40 @@ def place_order():
             }, timeout=15)
             r = resp.json()
             provider_order_id = str(r.get("order", ""))
+            if not provider_order_id or "error" in r:
+                place_failed = True
+                log.warning(f"[order] provider returned error: {r}")
         except Exception as e:
             log.error(f"[order] provider error: {e}")
+            place_failed = True
+
+    # Refund if provider failed
+    if place_failed and provider:
+        with get_db() as db:
+            db.execute("UPDATE users SET balance=balance+?, total_spent=total_spent-?, orders_count=MAX(0,orders_count-1) WHERE id=?",
+                       (total_cost, total_cost, user["id"]))
+            db.commit()
+        return jsonify({"error": "فشل إرسال الطلب للمزود، يرجى المحاولة لاحقاً"}), 503
 
     with get_db() as db:
         cur = db.execute("""
-            INSERT INTO orders (user_id,service_id,provider_order_id,link,quantity,price)
-            VALUES (?,?,?,?,?,?)
-        """, (user["id"], service_id, provider_order_id, link, quantity, total_cost))
+            INSERT INTO orders (user_id,service_id,provider_order_id,link,quantity,price,status,remains,start_count)
+            VALUES (?,?,?,?,?,?,'pending',?,0)
+        """, (user["id"], svc["id"], provider_order_id, link, quantity, total_cost, quantity))
         order_id = cur.lastrowid
         db.commit()
 
     notify_admin(f"🛒 طلب جديد #{order_id}\n👤 المستخدم: {user['email']}\n💰 {total_cost} $")
-    return jsonify({"ok": True, "order_id": order_id, "cost": total_cost})
+    return jsonify({"ok": True, "order_id": order_id, "cost": total_cost,
+                    "order": {
+                        "id": order_id, "service": svc["id"],
+                        "service_name": svc["name_ar"],
+                        "service_image": svc.get("image_url",""),
+                        "quantity": quantity, "link": link,
+                        "price": total_cost, "charge": total_cost,
+                        "status": "pending", "remains": quantity,
+                        "start_count": 0
+                    }})
 
 @app.route("/order/status/<int:order_id>", methods=["GET"])
 @require_user
@@ -882,6 +988,76 @@ def order_status(order_id):
     if not order:
         return jsonify({"error": "غير موجود"}), 404
     return jsonify(dict(order))
+
+# ── Frontend alias: GET /orders?user_id=... ──
+@app.route("/orders", methods=["GET"])
+@require_user
+def orders_alias():
+    user = request.current_user
+    with get_db() as db:
+        rows = db.execute("""
+            SELECT o.*, s.name_ar as service_name, s.name_en,
+                   s.image_url as service_image
+            FROM orders o
+            LEFT JOIN services s ON s.id=o.service_id
+            WHERE o.user_id=? ORDER BY o.created_at DESC LIMIT 200
+        """, (user["id"],)).fetchall()
+    orders = []
+    for r in rows:
+        d = dict(r)
+        d["service_name"] = d.get("service_name") or d.get("name_en") or f"خدمة #{d.get('service_id','')}"
+        d["charge"] = d.get("price", 0)
+        orders.append(d)
+    return jsonify({"ok": True, "orders": orders, "data": orders})
+
+# ── Frontend: GET /orders/<id> ──
+@app.route("/orders/<int:order_id>", methods=["GET"])
+@require_user
+def get_order_detail(order_id):
+    user = request.current_user
+    with get_db() as db:
+        row = db.execute("""
+            SELECT o.*, s.name_ar as service_name, s.name_en,
+                   s.image_url as service_image
+            FROM orders o
+            LEFT JOIN services s ON s.id=o.service_id
+            WHERE o.id=? AND o.user_id=?
+        """, (order_id, user["id"])).fetchone()
+    if not row:
+        return jsonify({"error": "الطلب غير موجود"}), 404
+    d = dict(row)
+    d["service_name"] = d.get("service_name") or d.get("name_en") or f"خدمة #{d.get('service_id','')}"
+    d["charge"] = d.get("price", 0)
+    d["start_count"] = d.get("start_count") or 0
+    return jsonify({"ok": True, "order": d})
+
+# ── Frontend: POST /orders/<id>/cancel ──
+@app.route("/orders/<int:order_id>/cancel", methods=["POST"])
+@require_user
+def cancel_order(order_id):
+    user = request.current_user
+    with get_db() as db:
+        order = db.execute(
+            "SELECT * FROM orders WHERE id=? AND user_id=?", (order_id, user["id"])
+        ).fetchone()
+    if not order:
+        return jsonify({"error": "الطلب غير موجود"}), 404
+    if order["status"] not in ("pending", "active"):
+        return jsonify({"error": "لا يمكن إلغاء هذا الطلب"}), 400
+    if (order["start_count"] or 0) > 0:
+        return jsonify({"error": "الطلب بدأ التنفيذ، لا يمكن إلغاؤه"}), 400
+    with get_db() as db:
+        db.execute("UPDATE orders SET status='cancelled', updated_at=datetime('now') WHERE id=?", (order_id,))
+        db.execute("UPDATE users SET balance=balance+?, orders_count=MAX(0,orders_count-1) WHERE id=?",
+                   (order["price"], user["id"]))
+        db.commit()
+    return jsonify({"ok": True, "message": "تم إلغاء الطلب واسترداد الرصيد"})
+
+# ── Frontend alias: POST /orders/create ──
+@app.route("/orders/create", methods=["POST"])
+@require_user
+def orders_create_alias():
+    return place_order()
 
 # ─────────────────────────────────────────────
 # Payments (User)
@@ -897,6 +1073,19 @@ def payment_gateways():
         d["details"] = d[f"details_{lang}"] if lang == "ar" else d["details_en"]
         result.append(d)
     return jsonify({"gateways": result})
+
+@app.route("/payment/history", methods=["GET"])
+@require_user
+def payment_history():
+    user = request.current_user
+    with get_db() as db:
+        rows = db.execute("""
+            SELECT id, amount, method, status, created_at
+            FROM payments
+            WHERE user_id=? AND status='approved'
+            ORDER BY created_at DESC LIMIT 100
+        """, (user["id"],)).fetchall()
+    return jsonify({"ok": True, "payments": [dict(r) for r in rows]})
 
 @app.route("/payment/submit", methods=["POST"])
 @require_user
@@ -971,9 +1160,17 @@ def ticket_messages(ticket_id):
         if not ticket:
             return jsonify({"error": "غير موجود"}), 404
         msgs = db.execute(
-            "SELECT * FROM ticket_messages WHERE ticket_id=? ORDER BY created_at", (ticket_id,)
+            "SELECT id, ticket_id, sender_type, message, created_at FROM ticket_messages WHERE ticket_id=? ORDER BY created_at",
+            (ticket_id,)
         ).fetchall()
-    return jsonify({"ticket": dict(ticket), "messages": [dict(m) for m in msgs]})
+    result = []
+    for m in msgs:
+        d = dict(m)
+        # Ensure sender_type is always 'user' or 'admin'
+        if d.get("sender_type") not in ("user", "admin"):
+            d["sender_type"] = "user"
+        result.append(d)
+    return jsonify({"ok": True, "ticket": dict(ticket), "messages": result})
 
 @app.route("/tickets/<int:ticket_id>/reply", methods=["POST"])
 @require_user
