@@ -117,7 +117,7 @@ def init_db():
             max_qty         INTEGER DEFAULT 10000,
             provider_price  REAL    DEFAULT 0,
             markup_type     TEXT    DEFAULT 'percent',
-            markup_value    REAL    DEFAULT 20,
+            markup_value    REAL    DEFAULT 0,
             final_price     REAL    DEFAULT 0,
             estimated_time  TEXT    DEFAULT '',
             image_url       TEXT    DEFAULT '',
@@ -244,7 +244,7 @@ def init_db():
         -- Default settings
         INSERT OR IGNORE INTO settings VALUES ('site_name', 'SMM Panel');
         INSERT OR IGNORE INTO settings VALUES ('global_markup_type', 'percent');
-        INSERT OR IGNORE INTO settings VALUES ('global_markup_value', '20');
+        INSERT OR IGNORE INTO settings VALUES ('global_markup_value', '0');
         INSERT OR IGNORE INTO settings VALUES ('currency', 'USD');
         INSERT OR IGNORE INTO settings VALUES ('min_deposit', '1');
         INSERT OR IGNORE INTO settings VALUES ('maintenance_mode', '0');
@@ -282,6 +282,16 @@ def init_db():
             db.commit()
         except Exception:
             pass  # column already exists
+    # Migration: reset markup to 0% if still at old default of 20
+    with get_db() as db:
+        try:
+            old_val = db.execute("SELECT value FROM settings WHERE key='global_markup_value'").fetchone()
+            if old_val and old_val['value'] == '20':
+                db.execute("UPDATE settings SET value='0' WHERE key='global_markup_value'")
+                db.commit()
+                log.info("[migration] Reset global_markup_value from 20 to 0")
+        except Exception:
+            pass
     log.info("✅ Database initialized")
 
 # ─────────────────────────────────────────────
@@ -889,10 +899,10 @@ def place_order():
     link              = (data.get("link") or "").strip()
     quantity          = int(data.get("quantity", 0))
 
-    # Validate URL
+    # Validate link — only enforce URL format for social media services
     import re as _re
-    if not link or not _re.match(r'^https?://', link):
-        return jsonify({"error": "الرابط غير صالح، يجب أن يبدأ بـ http:// أو https://"}), 400
+    if not link:
+        return jsonify({"error": "الرابط أو المعرف مطلوب"}), 400
     if not quantity:
         return jsonify({"error": "الكمية مطلوبة"}), 400
 
@@ -922,7 +932,7 @@ def place_order():
 
         total_cost = round(svc["final_price"] * quantity / 1000, 4)
         if user["balance"] < total_cost:
-            return jsonify({"error": "رصيد غير كافٍ"}), 402
+            return jsonify({"error": f"❌ رصيد غير كافٍ — الرصيد المطلوب: ${total_cost:.3f} | رصيدك الحالي: ${user['balance']:.3f}"}), 402
 
         # Deduct balance BEFORE placing
         db.execute("UPDATE users SET balance=balance-?, total_spent=total_spent+?, orders_count=orders_count+1 WHERE id=?",
@@ -1460,7 +1470,7 @@ def admin_add_service():
     data = request.get_json(silent=True) or {}
     provider_price = float(data.get("provider_price", 0))
     markup_type = data.get("markup_type", "percent")
-    markup_value = float(data.get("markup_value", 20))
+    markup_value = float(data.get("markup_value", 0))
     final_price = calc_price(provider_price, markup_type, markup_value)
 
     with get_db() as db:
@@ -1517,7 +1527,7 @@ def admin_import_services():
     data = request.get_json(silent=True) or {}
     provider_id  = data.get("provider_id")
     markup_type  = data.get("markup_type", "percent")
-    markup_value = float(data.get("markup_value", 20))
+    markup_value = float(data.get("markup_value", 0))
     services     = data.get("services", [])
     category_id  = data.get("category_id")
     imported = 0
@@ -2037,7 +2047,7 @@ def _sync_provider_catalog(provider_id=None):
                 remote_ids = set()
                 with get_db() as db:
                     markup_type  = get_setting("global_markup_type", "percent")
-                    markup_value = float(get_setting("global_markup_value", "20"))
+                    markup_value = float(get_setting("global_markup_value", "0"))
 
                     # ── Dark Follow category mapping (name → icon, sort_order, ar_name)
                     DARKFOLLOW_CAT_MAP = {
