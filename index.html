@@ -121,10 +121,9 @@ body::before{
 /* Bottom nav */
 .bottomnav{
   position:fixed;bottom:0;left:0;right:0;z-index:100;
-  background:rgba(4,11,20,0.96);backdrop-filter:blur(16px);
-  border-top:1px solid var(--border);
-  display:flex;height:60px;
-  padding-bottom:env(safe-area-inset-bottom);
+  background:var(--card);border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-around;
+  height:64px;padding-bottom:env(safe-area-inset-bottom);
 }
 .bn-item{
   flex:1;display:flex;flex-direction:column;align-items:center;
@@ -133,11 +132,27 @@ body::before{
   transition:color .15s;position:relative;
 }
 .bn-item.active{color:var(--cyan);}
-.bn-item.active::before{
-  content:'';position:absolute;top:-1px;left:20%;right:20%;height:2px;
-  background:var(--cyan);box-shadow:0 0 8px var(--cyan);
-}
 .bn-icon{font-size:20px;line-height:1;}
+/* Services center button */
+.bn-services-btn{flex:none;width:80px;}
+.bn-services-circle{
+  width:58px;height:58px;border-radius:50%;
+  background:#f0a000;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:#fff;font-weight:700;
+  box-shadow:0 4px 16px rgba(240,160,0,0.35);
+  border:3px solid var(--card);
+  position:relative;top:-16px;
+}
+.bn-services-circle span:first-child{font-size:24px;line-height:1;}
+.bn-services-circle span:last-child{font-size:9px;}
+.menu-row{
+  display:flex;align-items:center;gap:12px;padding:14px 16px;
+  cursor:pointer;font-size:14px;color:var(--text);font-weight:600;
+  border-bottom:1px solid var(--border);transition:background .15s;
+}
+.menu-row:last-child{border-bottom:none;}
+.menu-row:active{background:var(--bg2);}
 
 /* Content */
 .content{flex:1;padding:16px 16px 80px;max-width:700px;margin:0 auto;width:100%;}
@@ -376,6 +391,11 @@ select.form-ctrl{cursor:pointer;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:rgba(0,180,255,0.15);border-radius:2px;}
 </style>
+<!-- EmailJS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>
+  emailjs.init({ publicKey: "imTEA8822h7lbmfjJ" });
+</script>
 </head>
 <body>
 
@@ -644,75 +664,111 @@ select.form-ctrl{cursor:pointer;}
     </div>
 
     <!-- Account Profile Page -->
-    <div class="page" id="pg-account">
-      <div class="section-title-h">👤 حسابي</div>
-      <div class="card" style="padding:20px;margin-bottom:12px;">
-        <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
-          <div style="width:56px;height:56px;border-radius:50%;background:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;flex-shrink:0;">
-            👤
-          </div>
-          <div>
-            <div id="acc-username" style="font-size:18px;font-weight:700;color:var(--text);"></div>
-            <div id="acc-email" style="font-size:12px;color:var(--muted);margin-top:2px;"></div>
-          </div>
+    <!-- Menu Page -->
+    <div class="page" id="pg-menu">
+      <div class="section-title-h">⊞ القائمة</div>
+
+      <!-- User info card -->
+      <div class="card" style="padding:16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;">
+        <div style="width:50px;height:50px;border-radius:50%;background:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;flex-shrink:0;">👤</div>
+        <div style="flex:1;">
+          <div id="menu-username" style="font-weight:700;color:var(--text);font-size:15px;"></div>
+          <div id="menu-uid" style="font-size:11px;color:var(--muted);font-family:monospace;margin-top:2px;"></div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <div style="background:var(--bg2);border-radius:6px;padding:12px;text-align:center;">
-            <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">💰 الرصيد</div>
-            <div id="acc-balance" style="font-size:18px;font-weight:700;color:var(--green);"></div>
-          </div>
-          <div style="background:var(--bg2);border-radius:6px;padding:12px;text-align:center;">
-            <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">🛒 إجمالي الطلبات</div>
-            <div id="acc-orders" style="font-size:18px;font-weight:700;color:var(--cyan);"></div>
-          </div>
-          <div style="background:var(--bg2);border-radius:6px;padding:12px;text-align:center;">
-            <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">💳 إجمالي الشحن</div>
-            <div id="acc-charged" style="font-size:18px;font-weight:700;color:var(--text);"></div>
-          </div>
-          <div style="background:var(--bg2);border-radius:6px;padding:12px;text-align:center;">
-            <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">💸 إجمالي الإنفاق</div>
-            <div id="acc-spent" style="font-size:18px;font-weight:700;color:var(--yellow);"></div>
-          </div>
+        <div style="text-align:left;">
+          <div style="font-size:11px;color:var(--muted);">الرصيد</div>
+          <div id="menu-balance" style="font-weight:700;color:var(--green);font-size:16px;"></div>
         </div>
       </div>
+
+      <!-- Menu items -->
+      <div class="card" style="padding:0;overflow:hidden;margin-bottom:12px;">
+        <div class="menu-row" onclick="showPage('funds')">
+          <span>💳</span><span style="flex:1;">شحن الرصيد</span><span style="color:var(--muted);">›</span>
+        </div>
+        <div class="menu-row" onclick="showPage('orders')">
+          <span>📋</span><span style="flex:1;">طلباتي</span><span style="color:var(--muted);">›</span>
+        </div>
+        <div class="menu-row" onclick="showPage('tickets')">
+          <span>🎫</span><span style="flex:1;">تذاكر الدعم</span><span style="color:var(--muted);">›</span>
+        </div>
+      </div>
+
+      <div class="card" style="padding:0;overflow:hidden;margin-bottom:12px;">
+        <div class="menu-row" onclick="showPage('settings')">
+          <span>⚙️</span><span style="flex:1;">الإعدادات</span><span style="color:var(--muted);">›</span>
+        </div>
+        <div class="menu-row" onclick="window.open('https://t.me/o75ei','_blank')">
+          <span>💬</span><span style="flex:1;">الدعم الفني</span><span style="color:var(--muted);">›</span>
+        </div>
+        <div class="menu-row" onclick="showPage('faq')">
+          <span>❓</span><span style="flex:1;">الأسئلة الشائعة</span><span style="color:var(--muted);">›</span>
+        </div>
+        <div class="menu-row" onclick="showPage('tos')">
+          <span>📜</span><span style="flex:1;">شروط الاستخدام</span><span style="color:var(--muted);">›</span>
+        </div>
+      </div>
+
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div class="menu-row" style="color:var(--red);" onclick="doLogout()">
+          <span>🚪</span><span style="flex:1;">تسجيل الخروج</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Page -->
+    <div class="page" id="pg-settings">
+      <button onclick="showPage('menu')" style="background:none;border:none;color:var(--cyan);font-size:14px;cursor:pointer;padding:0 0 12px 0;">← رجوع</button>
+      <div class="section-title-h">⚙️ الإعدادات</div>
+
+      <!-- Account ID -->
       <div class="card" style="padding:16px;margin-bottom:12px;">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">📅 تاريخ التسجيل</div>
-        <div id="acc-joined" style="font-size:13px;color:var(--text);"></div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">معرف الحساب</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div id="set-uid" style="flex:1;font-family:monospace;font-size:14px;font-weight:700;color:var(--cyan);background:var(--bg2);padding:10px;border-radius:6px;"></div>
+          <button onclick="copyUID()" style="background:var(--cyan);color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:12px;">📋 نسخ</button>
+        </div>
       </div>
-      <button class="btn-auth" style="max-width:100%;margin-top:8px;background:linear-gradient(135deg,#e02040,#aa0020);" onclick="doLogout()">
-        🚪 تسجيل الخروج
+
+      <!-- Change Password -->
+      <div class="card" style="padding:16px;margin-bottom:12px;">
+        <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;">تغيير كلمة المرور</div>
+        <input type="password" id="set-old-pw" class="form-ctrl" placeholder="كلمة المرور القديمة" style="margin-bottom:8px;"/>
+        <input type="password" id="set-new-pw" class="form-ctrl" placeholder="كلمة المرور الجديدة" style="margin-bottom:12px;"/>
+        <button class="btn btn-primary btn-full" onclick="changePassword()">حفظ كلمة المرور</button>
+      </div>
+
+      <!-- Email -->
+      <div class="card" style="padding:16px;margin-bottom:12px;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">البريد الإلكتروني</div>
+        <div id="set-email" style="font-size:14px;color:var(--text);background:var(--bg2);padding:10px;border-radius:6px;"></div>
+      </div>
+
+      <!-- Logout all -->
+      <button class="btn btn-full" style="background:var(--red);color:#fff;border:none;padding:14px;border-radius:8px;" onclick="logoutAll()">
+        🔒 تسجيل خروج من كل الأجهزة
       </button>
     </div>
 
   </div><!-- /content -->
 
-  <!-- Bottom Nav -->
+  <!-- Bottom Nav - Dark Follow Style -->
   <nav class="bottomnav">
-    <div class="bn-item active" id="bn-home" onclick="showPage('home')">
-      <span class="bn-icon">🏠</span>
-      <span data-t="nav.home">الرئيسية</span>
-    </div>
-    <div class="bn-item" id="bn-new-order" onclick="showPage('new-order')">
-      <span class="bn-icon">🚀</span>
-      <span data-t="nav.order">طلب</span>
-    </div>
     <div class="bn-item" id="bn-orders" onclick="showPage('orders')">
-      <span class="bn-icon">📋</span>
-      <span data-t="nav.orders">طلباتي</span>
+      <span class="bn-icon">🛒</span>
+      <span>طلباتي</span>
     </div>
-    <div class="bn-item" id="bn-funds" onclick="showPage('funds')">
-      <span class="bn-icon">💳</span>
-      <span data-t="nav.funds">شحن</span>
+    <div class="bn-item bn-services-btn" id="bn-new-order" onclick="showPage('new-order')">
+      <div class="bn-services-circle">
+        <span>+</span>
+        <span>الخدمات</span>
+      </div>
     </div>
-    <div class="bn-item" id="bn-account" onclick="showPage('account')">
-      <span class="bn-icon">👤</span>
-      <span>حسابي</span>
+    <div class="bn-item" id="bn-menu" onclick="showPage('menu')">
+      <span class="bn-icon">⊞</span>
+      <span>القائمة</span>
     </div>
   </nav>
-</div>
-
-<div id="toast"></div>
-
 <script>
 // ═══════════════════════════════════════════
 // STATE
@@ -912,6 +968,7 @@ async function doRegister() {
     errEl.textContent = 'أكمل جميع الحقول (كلمة المرور 6 أحرف على الأقل)';
     errEl.classList.add('show'); return;
   }
+
   const d = await fetch(`${API}/auth/register`, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ username, email, password })
@@ -919,7 +976,6 @@ async function doRegister() {
 
   if (!d.ok) {
     const errMsg = d.error || 'حدث خطأ';
-    // Translate common errors to Arabic
     if (errMsg.includes('البريد الإلكتروني مسجل') || errMsg.includes('البريد مسجل')) {
       errEl.textContent = '📧 هذا البريد الإلكتروني مسجل مسبقاً — يمكنك تسجيل الدخول مباشرة';
     } else if (errMsg.includes('اسم المستخدم مأخوذ')) {
@@ -929,19 +985,37 @@ async function doRegister() {
     }
     errEl.classList.add('show'); return;
   }
+
   // If already verified (SMTP disabled) → go straight to app
   if (d.verified) {
     _token = d.token; _user = d.user;
     localStorage.setItem('u_token', _token);
     showApp(); return;
   }
+
+  // Send OTP via EmailJS
+  const code = d.code || '';
+  if (code) {
+    try {
+      await emailjs.send("service_9uuprjg", "template_21hzvml", {
+        to_email: email,
+        email:    email,
+        username: username,
+        code:     code
+      });
+      toast('📧 تم إرسال رمز التحقق إلى بريدك', 'success');
+    } catch(e) {
+      console.warn('EmailJS error:', e);
+      toast('⚠️ تعذر إرسال الإيميل — تحقق من البريد يدوياً', 'warning');
+    }
+  }
+
   // Show OTP form
   _pendingEmail = email;
   document.getElementById('otp-email-display').textContent = email;
   document.getElementById('otp-code').value = '';
   document.getElementById('otp-err').classList.remove('show');
   switchAuthTab('otp');
-  toast('📧 تم إرسال رمز التحقق إلى بريدك', 'success');
 }
 
 async function doVerifyOTP() {
@@ -971,7 +1045,22 @@ async function doResendOTP() {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ email: _pendingEmail })
   }).then(r=>r.json()).catch(()=>({error:'network'}));
-  toast(d.ok ? '📧 تم إعادة إرسال الرمز' : (d.error||'خطأ'), d.ok ? 'success' : 'error');
+
+  if (d.ok && d.code) {
+    try {
+      await emailjs.send("service_9uuprjg", "template_21hzvml", {
+        to_email: _pendingEmail,
+        email:    _pendingEmail,
+        username: _pendingEmail.split('@')[0],
+        code:     d.code
+      });
+      toast('📧 تم إعادة إرسال الرمز', 'success');
+    } catch(e) {
+      toast('⚠️ تعذر إرسال الإيميل', 'warning');
+    }
+  } else {
+    toast(d.error || 'خطأ في الإرسال', 'error');
+  }
 }
 
 async function doReset() {
@@ -1028,7 +1117,7 @@ function showApp() {
   updateNavBalance();
   loadServices();
   loadPublicSettings();
-  showPage('home');
+  showPage('new-order');
 }
 
 // ═══════════════════════════════════════════
@@ -1037,12 +1126,13 @@ function showApp() {
 const pageMap = {
   'home':'pg-home','new-order':'pg-new-order','orders':'pg-orders',
   'funds':'pg-funds','tickets':'pg-tickets','faq':'pg-faq','tos':'pg-tos',
-  'account':'pg-account'
+  'menu':'pg-menu','settings':'pg-settings'
 };
 const bnMap = {
-  'home':'bn-home','new-order':'bn-new-order','orders':'bn-orders',
-  'funds':'bn-funds','faq':'bn-account','tos':'bn-account','tickets':'bn-account',
-  'account':'bn-account'
+  'home':'bn-new-order','new-order':'bn-new-order',
+  'orders':'bn-orders',
+  'funds':'bn-menu','tickets':'bn-menu','faq':'bn-menu','tos':'bn-menu',
+  'menu':'bn-menu','settings':'bn-menu','account':'bn-menu'
 };
 
 function showPage(name) {
@@ -1059,32 +1149,67 @@ function showPage(name) {
     funds: loadGateways, tickets: loadTickets,
     faq: loadFaq, tos: loadTos,
     'new-order': initNewOrder,
-    account: loadAccountProfile
+    menu: loadMenuPage,
+    settings: loadSettingsPage
   };
   if (loaders[name]) loaders[name]();
 }
 
 // ═══════════════════════════════════════════
-// ACCOUNT PROFILE
+// MENU PAGE
 // ═══════════════════════════════════════════
-async function loadAccountProfile() {
+async function loadMenuPage() {
   const d = await api('/user/me');
   if (!d.id) return;
-  document.getElementById('acc-username').textContent = d.username || '—';
-  document.getElementById('acc-email').textContent    = d.email    || '—';
-  document.getElementById('acc-balance').textContent  = (d.balance||0).toFixed(2) + ' $';
-  document.getElementById('acc-orders').textContent   = d.orders_count || 0;
-  document.getElementById('acc-charged').textContent  = (d.total_charged||0).toFixed(2) + ' $';
-  document.getElementById('acc-spent').textContent    = (d.total_spent||0).toFixed(2) + ' $';
-  document.getElementById('acc-joined').textContent   = formatDate(d.joined_at);
+  const el = n => document.getElementById(n);
+  if (el('menu-username')) el('menu-username').textContent = d.username || d.email || '—';
+  if (el('menu-uid')) el('menu-uid').textContent = d.uid || `WF-${String(d.id).padStart(6,'0')}`;
+  if (el('menu-balance')) el('menu-balance').textContent = `$${(d.balance||0).toFixed(2)}`;
+}
+function n(id){ return document.getElementById(id); }
+
+// ═══════════════════════════════════════════
+// SETTINGS PAGE
+// ═══════════════════════════════════════════
+async function loadSettingsPage() {
+  const d = await api('/user/me');
+  if (!d.id) return;
+  const uid = d.uid || `WF-${String(d.id).padStart(6,'0')}`;
+  if (document.getElementById('set-uid')) document.getElementById('set-uid').textContent = uid;
+  if (document.getElementById('set-email')) document.getElementById('set-email').textContent = d.email || '—';
 }
 
-async function doLogout() {
-  await api('/auth/logout', {method:'POST'});
+function copyUID() {
+  const uid = document.getElementById('set-uid')?.textContent || '';
+  navigator.clipboard.writeText(uid).then(() => toast('✅ تم نسخ المعرف', 'success'));
+}
+
+async function changePassword() {
+  const oldPw = document.getElementById('set-old-pw')?.value || '';
+  const newPw = document.getElementById('set-new-pw')?.value || '';
+  if (!oldPw || !newPw) { toast('أدخل كلمة المرور القديمة والجديدة', 'error'); return; }
+  if (newPw.length < 6) { toast('كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل', 'error'); return; }
+  const d = await api('/user/change-password', {
+    method:'POST', body: JSON.stringify({old_password: oldPw, new_password: newPw})
+  });
+  if (d.ok) {
+    toast('✅ تم تغيير كلمة المرور', 'success');
+    document.getElementById('set-old-pw').value = '';
+    document.getElementById('set-new-pw').value = '';
+  } else {
+    toast(d.error || 'خطأ في تغيير كلمة المرور', 'error');
+  }
+}
+
+async function logoutAll() {
+  if (!confirm('هل تريد تسجيل الخروج من كل الأجهزة؟')) return;
+  await api('/user/logout-all', {method:'POST'});
   localStorage.removeItem('user_token');
-  localStorage.removeItem('user_data');
   location.reload();
 }
+
+// Legacy compatibility
+async function loadAccountProfile() { loadMenuPage(); }
 
 // ═══════════════════════════════════════════
 // HOME
