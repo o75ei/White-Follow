@@ -1260,51 +1260,42 @@ function initNewOrder() {
 
 // ── خريطة الأقسام الرئيسية وأقسامها الفرعية ──
 const MAIN_CATS = [
-  {
-    id: 'white',
-    name_ar: 'خدمات وايت فولو',
-    icon: '🌟',
-    keywords: ['خدمات دارك', 'خدمات انستا', 'خدمات فيسبوك', 'خدمات تليجرام', 'خدمات التجار', 'خدمات تلجرام مميز', 'نجوم وهدايه', 'عروض العيد']
-  },
-  {
-    id: 'cards',
-    name_ar: 'قسم البطائق',
-    icon: '🎫',
-    keywords: ['بطاقات ايتونز', 'itunes', 'بطاقات نينتيندو', 'nintendo', 'بطاقات بليزارد', 'blizzard', 'بطاقات فورتنايت', 'fortnite', 'بطاقات شحن', 'playstation', 'بطاقات فالورانت', 'valorant', 'بطاقات ستيم', 'steam', 'كرانيش', 'crunchyroll', 'ريوت', 'riot', 'روبلوكس', 'roblox', 'امزون', 'amzoum', 'ريزر', 'zgold', 'ليج', 'league']
-  },
-  {
-    id: 'games',
-    name_ar: 'قسم شحن الألعاب',
-    icon: '🎮',
-    keywords: ['اوكسايد', 'oxide', 'جينشين', 'genshin', 'ببجي', 'pubg', 'دلتا فورس', 'delta force', 'ارينا', 'arena', 'كولف ديوتي', 'call of duty', 'لودو', 'ludo']
-  },
-  {
-    id: 'subs',
-    name_ar: 'قسم الاشتراكات',
-    icon: '📋',
-    keywords: ['نايترو', 'nitro', 'العاب ستيم', 'نتفلكس', 'netflix', 'كيم بأس', 'xbox', 'تلجرام مميز | premium', 'premium', 'اشتراكات | playstation', 'playstation plus']
-  },
-  {
-    id: 'phone',
-    name_ar: 'شحن رصيد الهاتف',
-    icon: '📱',
-    keywords: ['العراق', 'السعودية', 'الاردن', 'لبنان', 'مصر', 'البحرين']
-  },
-  {
-    id: 'tgprem',
-    name_ar: 'تليجرام مميز',
-    icon: '⭐',
-    keywords: ['خدمات مميز عربي', 'خدمات مميزه بدون نزول', 'ستارت بوت']
-  }
+  { id:'white',  name_ar:'خدمات وايت فولو', icon:'🌟' },
+  { id:'cards',  name_ar:'قسم البطائق',       icon:'🎫' },
+  { id:'games',  name_ar:'قسم شحن الألعاب',  icon:'🎮' },
+  { id:'subs',   name_ar:'قسم الاشتراكات',   icon:'📋' },
+  { id:'phone',  name_ar:'شحن رصيد الهاتف',  icon:'📱' },
+  { id:'tgprem', name_ar:'تليجرام مميز',      icon:'⭐' }
 ];
 
-// ── تحديد الأقسام الفرعية حسب الكلمات المفتاحية ──
+// Strict ownership: each keyword → one main section only
+const CAT_OWNERSHIP = [
+  // WHITE (dark services)
+  {kws:['عروض العيد','خدمات انستا | دارك','خدمات فيسبوك | دارك','خدمات تليجرام | دارك','خدمات التجار | دارك','خدمات تلجرام مميز | دارك','نجوم وهدايه تلجرام | دارك','خدمات دارك'], owner:'white'},
+  // CARDS
+  {kws:['بطاقات ايتونز','بطاقات نينتيندو','بطاقات بليزارد','بطاقات فورتنايت','بطاقات شحن | playstation','بطاقات فالورانت | valorant','بطاقات ستيم | steam','بطاقات شحن كرانيش','بطاقات ريوت جيمز | riot','بطاقات روبلوكس | roblox','بطاقات امزون | amzoum','بطاقات ريزر كولد | zgold','بطاقات ليج اوف ليجند | league'], owner:'cards'},
+  // GAMES
+  {kws:['أوكسايد موبايل | oxide','جينشين إمباكت | genshin','ارينا بريك أوت | arena','ببجي موبايل | pubg','دلتا فورس | delta','كولف ديوتي موبايل | call','شحن يلا لودو | ludo'], owner:'games'},
+  // SUBS
+  {kws:['نايترو ديسكورد | nitro','العاب ستيم | steam','نتفلكس | netflix','كيم بأس | xbox','تلجرام مميز | premium','اشتراكات | playstation plus'], owner:'subs'},
+  // PHONE
+  {kws:['العراق','السعودية','الاردن','لبنان','مصر','البحرين'], owner:'phone'},
+  // TG PREMIUM
+  {kws:['خدمات مميز عربي','خدمات مميزه بدون نزول','ستارت بوت رخيصه'], owner:'tgprem'}
+];
+
+function getCatMainId(catName) {
+  const low = catName.toLowerCase();
+  for (const rule of CAT_OWNERSHIP) {
+    if (rule.kws.some(kw => low.includes(kw.toLowerCase()))) return rule.owner;
+  }
+  return null;
+}
+
 function getSubCatsForMain(mainId) {
-  const main = MAIN_CATS.find(m => m.id === mainId);
-  if (!main) return [];
   return _categories.filter(c => {
-    const name = (c.name_ar || c.name_en || '').toLowerCase();
-    return main.keywords.some(kw => name.includes(kw.toLowerCase()));
+    const name = (c.name_ar || c.name_en || '');
+    return getCatMainId(name) === mainId;
   });
 }
 
