@@ -542,7 +542,7 @@ mark,.mark-highlight{background:#f0a000;color:#000;padding:1px 3px;border-radius
             <div class="svc-info-item" style="text-align:center;font-weight:700;color:var(--gold);">الكمية: 1 🔒</div>
           </div>
           <div class="total-card" id="total-card" style="display:none">
-            <span class="total-label">التكلفة الإجمالية</span>
+            <span class="total-label" id="total-label">التكلفة الإجمالية</span>
             <span class="total-value" id="total-value">$0.000</span>
           </div>
           <button class="btn-place" onclick="placeOrder()" id="btn-place">إنشاء الطلب</button>
@@ -1502,17 +1502,19 @@ function _getSpeedBadge(svc){
 }
 
 function _parseWarnings(desc){
+  if(!desc||!desc.trim()) return ['تأكد من صحة الرابط قبل الطلب'];
   const warnings=[];
-  const lines=(desc||'').split('\n');
+  const lines=desc.split('\n');
   lines.forEach(line=>{
     const l=line.trim();
-    if(l.includes('تأكد')||l.includes('لا تكرر')||l.includes('اطفئ')||l.includes('تحذير')||l.includes('⚠')||l.includes('ملاحظة')||l.includes('مهم'))
-      warnings.push(l.replace(/^[⚠️\s]+/,''));
+    if(l.includes('تأكد')||l.includes('لا تكرر')||l.includes('اطفئ')||
+       l.includes('تحذير')||l.includes('⚠')||l.includes('ملاحظة')||
+       l.includes('مهم')||l.includes('private')||l.includes('public')||
+       l.includes('username')||l.includes('link'))
+      warnings.push(l.replace(/^[⚠️\s]+/,'').trim());
   });
-  // Always add standard warnings
-  if(!warnings.some(w=>w.includes('عام'))) warnings.push('تأكد أن الحساب عام وليس خاصاً');
-  if(!warnings.some(w=>w.includes('تكرر'))) warnings.push('لا تكرر الطلب قبل اكتمال الطلب الحالي');
-  if(!warnings.some(w=>w.includes('مراجعة')||w.includes('مراجعه'))) warnings.push('أطفئ زر المراجعة على الحساب');
+  // Only add minimal fallback if zero warnings found from provider
+  if(!warnings.length) warnings.push('تأكد من صحة الرابط قبل الطلب');
   return warnings;
 }
 
@@ -1677,6 +1679,11 @@ function calcTotal(){
   const rate=parseFloat(_currentSvc.rate)||0;
   const total=(qty/1000)*rate;
   document.getElementById('total-value').textContent=`$${total.toFixed(3)}`;
+  // Show calculation breakdown
+  const labelEl=document.getElementById('total-label');
+  if(labelEl&&rate>0&&qty>0){
+    labelEl.textContent=`$${rate.toFixed(3)} / 1000 × ${qty.toLocaleString()} =`;
+  }
   document.getElementById('total-card').style.display='flex';
 }
 function adjustQty(delta){
@@ -1740,6 +1747,15 @@ async function placeOrder(){
   if(!isFixed){
     if(!qty||qty<(_currentSvc.min||1)){toast(`الحد الأدنى: ${(_currentSvc.min||1).toLocaleString()}`,'error');return;}
     if(qty>(_currentSvc.max||1000000)){toast(`الحد الأقصى: ${(_currentSvc.max||1000000).toLocaleString()}`,'error');return;}
+  }
+
+  // Balance check before sending to server
+  const rate=parseFloat(_currentSvc.rate)||0;
+  const totalCost=(qty/1000)*rate;
+  const userBalance=parseFloat(_user?.balance)||0;
+  if(totalCost>0&&userBalance<totalCost){
+    toast(`❌ رصيد غير كافٍ — المطلوب: $${totalCost.toFixed(3)} | رصيدك: $${userBalance.toFixed(3)}`,'error');
+    showPage('funds');return;
   }
 
   const btn=document.getElementById('btn-place');btn.textContent='⌛ جارٍ...';btn.disabled=true;
