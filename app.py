@@ -276,6 +276,19 @@ def init_db():
             db.commit()
         except Exception:
             pass
+    # Migration: add markup_type and markup_value to categories if missing
+    with get_db() as db:
+        try:
+            db.execute("ALTER TABLE categories ADD COLUMN markup_type TEXT DEFAULT 'percent'")
+            db.commit()
+        except Exception:
+            pass
+    with get_db() as db:
+        try:
+            db.execute("ALTER TABLE categories ADD COLUMN markup_value REAL DEFAULT 0")
+            db.commit()
+        except Exception:
+            pass
     # Migration: add image_url if missing (existing DBs)
     with get_db() as db:
         try:
@@ -1447,6 +1460,26 @@ def admin_update_category(cid):
              data.get("sort_order"), data.get("is_active"), cid))
         db.commit()
     return jsonify({"ok": True})
+
+@app.route("/admin/categories/<int:cid>/markup", methods=["POST"])
+@require_admin
+def admin_category_markup(cid):
+    """Apply markup to all services in a category"""
+    data = request.get_json(silent=True) or {}
+    markup_type  = data.get("markup_type", "percent")
+    markup_value = float(data.get("markup_value", 0))
+    with get_db() as db:
+        # Save markup on category
+        db.execute("UPDATE categories SET markup_type=?, markup_value=? WHERE id=?",
+                   (markup_type, markup_value, cid))
+        # Apply to all services in this category
+        svcs = db.execute("SELECT id, provider_price FROM services WHERE category_id=?", (cid,)).fetchall()
+        for svc in svcs:
+            new_price = calc_price(svc["provider_price"], markup_type, markup_value)
+            db.execute("UPDATE services SET markup_type=?, markup_value=?, final_price=? WHERE id=?",
+                       (markup_type, markup_value, new_price, svc["id"]))
+        db.commit()
+    return jsonify({"ok": True, "updated": len(svcs)})
 
 @app.route("/admin/services", methods=["GET"])
 @require_admin
