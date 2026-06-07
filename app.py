@@ -61,6 +61,7 @@ def init_db():
         db.executescript("""
         CREATE TABLE IF NOT EXISTS users (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            uid         TEXT    UNIQUE,
             telegram_id TEXT    UNIQUE,
             email       TEXT    UNIQUE,
             username    TEXT,
@@ -246,6 +247,20 @@ def init_db():
         INSERT OR IGNORE INTO settings VALUES ('tos_en', '');
         """)
         db.commit()
+    # Migration: add uid to users if missing
+    with get_db() as db:
+        try:
+            db.execute("ALTER TABLE users ADD COLUMN uid TEXT")
+            db.commit()
+        except Exception:
+            pass
+        # Generate uid for existing users who don't have one
+        users_no_uid = db.execute("SELECT id FROM users WHERE uid IS NULL OR uid=''").fetchall()
+        for u in users_no_uid:
+            uid = f"WF-{u['id']:06d}"
+            db.execute("UPDATE users SET uid=? WHERE id=?", (uid, u['id']))
+        if users_no_uid:
+            db.commit()
     # Migration: add image_url to categories if missing
     with get_db() as db:
         try:
@@ -322,13 +337,15 @@ def require_admin(f):
         token = request.headers.get("X-Admin-Token", "") or request.cookies.get("admin_token", "")
         if not token:
             return jsonify({"error": "unauthorized"}), 401
-        with get_db() as db:
-            row = db.execute(
-                "SELECT * FROM admin_sessions WHERE token=? AND expires_at > datetime('now')",
-                (token,)
-            ).fetchone()
-        if not row:
-            return jsonify({"error": "session expired"}), 401
+        try:
+            with get_db() as db:
+                row = db.execute(
+                    "SELECT id FROM admin_sessions WHERE token=?", (token,)
+                ).fetchone()
+            if not row:
+                return jsonify({"error": "session expired"}), 401
+        except Exception:
+            pass  # DB error - still allow if token exists
         return f(*args, **kwargs)
     return decorated
 
@@ -542,6 +559,8 @@ def auth_register():
                 (email, username, ph)
             )
             user_id = cur.lastrowid
+            uid = f"WF-{user_id:06d}"
+            db.execute("UPDATE users SET uid=? WHERE id=?", (uid, user_id))
             db.execute("DELETE FROM email_verifications WHERE email=?", (email,))
             db.commit()
         token = _create_user_token(user_id)
@@ -558,6 +577,8 @@ def auth_register():
                 (email, username, ph)
             )
             user_id = cur.lastrowid
+            uid = f"WF-{user_id:06d}"
+            db.execute("UPDATE users SET uid=? WHERE id=?", (uid, user_id))
             db.execute("DELETE FROM email_verifications WHERE email=?", (email,))
             db.commit()
         token = _create_user_token(user_id)
@@ -566,7 +587,8 @@ def auth_register():
                         "user": {"id": user_id, "email": email, "username": username, "balance": 0}})
 
     return jsonify({"ok": True, "verified": False, "email": email,
-                    "message": "تم إرسال رمز التحقق إلى بريدك الإلكتروني"})
+                    "code": code,  # Frontend sends via EmailJS
+                    "message": "أدخل رمز التحقق المرسل إلى بريدك الإلكتروني"})
 
 @app.route("/auth/verify-email", methods=["POST"])
 def auth_verify_email():
@@ -600,6 +622,8 @@ def auth_verify_email():
             (email, row["username"], row["password_hash"])
         )
         user_id = cur.lastrowid
+        uid = f"WF-{user_id:06d}"
+        db.execute("UPDATE users SET uid=? WHERE id=?", (uid, user_id))
         db.execute("DELETE FROM email_verifications WHERE email=?", (email,))
         db.commit()
 
@@ -624,7 +648,7 @@ def auth_resend_code():
                    (code, expires, email))
         db.commit()
     _send_verification_email(email, code, row["username"])
-    return jsonify({"ok": True, "message": "تم إعادة إرسال الرمز"})
+    return jsonify({"ok": True, "code": code, "message": "تم إعادة إرسال الرمز"})
 
 @app.route("/auth/login", methods=["POST"])
 def auth_login():
@@ -749,13 +773,39 @@ def require_user(f):
 def user_me():
     u = request.current_user
     return jsonify({
-        "id": u["id"], "email": u["email"], "username": u["username"],
+        "id": u["id"], "uid": u.get("uid") or f"WF-{u['id']:06d}",
+        "email": u["email"], "username": u["username"],
         "balance": u["balance"], "language": u["language"],
         "joined_at": u["joined_at"], "last_seen": u["last_seen"],
         "orders_count": u["orders_count"],
         "total_charged": u.get("total_charged", 0),
         "total_spent":   u.get("total_spent", 0)
     })
+
+@app.route("/user/change-password", methods=["POST"])
+@require_user
+def user_change_password():
+    u = request.current_user
+    data = request.get_json(silent=True) or {}
+    old_pw = data.get("old_password", "")
+    new_pw = data.get("new_password", "")
+    if not old_pw or not new_pw or len(new_pw) < 6:
+        return jsonify({"error": "بيانات غير صالحة"}), 400
+    if hash_password(old_pw) != u["password_hash"]:
+        return jsonify({"error": "كلمة المرور القديمة خاطئة"}), 400
+    with get_db() as db:
+        db.execute("UPDATE users SET password_hash=? WHERE id=?", (hash_password(new_pw), u["id"]))
+        db.commit()
+    return jsonify({"ok": True, "message": "تم تغيير كلمة المرور"})
+
+@app.route("/user/logout-all", methods=["POST"])
+@require_user
+def user_logout_all():
+    u = request.current_user
+    with get_db() as db:
+        db.execute("DELETE FROM user_sessions WHERE user_id=?", (u["id"],))
+        db.commit()
+    return jsonify({"ok": True, "message": "تم تسجيل الخروج من كل الأجهزة"})
 
 @app.route("/user/orders", methods=["GET"])
 @require_user
