@@ -245,6 +245,7 @@ def init_db():
         INSERT OR IGNORE INTO settings VALUES ('site_name', 'SMM Panel');
         INSERT OR IGNORE INTO settings VALUES ('global_markup_type', 'percent');
         INSERT OR IGNORE INTO settings VALUES ('global_markup_value', '0');
+        INSERT OR REPLACE INTO settings VALUES ('global_markup_value', '0');
         INSERT OR IGNORE INTO settings VALUES ('currency', 'USD');
         INSERT OR IGNORE INTO settings VALUES ('min_deposit', '1');
         INSERT OR IGNORE INTO settings VALUES ('maintenance_mode', '0');
