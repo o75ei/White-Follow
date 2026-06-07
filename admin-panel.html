@@ -504,26 +504,19 @@ textarea.form-control{resize:vertical;min-height:80px;}
       <div class="login-logo">
         <span class="hex">⬡</span>
         <h1>ADMIN PANEL</h1>
-        <p>SECURE ACCESS REQUIRED</p>
+        <p>WHITE FOLLOW</p>
       </div>
       <div class="form-group">
-        <label class="field-label">// USERNAME</label>
-        <input type="text" id="inp-user" class="field-input" placeholder="admin" autocomplete="username"/>
-      </div>
-      <div class="form-group">
-        <label class="field-label">// PASSWORD</label>
-        <input type="password" id="inp-pass" class="field-input" placeholder="••••••••" autocomplete="current-password"/>
+        <label class="field-label">// رمز الدخول</label>
+        <input type="password" id="inp-pin" class="field-input"
+               placeholder="أدخل الرمز" autocomplete="off"
+               inputmode="numeric" maxlength="10"
+               style="text-align:center;font-size:28px;letter-spacing:8px;"/>
       </div>
       <button class="btn-login" id="btn-do-login" onclick="doLogin()">
-        ⚡ ACCESS SYSTEM
+        ⚡ دخول
       </button>
       <div class="login-err" id="login-err"></div>
-      <p class="login-attempts" id="login-attempts-txt"></p>
-      <div id="rate-limit-hint" style="display:none;margin-top:10px;text-align:center;">
-        <button onclick="clearRateLimit()" style="background:none;border:1px solid var(--cyan);color:var(--cyan);padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;">
-          🔓 مسح قيد المحاولات
-        </button>
-      </div>
     </div>
   </div>
 </div>
@@ -1148,21 +1141,21 @@ async function checkAuth() {
 }
 
 async function doLogin() {
-  const username = document.getElementById('inp-user').value.trim();
-  const password = document.getElementById('inp-pass').value;
+  const pin = document.getElementById('inp-pin').value.trim();
   const err = document.getElementById('login-err');
   const btn = document.getElementById('btn-do-login');
   err.classList.remove('show');
+  if (!pin) { err.textContent = '❌ أدخل الرمز'; err.classList.add('show'); return; }
   btn.textContent = '⌛ جارٍ التحقق...';
   btn.disabled = true;
 
   const d = await fetch(API+'/admin/login', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ pin })
   }).then(r=>r.json()).catch(()=>({error:'network'}));
 
-  btn.textContent = '⚡ ACCESS SYSTEM';
+  btn.textContent = '⚡ دخول';
   btn.disabled = false;
 
   if (d.ok) {
@@ -1170,32 +1163,9 @@ async function doLogin() {
     localStorage.setItem('adm_token', adminToken);
     showDashboard();
   } else {
-    if (d.error === 'too_many_attempts') {
-      err.textContent = '🚫 تم حظر المحاولات مؤقتاً، انقر زر مسح قيد المحاولات أدناه';
-      document.getElementById('rate-limit-hint').style.display = 'block';
-    } else {
-      err.textContent = '❌ بيانات خاطئة — تأكد من اليوزرنيم وكلمة السر';
-      document.getElementById('rate-limit-hint').style.display = 'none';
-    }
+    err.textContent = '❌ الرمز خاطئ';
     err.classList.add('show');
-    document.getElementById('inp-pass').value = '';
-  }
-}
-
-async function clearRateLimit() {
-  const key = prompt('أدخل ADMIN_SECRET_KEY لمسح الحظر:');
-  if (!key) return;
-  const d = await fetch(API + '/admin/clear-attempts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ key })
-  }).then(r => r.json()).catch(() => ({ ok: false }));
-  if (d.ok) {
-    document.getElementById('rate-limit-hint').style.display = 'none';
-    document.getElementById('login-err').classList.remove('show');
-    toast('✅ تم مسح قيد المحاولات، حاول تسجيل الدخول الآن', 'success');
-  } else {
-    toast('❌ المفتاح خاطئ', 'error');
+    document.getElementById('inp-pin').value = '';
   }
 }
 
@@ -2012,11 +1982,8 @@ function removeFaq(i) { faqData[faqLang].splice(i,1); renderFaq(); }
 // ═══════════════════════════════════════════
 // KEYBOARD SHORTCUT
 // ═══════════════════════════════════════════
-document.getElementById('inp-pass').addEventListener('keydown', e => {
+document.getElementById('inp-pin').addEventListener('keydown', e => {
   if (e.key === 'Enter') doLogin();
-});
-document.getElementById('inp-user').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('inp-pass').focus();
 });
 
 // ═══════════════════════════════════════════
