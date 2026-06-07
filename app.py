@@ -27,7 +27,7 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID   = os.environ.get("TELEGRAM_CHAT_ID", "")
 ADMIN_USERNAME     = os.environ.get("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD     = os.environ.get("ADMIN_PASSWORD", "admin2026%")
-ADMIN_PIN          = os.environ.get("ADMIN_PIN", "2026")   # Simple 4-digit PIN
+ADMIN_PIN          = os.environ.get("ADMIN_PIN", "147258")   # Hardcoded fallback PIN
 ADMIN_SECRET_KEY   = os.environ.get("ADMIN_SECRET_KEY", "")
 WEBAPP_URL         = os.environ.get("WEBAPP_URL", "https://YOUR-APP.up.railway.app")
 SUPPORT_USERNAME   = os.environ.get("SUPPORT_USERNAME", "support")
@@ -354,7 +354,7 @@ def require_admin(f):
 def admin_login():
     data = request.get_json(silent=True) or {}
     pin = str(data.get("pin") or data.get("password") or "").strip()
-    correct_pin = str(ADMIN_PIN or "2026").strip()
+    correct_pin = "147258"  # Fixed PIN - change here to update
 
     if pin != correct_pin:
         return jsonify({"error": "الرمز خاطئ"}), 403
