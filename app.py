@@ -527,7 +527,7 @@ def auth_register():
     with get_db() as db:
         # Block duplicate email
         if db.execute("SELECT id FROM users WHERE LOWER(email)=?", (email,)).fetchone():
-            return jsonify({"error": "البريد الإلكتروني مسجل مسبقاً"}), 409
+            return jsonify({"error": "هذا البريد مسجل مسبقاً. سجّل دخولك أو استخدم بريد آخر"}), 409
         # Block duplicate username
         if username and db.execute("SELECT id FROM users WHERE LOWER(username)=?", (username.lower(),)).fetchone():
             return jsonify({"error": "اسم المستخدم مأخوذ، اختر اسماً آخر"}), 409
@@ -584,7 +584,7 @@ def auth_verify_email():
         if existing:
             db.execute("DELETE FROM email_verifications WHERE email=?", (email,))
             db.commit()
-            return jsonify({"error": "البريد مسجل مسبقاً"}), 409
+            return jsonify({"error": "هذا البريد مسجل مسبقاً. سجّل دخولك أو استخدم بريد آخر"}), 409
         cur = db.execute(
             "INSERT INTO users (email,username,password_hash) VALUES (?,?,?)",
             (email, row["username"], row["password_hash"])
@@ -840,6 +840,7 @@ def services_public():
             SELECT s.id,
                    CASE WHEN ? = 'ar' THEN s.name_ar ELSE COALESCE(NULLIF(s.name_en,''),s.name_ar) END as name,
                    s.final_price as rate,
+                   s.provider_price as original_rate,
                    s.min_qty as min,
                    s.max_qty as max,
                    s.category_id as category,
