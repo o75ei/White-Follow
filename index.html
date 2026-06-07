@@ -295,6 +295,39 @@ mark,.mark-highlight{background:#f0a000;color:#000;padding:1px 3px;border-radius
 
 #tg-fab{position:fixed;bottom:80px;left:16px;z-index:200;width:52px;height:52px;border-radius:50%;background:#0088cc;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(0,136,204,.4);font-size:24px;transition:transform .15s;text-decoration:none;}
 #tg-fab:hover{transform:scale(1.05);}
+
+/* ── SPEED GAUGE BADGE ── */
+.speed-badge{display:inline-flex;align-items:center;gap:6px;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;margin:0 auto 12px;border:1px solid;}
+.speed-fast{background:rgba(35,134,54,.15);color:#3fb950;border-color:rgba(35,134,54,.3);}
+.speed-normal{background:rgba(88,166,255,.15);color:#58a6ff;border-color:rgba(88,166,255,.3);}
+.speed-slow{background:rgba(240,136,62,.15);color:#f0883e;border-color:rgba(240,136,62,.3);}
+
+/* ── SERVICE ID CHIP ── */
+.svc-id-chip{display:inline-flex;align-items:center;gap:6px;background:var(--card2);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:11px;color:var(--text2);cursor:pointer;margin-bottom:4px;}
+.svc-id-chip:hover{border-color:var(--gold);}
+
+/* ── PRICING DISPLAY ── */
+.price-display-row{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.price-current{font-size:22px;font-weight:800;color:var(--gold);}
+.price-old{font-size:14px;color:var(--text2);text-decoration:line-through;}
+.price-discount{font-size:12px;background:rgba(240,160,0,.15);border:1px solid rgba(240,160,0,.3);border-radius:10px;padding:3px 8px;color:var(--gold);font-weight:700;}
+
+/* ── PRESET QUANTITY BUTTONS ── */
+.qty-presets{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+.qty-preset-btn{flex:1;min-width:64px;padding:8px 4px;border:1px solid var(--border);border-radius:10px;background:#1C1C1E;color:var(--text2);font-size:12px;font-family:var(--font);cursor:pointer;transition:all .15s;font-weight:600;}
+.qty-preset-btn.active{background:linear-gradient(135deg,#f0a000,#f0c040);border-color:#f0a000;color:#000;}
+.qty-preset-btn:hover:not(.active){border-color:var(--gold);color:var(--text);}
+
+/* ── WARNINGS BOX ── */
+.warnings-box{border:1px solid rgba(218,54,51,.4);background:rgba(218,54,51,.08);border-radius:10px;padding:12px 14px;margin-bottom:14px;}
+.warnings-title{font-size:12px;font-weight:700;color:#da3633;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.warnings-list{font-size:12px;color:#f0883e;line-height:1.8;padding-right:4px;}
+.warnings-list li{list-style:none;padding:2px 0;}
+
+/* ── FEATURES GRID ── */
+.features-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+.feature-badge{display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:9px 11px;font-size:11px;color:var(--text);}
+.feature-badge-icon{font-size:16px;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -456,31 +489,63 @@ mark,.mark-highlight{background:#f0a000;color:#000;padding:1px 3px;border-radius
       <div id="view-service-detail" style="display:none">
         <div class="svc-detail-wrap">
           <div class="svc-detail-icon" id="svcd-icon"></div>
+          <!-- Service ID chip -->
+          <div style="text-align:center">
+            <span class="svc-id-chip" id="svcd-id-chip" onclick="copySvcId()">📋 <span id="svcd-id-text">#0000</span></span>
+          </div>
           <div class="svc-detail-name" id="svcd-name"></div>
+          <!-- Speed gauge -->
+          <div style="text-align:center">
+            <span class="speed-badge" id="svcd-speed-badge">🟢 الخدمة سريعة</span>
+          </div>
+          <!-- Pricing display -->
+          <div class="price-display-row">
+            <span class="price-current" id="svcd-price-current">$0.000</span>
+            <span class="price-old" id="svcd-price-old" style="display:none">$0.000</span>
+            <span class="price-discount" id="svcd-price-discount" style="display:none">-0% 🔶</span>
+          </div>
+          <!-- Info grid -->
           <div class="svc-info-grid">
-            <div class="svc-info-item"><div class="svc-info-label">السعر / 1000</div><div class="svc-info-value" id="svcd-price">—</div></div>
             <div class="svc-info-item"><div class="svc-info-label">الحد الأدنى</div><div class="svc-info-value" id="svcd-min">—</div></div>
             <div class="svc-info-item"><div class="svc-info-label">الحد الأقصى</div><div class="svc-info-value" id="svcd-max">—</div></div>
             <div class="svc-info-item"><div class="svc-info-label">وقت الإنجاز</div><div class="svc-info-value" id="svcd-time">—</div></div>
+            <div class="svc-info-item"><div class="svc-info-label">نوع الخدمة</div><div class="svc-info-value" id="svcd-type">—</div></div>
           </div>
+          <!-- Description -->
           <div class="svc-desc" id="svcd-desc" style="display:none"></div>
-          <div class="form-grp">
-            <label class="form-lbl">الرابط</label>
-            <input type="url" id="svcd-link" class="form-ctrl" placeholder="https://..." dir="ltr"/>
+          <!-- Warnings box -->
+          <div class="warnings-box" id="svcd-warnings" style="display:none">
+            <div class="warnings-title">⚠️ تحذيرات مهمة</div>
+            <ul class="warnings-list" id="svcd-warnings-list"></ul>
           </div>
+          <!-- Features grid -->
+          <div class="features-grid" id="svcd-features" style="display:none"></div>
+          <!-- Link input (label changes dynamically) -->
           <div class="form-grp">
+            <label class="form-lbl" id="svcd-link-label">الرابط</label>
+            <input type="text" id="svcd-link" class="form-ctrl" placeholder="https://..." dir="ltr"/>
+          </div>
+          <!-- Quantity -->
+          <div class="form-grp" id="svcd-qty-section">
             <label class="form-lbl">الكمية</label>
-            <div class="qty-wrap">
+            <!-- Preset buttons -->
+            <div class="qty-presets" id="svcd-qty-presets"></div>
+            <div class="qty-wrap" id="svcd-qty-wrap">
               <button class="qty-btn" onclick="adjustQty(-1)">−</button>
-              <input type="number" id="svcd-qty" class="form-ctrl qty-inp" oninput="calcTotal()"/>
+              <input type="number" id="svcd-qty" class="form-ctrl qty-inp" oninput="onQtyInput()"/>
               <button class="qty-btn" onclick="adjustQty(1)">+</button>
             </div>
+          </div>
+          <!-- Fixed qty display for gift cards / game top-up -->
+          <div class="form-grp" id="svcd-fixed-qty" style="display:none">
+            <label class="form-lbl">الكمية</label>
+            <div class="svc-info-item" style="text-align:center;font-weight:700;color:var(--gold);">الكمية: 1 🔒</div>
           </div>
           <div class="total-card" id="total-card" style="display:none">
             <span class="total-label">التكلفة الإجمالية</span>
             <span class="total-value" id="total-value">$0.000</span>
           </div>
-          <button class="btn-place" onclick="placeOrder()" id="btn-place">تأكيد الطلب</button>
+          <button class="btn-place" onclick="placeOrder()" id="btn-place">إنشاء الطلب</button>
         </div>
       </div>
     </div>
@@ -1303,8 +1368,10 @@ function goBackToMain(){showAllViews('main');setTopbarMain();}
 function buildSvcCard(s, query){
   const rate=parseFloat(s.rate||0);
   // Simulate original price as slightly higher (1% discount display)
-  const oldRate=s.original_rate||s.old_rate||(rate>0?parseFloat((rate*1.01).toFixed(3)):0);
-  const hasDiscount=oldRate>rate&&rate>0;
+  // original_rate = provider_price from Dark Follow (real base price)
+  const originalRate=parseFloat(s.original_rate||s.old_rate||0);
+  const oldRate=originalRate>0?originalRate:(rate>0?parseFloat((rate*1.01).toFixed(4)):0);
+  const hasDiscount=oldRate>0&&rate>0&&Math.abs(oldRate-rate)>0.00001;
 
   const card=document.createElement('div');card.className='svc-card';
   card.onclick=()=>openServiceDetail(s);
@@ -1395,21 +1462,189 @@ async function openSubCat(subId){
   }
 }
 
+function copySvcId(){
+  const id=document.getElementById('svcd-id-text').textContent;
+  navigator.clipboard?.writeText(id.replace('#',''))
+    .then(()=>toast('✅ تم نسخ معرف الخدمة','success'))
+    .catch(()=>{});
+}
+
+function _isFixedQtyCategory(svc){
+  // Gift cards and game top-up → fixed qty=1
+  const name=(svc.name||'').toLowerCase();
+  const cat=(svc.category||'').toLowerCase();
+  const keywords=['بطاقات','بطائق','gift','itunes','nintendo','blizzard','fortnite','playstation','valorant','steam','crunchyroll','riot','roblox','amazon','zgold','league','شحن ألعاب','game top','oxide','genshin','arena','pubg','delta','call of duty','ludo','يلا لودو','discord nitro'];
+  return keywords.some(k=>name.includes(k)||cat.includes(k));
+}
+
+function _getLinkLabel(svc){
+  const name=(svc.name||'').toLowerCase();
+  const cat=(svc.category||'').toLowerCase();
+  if(name.includes('call of duty')||name.includes('كود اف ديوتي'))
+    return {label:'ايميل : باسورد',placeholder:'email@example.com : Password123'};
+  if(name.includes('telegram')||name.includes('تليجرام')||name.includes('members')||name.includes('أعضاء')||cat.includes('تليجرام'))
+    return {label:'رابط الدعوة',placeholder:'https://t.me/...'};
+  if(name.includes('gift')||name.includes('بطاقة')||name.includes('بطائق')||name.includes('card'))
+    return {label:'معرفك التليجرام',placeholder:'@username'};
+  if(name.includes('شحن')||name.includes('top-up')||name.includes('لعبة')||cat.includes('شحن'))
+    return {label:'ID حسابك',placeholder:'123456789'};
+  return {label:'الرابط',placeholder:'https://...'};
+}
+
+function _getSpeedBadge(svc){
+  const desc=(svc.description||'').toLowerCase();
+  const time=(svc.estimated_time||'').toLowerCase();
+  if(desc.includes('سريع')||time.includes('دقيق')||time.includes('ساعة')||time.includes('hour')||time.includes('min'))
+    return {cls:'speed-fast',text:'🟢 الخدمة سريعة'};
+  if(desc.includes('بطيء')||time.includes('يوم')||time.includes('day')||time.includes('أسبوع'))
+    return {cls:'speed-slow',text:'🟠 الخدمة بطيئة'};
+  return {cls:'speed-normal',text:'🔵 الخدمة طبيعية'};
+}
+
+function _parseWarnings(desc){
+  const warnings=[];
+  const lines=(desc||'').split('\n');
+  lines.forEach(line=>{
+    const l=line.trim();
+    if(l.includes('تأكد')||l.includes('لا تكرر')||l.includes('اطفئ')||l.includes('تحذير')||l.includes('⚠')||l.includes('ملاحظة')||l.includes('مهم'))
+      warnings.push(l.replace(/^[⚠️\s]+/,''));
+  });
+  // Always add standard warnings
+  if(!warnings.some(w=>w.includes('عام'))) warnings.push('تأكد أن الحساب عام وليس خاصاً');
+  if(!warnings.some(w=>w.includes('تكرر'))) warnings.push('لا تكرر الطلب قبل اكتمال الطلب الحالي');
+  if(!warnings.some(w=>w.includes('مراجعة')||w.includes('مراجعه'))) warnings.push('أطفئ زر المراجعة على الحساب');
+  return warnings;
+}
+
+function _parseFeatures(svc){
+  const desc=(svc.description||'').toLowerCase();
+  const features=[];
+  if(desc.includes('انخفاض')||desc.includes('drop')||desc.includes('نزول')) features.push({icon:'📉',text:'انخفاض بنسبة'});
+  if(desc.includes('إعادة تعبئة')||desc.includes('refill')||desc.includes('تعبئة')) features.push({icon:'♻️',text:'إعادة تعبئة'});
+  if(desc.includes('ضمان')||desc.includes('guarantee')||desc.includes('warranty')) features.push({icon:'🛡️',text:'ضمان'});
+  if(desc.includes('وهمي')||desc.includes('حقيقي')||desc.includes('مزيج')||desc.includes('mix')) features.push({icon:'💜',text:'مزيج وهمي/حقيقي'});
+  if(desc.includes('إلغاء')||desc.includes('cancel')||desc.includes('الغاء')) features.push({icon:'☑️',text:'زر الإلغاء'});
+  if(desc.includes('سرعة')||desc.includes('speed')||svc.estimated_time) features.push({icon:'🚀',text:'سرعة: '+(svc.estimated_time||'سريعة')});
+  return features;
+}
+
+const _QTY_PRESETS=[100,500,1000,2500,5000];
+
+function renderQtyPresets(svc){
+  const container=document.getElementById('svcd-qty-presets');
+  container.innerHTML='';
+  const min=parseInt(svc.min)||1;
+  const max=parseInt(svc.max)||1000000;
+  const validPresets=_QTY_PRESETS.filter(p=>p>=min&&p<=max);
+  if(validPresets.length<2){container.style.display='none';return;}
+  container.style.display='flex';
+  validPresets.forEach(p=>{
+    const btn=document.createElement('button');
+    btn.className='qty-preset-btn';
+    btn.textContent=p>=1000?(p/1000)+'K':p;
+    btn.onclick=()=>{
+      document.querySelectorAll('.qty-preset-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('svcd-qty').value=p;
+      calcTotal();
+    };
+    container.appendChild(btn);
+  });
+  // Custom button
+  const customBtn=document.createElement('button');
+  customBtn.className='qty-preset-btn';
+  customBtn.textContent='مخصص';
+  customBtn.onclick=()=>{
+    document.querySelectorAll('.qty-preset-btn').forEach(b=>b.classList.remove('active'));
+    customBtn.classList.add('active');
+    const inp=document.getElementById('svcd-qty');inp.focus();inp.select();
+  };
+  container.appendChild(customBtn);
+}
+
+function onQtyInput(){
+  document.querySelectorAll('.qty-preset-btn').forEach(b=>b.classList.remove('active'));
+  calcTotal();
+}
+
 function openServiceDetail(svc){
   _currentSvc=svc;
   showAllViews('detail');
+
+  // Icon
   const iconEl=document.getElementById('svcd-icon');iconEl.innerHTML='';
   if(svc.image){const img=document.createElement('img');img.src=svc.image;img.loading='lazy';img.onerror=()=>img.remove();iconEl.appendChild(img);}
   else iconEl.textContent=svc.name.charAt(0);
+
+  // Service ID chip
+  document.getElementById('svcd-id-text').textContent='#'+(svc.provider_service_id||svc.id||'—');
+
+  // Name
   document.getElementById('svcd-name').textContent=svc.name;
-  document.getElementById('svcd-price').textContent=`$${parseFloat(svc.rate||0).toFixed(3)}`;
+
+  // Speed badge
+  const speed=_getSpeedBadge(svc);
+  const sb=document.getElementById('svcd-speed-badge');
+  sb.className='speed-badge '+speed.cls;sb.textContent=speed.text;
+
+  // Pricing
+  const rate=parseFloat(svc.rate)||0;
+  const origRate=parseFloat(svc.original_rate)||0;
+  document.getElementById('svcd-price-current').textContent=`$${rate.toFixed(3)}`;
+  const priceOld=document.getElementById('svcd-price-old');
+  const priceDisc=document.getElementById('svcd-price-discount');
+  if(origRate>0&&origRate>rate){
+    priceOld.textContent=`$${origRate.toFixed(3)}`;priceOld.style.display='inline';
+    const disc=Math.round((1-rate/origRate)*100);
+    priceDisc.textContent=`-${disc}% 🔶`;priceDisc.style.display='inline';
+  } else {priceOld.style.display='none';priceDisc.style.display='none';}
+
+  // Info grid
   document.getElementById('svcd-min').textContent=(svc.min||1).toLocaleString();
   document.getElementById('svcd-max').textContent=(svc.max||1000000).toLocaleString();
   document.getElementById('svcd-time').textContent=svc.estimated_time||'—';
+  document.getElementById('svcd-type').textContent=svc.type||'—';
+
+  // Description
   const descEl=document.getElementById('svcd-desc');
-  if(svc.description){descEl.style.display='block';descEl.textContent=svc.description;}else descEl.style.display='none';
-  const qi=document.getElementById('svcd-qty');qi.value=svc.min||100;qi.min=svc.min||1;qi.max=svc.max||1000000;
-  document.getElementById('svcd-link').value='';
+  if(svc.description){descEl.style.display='block';descEl.textContent=svc.description;}
+  else descEl.style.display='none';
+
+  // Warnings
+  const warnings=_parseWarnings(svc.description||'');
+  const warnBox=document.getElementById('svcd-warnings');
+  const warnList=document.getElementById('svcd-warnings-list');
+  if(warnings.length){
+    warnList.innerHTML=warnings.map(w=>`<li>⚠️ ${escHtml(w)}</li>`).join('');
+    warnBox.style.display='block';
+  } else warnBox.style.display='none';
+
+  // Features grid
+  const features=_parseFeatures(svc);
+  const featGrid=document.getElementById('svcd-features');
+  if(features.length){
+    featGrid.innerHTML=features.map(f=>`<div class="feature-badge"><span class="feature-badge-icon">${f.icon}</span><span>${escHtml(f.text)}</span></div>`).join('');
+    featGrid.style.display='grid';
+  } else featGrid.style.display='none';
+
+  // Link label
+  const ll=_getLinkLabel(svc);
+  document.getElementById('svcd-link-label').textContent=ll.label;
+  const linkInp=document.getElementById('svcd-link');
+  linkInp.placeholder=ll.placeholder;linkInp.value='';
+  // For game IDs/telegram IDs, don't enforce URL type
+  linkInp.type=(ll.label==='الرابط'||ll.label==='رابط الدعوة')?'url':'text';
+
+  // Fixed qty vs variable qty
+  const isFixed=_isFixedQtyCategory(svc);
+  document.getElementById('svcd-qty-section').style.display=isFixed?'none':'block';
+  document.getElementById('svcd-fixed-qty').style.display=isFixed?'block':'none';
+  if(!isFixed){
+    const qi=document.getElementById('svcd-qty');
+    qi.value=svc.min||100;qi.min=svc.min||1;qi.max=svc.max||1000000;
+    renderQtyPresets(svc);
+  }
+
   calcTotal();
   const shortName=svc.name.length>20?svc.name.substring(0,20)+'...':svc.name;
   setTopbarSub(shortName,()=>{showAllViews('svclist');setTopbarSub('الاقسام',()=>openMainCat(_selMainCat));});
@@ -1437,7 +1672,8 @@ function setTopbarMain(){
 
 function calcTotal(){
   if(!_currentSvc)return;
-  const qty=parseInt(document.getElementById('svcd-qty').value)||0;
+  const isFixed=_isFixedQtyCategory(_currentSvc);
+  const qty=isFixed?1:(parseInt(document.getElementById('svcd-qty').value)||0);
   const rate=parseFloat(_currentSvc.rate)||0;
   const total=(qty/1000)*rate;
   document.getElementById('total-value').textContent=`$${total.toFixed(3)}`;
@@ -1447,7 +1683,9 @@ function adjustQty(delta){
   const inp=document.getElementById('svcd-qty');
   const curr=parseInt(inp.value)||0;const min=parseInt(inp.min)||1;const max=parseInt(inp.max)||1000000;
   const step=Math.max(1,Math.floor((max-min)/100));
-  inp.value=Math.min(max,Math.max(min,curr+delta*step));calcTotal();
+  inp.value=Math.min(max,Math.max(min,curr+delta*step));
+  document.querySelectorAll('.qty-preset-btn').forEach(b=>b.classList.remove('active'));
+  calcTotal();
 }
 
 // ── SEARCH ──
@@ -1489,16 +1727,26 @@ async function doSearch(query){
 async function placeOrder(){
   if(!_currentSvc)return;
   const link=document.getElementById('svcd-link').value.trim();
-  const qty=parseInt(document.getElementById('svcd-qty').value);
-  if(!isValidUrl(link)){toast('الرابط غير صالح، يجب أن يبدأ بـ http:// أو https://','error');return;}
-  if(!qty||qty<(_currentSvc.min||1)){toast(`الحد الأدنى: ${(_currentSvc.min||1).toLocaleString()}`,'error');return;}
-  if(qty>(_currentSvc.max||1000000)){toast(`الحد الأقصى: ${(_currentSvc.max||1000000).toLocaleString()}`,'error');return;}
+  const isFixed=_isFixedQtyCategory(_currentSvc);
+  const qty=isFixed?1:(parseInt(document.getElementById('svcd-qty').value)||0);
+  const linkLabel=document.getElementById('svcd-link-label').textContent;
+
+  // Validate link based on type
+  if(!link){toast('يرجى إدخال '+linkLabel,'error');return;}
+  if((linkLabel==='الرابط'||linkLabel==='رابط الدعوة')&&!isValidUrl(link)){
+    toast('الرابط غير صالح، يجب أن يبدأ بـ http:// أو https://','error');return;
+  }
+
+  if(!isFixed){
+    if(!qty||qty<(_currentSvc.min||1)){toast(`الحد الأدنى: ${(_currentSvc.min||1).toLocaleString()}`,'error');return;}
+    if(qty>(_currentSvc.max||1000000)){toast(`الحد الأقصى: ${(_currentSvc.max||1000000).toLocaleString()}`,'error');return;}
+  }
+
   const btn=document.getElementById('btn-place');btn.textContent='⌛ جارٍ...';btn.disabled=true;
   const d=await apiCall('/orders/create',{method:'POST',body:JSON.stringify({service:_currentSvc.id,link,quantity:qty})});
-  btn.textContent='تأكيد الطلب';btn.disabled=false;
+  btn.textContent='إنشاء الطلب';btn.disabled=false;
   if(d.ok||d.order){
     toast('✅ تم تقديم الطلب بنجاح','success');
-    // Invalidate orders cache so next load is fresh
     try{localStorage.removeItem(getUserCacheKey('df_orders_'));}catch{}
     showPage('orders');
   }
