@@ -693,33 +693,89 @@ let _resendTimer = null, _sessionTimer = null, _refreshTimer = null;
 let _searchTimer = null;
 
 // ═══════════════════════════════════════════════════════════
-// CATEGORIES DATA — loaded dynamically from API
+// CATEGORIES — Two-level structure synced from Dark Follow API
+// Level 1: Fixed main sections (7 groups)
+// Level 2: Dynamic sub-categories from API, mapped to groups
 // ═══════════════════════════════════════════════════════════
-let MAIN_CATS = [];
-let SUB_CATS = {};
+
+// ── Level 1: Fixed main sections ──
+const MAIN_SECTIONS = [
+  {id:'dark',    name:'خدمات دارك',          icon:'🔥', keywords:['دارك']},
+  {id:'cards',   name:'قسم البطائق',          icon:'💳', keywords:['بطاقات','بطائق','itunes','nintendo','blizzard','fortnite','playstation','valorant','steam','crunchyroll','riot','roblox','amzoum','zgold','league']},
+  {id:'games',   name:'قسم شحن الألعاب',      icon:'🎮', keywords:['oxide','genshin','arena','pubg','delta','call of duty','ludo','ببجي','لودو','جينشين','ارينا','دلتا','أوكسايد']},
+  {id:'subs',    name:'قسم الاشتراكات',       icon:'📺', keywords:['nitro','العاب ستيم','xbox','كيم بأس','premium','playstation plus','اشتراكات']},
+  {id:'phone',   name:'شحن رصيد الهاتف',     icon:'📱', keywords:['العراق','السعودية','الاردن','لبنان','مصر','البحرين','اليمن','الكويت','الامارات','قطر','عمان']},
+  {id:'tgprem',  name:'تليجرام مميز',         icon:'⭐', keywords:['مميز عربي','بدون نزول','ستارت بوت','خدمات مميز','مميزه']},
+  {id:'other',   name:'خدمات أخرى',           icon:'📦', keywords:[]}
+];
+
+let MAIN_CATS   = [];   // built from MAIN_SECTIONS after API load
+let SUB_CATS    = {};   // mainSectionId → [sub-category objects from API]
+let _allApiCats = [];   // raw categories from API
+
+// ── Map one API category name to a main section ──
+function _mapCatToSection(nameAr, nameEn){
+  const name = (nameAr||nameEn||'').toLowerCase();
+  for(const sec of MAIN_SECTIONS){
+    if(sec.id==='other') continue;
+    for(const kw of sec.keywords){
+      if(name.includes(kw.toLowerCase())) return sec.id;
+    }
+  }
+  return 'other';
+}
 
 async function loadCategoriesFromAPI(){
   try{
-    const cached=loadFromLocalStorage('df_cats_all',10*60*1000);
-    if(cached&&cached.MAIN_CATS&&cached.SUB_CATS){
-      MAIN_CATS=cached.MAIN_CATS;SUB_CATS=cached.SUB_CATS;return;
+    // Clear categories cache so fresh data loads
+    const cached = loadFromLocalStorage('df_cats_v2', 10*60*1000);
+    if(cached && cached.MAIN_CATS && cached.SUB_CATS && cached.MAIN_CATS.length){
+      MAIN_CATS    = cached.MAIN_CATS;
+      SUB_CATS     = cached.SUB_CATS;
+      _allApiCats  = cached._allApiCats||[];
+      return;
     }
-    const d=await apiCall('/services');
-    const cats=d.categories||[];
-    if(!cats.length)return;
-    MAIN_CATS=cats.map(c=>({
-      id:c.id,
-      name:c.name_ar||c.name_en||'قسم',
-      icon:c.icon||'📦',
-      img:c.image_url||''
-    }));
-    SUB_CATS={};
-    MAIN_CATS.forEach(c=>{
-      SUB_CATS[c.id]=[{id:c.id,name:c.name,icon:c.icon,img:c.img}];
+
+    const d = await apiCall('/services');
+    const apiCats = d.categories || [];
+    if(!apiCats.length) return;
+
+    _allApiCats = apiCats;
+
+    // Group API cats into sections
+    const grouped = {};
+    MAIN_SECTIONS.forEach(s => { grouped[s.id] = []; });
+
+    apiCats.forEach(c => {
+      const secId = _mapCatToSection(c.name_ar, c.name_en);
+      grouped[secId].push({
+        id   : c.id,
+        name : c.name_ar || c.name_en || 'قسم',
+        icon : c.icon || '📦',
+        img  : c.image_url || ''
+      });
     });
-    saveToLocalStorage('df_cats_all',{MAIN_CATS,SUB_CATS},10*60*1000);
+
+    // Build MAIN_CATS — only sections that have sub-cats (or are always shown)
+    MAIN_CATS = MAIN_SECTIONS
+      .filter(s => grouped[s.id] && grouped[s.id].length > 0)
+      .map(s => ({
+        id   : s.id,
+        name : s.name,
+        icon : s.icon,
+        img  : ''
+      }));
+
+    // Build SUB_CATS
+    SUB_CATS = {};
+    MAIN_CATS.forEach(mc => {
+      SUB_CATS[mc.id] = grouped[mc.id] || [];
+    });
+
+    saveToLocalStorage('df_cats_v2', {MAIN_CATS, SUB_CATS, _allApiCats}, 10*60*1000);
+
   }catch(e){
-    console.error('[cats] failed to load from API:',e);
+    console.error('[cats] loadCategoriesFromAPI error:', e);
   }
 }
 
@@ -1179,10 +1235,26 @@ function loadMainCategories(){
   }
   const frag=document.createDocumentFragment();
   MAIN_CATS.forEach(c=>{
+    const subs=SUB_CATS[c.id]||[];
     const row=document.createElement('div');row.className='cat-row';
     row.onclick=()=>openMainCat(c.id);
-    row.appendChild(renderServiceIcon(c.icon,c.img));
-    const name=document.createElement('span');name.className='cat-name';name.textContent=c.name;row.appendChild(name);
+
+    // Icon — use first sub's image if main has none
+    const firstImg=c.img||(subs[0]&&subs[0].img)||'';
+    row.appendChild(renderServiceIcon(c.icon, firstImg));
+
+    // Name + sub-count badge
+    const nameWrap=document.createElement('div');nameWrap.style.cssText='flex:1;display:flex;flex-direction:column;gap:2px;';
+    const name=document.createElement('span');name.className='cat-name';name.textContent=c.name;
+    nameWrap.appendChild(name);
+    if(subs.length>1){
+      const sub=document.createElement('span');
+      sub.style.cssText='font-size:11px;color:var(--text2);';
+      sub.textContent=subs.length+' قسم';
+      nameWrap.appendChild(sub);
+    }
+    row.appendChild(nameWrap);
+
     const arrow=document.createElement('span');arrow.className='cat-arrow';arrow.textContent='‹';row.appendChild(arrow);
     frag.appendChild(row);
   });
@@ -1193,16 +1265,31 @@ function openMainCat(catId){
   _selMainCat=catId;
   const cat=MAIN_CATS.find(c=>c.id===catId);if(!cat)return;
   const subs=SUB_CATS[catId]||[];
+
+  // If only one sub that matches itself → go directly to services
+  if(subs.length===1 && subs[0].id===catId){
+    openSubCat(subs[0].id);
+    return;
+  }
+
   showAllViews('sub');
   const bigIcon=document.getElementById('subcat-big-icon');
   bigIcon.innerHTML='';bigIcon.appendChild(renderServiceIcon(cat.icon,cat.img,64));
   document.getElementById('subcat-title').textContent=cat.name;
   const list=document.getElementById('sub-cats-list');
+
+  if(!subs.length){
+    list.innerHTML='<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">لا توجد أقسام</div></div>';
+    setTopbarSub('الاقسام',()=>goBackToMain());
+    return;
+  }
+
   const frag=document.createDocumentFragment();
   subs.forEach(s=>{
     const row=document.createElement('div');row.className='cat-row';
     row.onclick=()=>openSubCat(s.id);
-    row.appendChild(renderServiceIcon(s.icon||cat.icon,s.img));
+    // Use sub's own image if available, else section icon
+    row.appendChild(renderServiceIcon(s.icon||cat.icon, s.img||cat.img));
     const name=document.createElement('span');name.className='cat-name';name.textContent=s.name;row.appendChild(name);
     const arrow=document.createElement('span');arrow.className='cat-arrow';arrow.textContent='‹';row.appendChild(arrow);
     frag.appendChild(row);
@@ -1764,6 +1851,10 @@ document.getElementById('otp-code').addEventListener('keydown',e=>{if(e.key==='E
 // ═══════════════════════════════════════════════════════════
 (async function init(){
   migrateOldData();
+  // Clear old single-level cache so two-level system loads fresh
+  try{
+    localStorage.removeItem('df_cats_all');
+  }catch(e){}
   await checkAuth();
 })();
 </script>
