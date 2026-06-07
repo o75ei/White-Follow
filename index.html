@@ -542,7 +542,10 @@ mark,.mark-highlight{background:#f0a000;color:#000;padding:1px 3px;border-radius
             <div class="svc-info-item" style="text-align:center;font-weight:700;color:var(--gold);">الكمية: 1 🔒</div>
           </div>
           <div class="total-card" id="total-card" style="display:none">
-            <span class="total-label" id="total-label">التكلفة الإجمالية</span>
+            <div style="flex:1">
+              <div class="total-label" id="total-label">التكلفة الإجمالية</div>
+              <div id="price-breakdown" style="font-size:10px;color:var(--text2);margin-top:2px;direction:ltr;text-align:right"></div>
+            </div>
             <span class="total-value" id="total-value">$0.000</span>
           </div>
           <button class="btn-place" onclick="placeOrder()" id="btn-place">إنشاء الطلب</button>
@@ -1504,16 +1507,17 @@ function _getSpeedBadge(svc){
 function _parseWarnings(desc){
   if(!desc||!desc.trim()) return ['تأكد من صحة الرابط قبل الطلب'];
   const warnings=[];
+  const keywords=['تأكد','لا تكرر','اطفئ','تحذير','⚠','ملاحظة','مهم',
+    'private','public','username','password','link','before','after',
+    "don't",'do not','caution','warning'];
   const lines=desc.split('\n');
   lines.forEach(line=>{
     const l=line.trim();
-    if(l.includes('تأكد')||l.includes('لا تكرر')||l.includes('اطفئ')||
-       l.includes('تحذير')||l.includes('⚠')||l.includes('ملاحظة')||
-       l.includes('مهم')||l.includes('private')||l.includes('public')||
-       l.includes('username')||l.includes('link'))
+    if(!l) return;
+    const lLow=l.toLowerCase();
+    if(keywords.some(kw=>lLow.includes(kw.toLowerCase())||l.includes(kw)))
       warnings.push(l.replace(/^[⚠️\s]+/,'').trim());
   });
-  // Only add minimal fallback if zero warnings found from provider
   if(!warnings.length) warnings.push('تأكد من صحة الرابط قبل الطلب');
   return warnings;
 }
@@ -1679,11 +1683,12 @@ function calcTotal(){
   const rate=parseFloat(_currentSvc.rate)||0;
   const total=(qty/1000)*rate;
   document.getElementById('total-value').textContent=`$${total.toFixed(3)}`;
-  // Show calculation breakdown
-  const labelEl=document.getElementById('total-label');
-  if(labelEl&&rate>0&&qty>0){
-    labelEl.textContent=`$${rate.toFixed(3)} / 1000 × ${qty.toLocaleString()} =`;
-  }
+  // Calculation breakdown
+  const lbl=document.getElementById('total-label');
+  if(lbl) lbl.textContent='التكلفة الإجمالية';
+  const bd=document.getElementById('price-breakdown');
+  if(bd&&rate>0&&qty>0) bd.textContent=`$${rate.toFixed(3)} per 1000 × ${(qty/1000).toFixed(qty>=1000?1:2)} = $${total.toFixed(3)}`;
+  else if(bd) bd.textContent='';
   document.getElementById('total-card').style.display='flex';
 }
 function adjustQty(delta){
@@ -1733,40 +1738,52 @@ async function doSearch(query){
 
 async function placeOrder(){
   if(!_currentSvc)return;
-  const link=document.getElementById('svcd-link').value.trim();
-  const isFixed=_isFixedQtyCategory(_currentSvc);
-  const qty=isFixed?1:(parseInt(document.getElementById('svcd-qty').value)||0);
-  const linkLabel=document.getElementById('svcd-link-label').textContent;
+  const btn=document.getElementById('btn-place');
+  try{
+    const link=document.getElementById('svcd-link').value.trim();
+    const isFixed=_isFixedQtyCategory(_currentSvc);
+    const qty=isFixed?1:(parseInt(document.getElementById('svcd-qty').value)||0);
+    const linkLabel=document.getElementById('svcd-link-label').textContent;
 
-  // Validate link based on type
-  if(!link){toast('يرجى إدخال '+linkLabel,'error');return;}
-  if((linkLabel==='الرابط'||linkLabel==='رابط الدعوة')&&!isValidUrl(link)){
-    toast('الرابط غير صالح، يجب أن يبدأ بـ http:// أو https://','error');return;
-  }
+    // Validate link based on type
+    if(!link){toast('يرجى إدخال '+linkLabel,'error');return;}
+    if((linkLabel==='الرابط'||linkLabel==='رابط الدعوة')&&!isValidUrl(link)){
+      toast('الرابط غير صالح، يجب أن يبدأ بـ http:// أو https://','error');return;
+    }
 
-  if(!isFixed){
-    if(!qty||qty<(_currentSvc.min||1)){toast(`الحد الأدنى: ${(_currentSvc.min||1).toLocaleString()}`,'error');return;}
-    if(qty>(_currentSvc.max||1000000)){toast(`الحد الأقصى: ${(_currentSvc.max||1000000).toLocaleString()}`,'error');return;}
-  }
+    if(!isFixed){
+      if(!qty||qty<(_currentSvc.min||1)){toast(`الحد الأدنى: ${(_currentSvc.min||1).toLocaleString()}`,'error');return;}
+      if(qty>(_currentSvc.max||1000000)){toast(`الحد الأقصى: ${(_currentSvc.max||1000000).toLocaleString()}`,'error');return;}
+    }
 
-  // Balance check before sending to server
-  const rate=parseFloat(_currentSvc.rate)||0;
-  const totalCost=(qty/1000)*rate;
-  const userBalance=parseFloat(_user?.balance)||0;
-  if(totalCost>0&&userBalance<totalCost){
-    toast(`❌ رصيد غير كافٍ — المطلوب: $${totalCost.toFixed(3)} | رصيدك: $${userBalance.toFixed(3)}`,'error');
-    showPage('funds');return;
-  }
+    // Balance check before sending to server
+    const rate=parseFloat(_currentSvc.rate)||0;
+    const totalCost=(qty/1000)*rate;
+    const userBalance=parseFloat(_user?.balance)||0;
+    if(totalCost>0&&userBalance<totalCost){
+      toast(`❌ رصيد غير كافٍ — المطلوب: $${totalCost.toFixed(3)} | رصيدك: $${userBalance.toFixed(3)}`,'error');
+      showPage('funds');return;
+    }
 
-  const btn=document.getElementById('btn-place');btn.textContent='⌛ جارٍ...';btn.disabled=true;
-  const d=await apiCall('/orders/create',{method:'POST',body:JSON.stringify({service:_currentSvc.id,link,quantity:qty})});
-  btn.textContent='إنشاء الطلب';btn.disabled=false;
-  if(d.ok||d.order){
-    toast('✅ تم تقديم الطلب بنجاح','success');
-    try{localStorage.removeItem(getUserCacheKey('df_orders_'));}catch{}
-    showPage('orders');
+    btn.textContent='⌛ جارٍ...';btn.disabled=true;
+    // Send provider_service_id (what Dark Follow understands), fallback to local id
+    const svcId=_currentSvc.provider_service_id||_currentSvc.id;
+    const d=await apiCall('/orders/create',{method:'POST',body:JSON.stringify({service:svcId,link,quantity:qty})});
+    if(d.ok||d.order){
+      toast('✅ تم تقديم الطلب بنجاح','success');
+      try{localStorage.removeItem(getUserCacheKey('df_orders_'));}catch{}
+      // Refresh balance from server
+      try{const me=await apiCall('/user/me');if(me.balance!==undefined){_user.balance=me.balance;updateBalanceDisplay();}}catch{}
+      showPage('orders');
+    } else {
+      toast(d.error||'حدث خطأ، حاول مرة أخرى','error');
+    }
+  }catch(e){
+    console.error('[placeOrder]',e);
+    toast('حدث خطأ في الاتصال، يرجى المحاولة مرة أخرى','error');
+  }finally{
+    btn.textContent='إنشاء الطلب';btn.disabled=false;
   }
-  else toast(d.error||'حدث خطأ، حاول مرة أخرى','error');
 }
 
 // ═══════════════════════════════════════════════════════════
