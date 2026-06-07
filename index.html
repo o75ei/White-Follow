@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<meta name="theme-color" content="#0d1117"/>
-<title>Dark Follow | دارك فولو</title>
+<meta name="theme-color" content="#f5f7fa"/>
+<title>White Follow | وايت فولو</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>emailjs.init({publicKey:"imTEA8822h7lbmfjJ"});</script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 :root{
-  --bg:#0d1117;--card:#161b22;--card2:#1c2128;--border:#21262d;--border2:#30363d;
-  --text:#e6edf3;--text2:#8b949e;--accent:#58a6ff;--success:#238636;
-  --warning:#f0883e;--danger:#da3633;--gold:#f0a000;--muted:#484f58;
+  --bg:#f5f7fa;--card:#ffffff;--card2:#f0f2f5;--border:#e1e4e8;--border2:#d0d7de;
+  --text:#1a1f2e;--text2:#57606a;--accent:#0969da;--success:#1a7f37;
+  --warning:#d1242f;--danger:#da3633;--gold:#d08000;--muted:#8c959f;
   --font:'Cairo','Tajawal',sans-serif;
 }
 html,body{height:100%;overflow:hidden;}
@@ -27,7 +27,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 #auth-screen.hidden{opacity:0;visibility:hidden;pointer-events:none;}
 .auth-wrap{width:100%;max-width:380px;}
 .auth-logo{text-align:center;margin-bottom:24px;}
-.auth-logo-img{width:72px;height:72px;border-radius:16px;background:linear-gradient(135deg,#1a1f26,#21262d);border:1px solid var(--border2);display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:32px;}
+.auth-logo-img{width:72px;height:72px;border-radius:16px;background:linear-gradient(135deg,#e8f0fe,#d2e4fc);border:1px solid var(--border2);display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:32px;}
 .auth-logo h1{font-size:22px;font-weight:800;color:var(--text);}
 .auth-logo h1 span{color:var(--accent);}
 .auth-logo p{font-size:12px;color:var(--text2);margin-top:4px;}
@@ -86,7 +86,7 @@ mark,.mark-highlight{background:#f0a000;color:#000;padding:1px 3px;border-radius
 .topbar-left{display:flex;align-items:center;gap:8px;}
 .topbar-back{width:36px;height:36px;border-radius:50%;background:var(--card2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--text2);transition:background .15s;flex-shrink:0;}
 .topbar-back:hover{background:var(--border);}
-.dark-logo-header{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:800;color:var(--text);letter-spacing:1px;line-height:1.2;}
+.dark-logo-header{background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:800;color:var(--accent);letter-spacing:1px;line-height:1.2;}
 .dark-logo-header .logo-row2{color:var(--text2);font-size:9px;}
 .topbar-title{font-size:16px;font-weight:700;color:var(--text);}
 .topbar-right{display:flex;align-items:center;gap:8px;}
@@ -336,8 +336,8 @@ mark,.mark-highlight{background:#f0a000;color:#000;padding:1px 3px;border-radius
 <div id="auth-screen">
   <div class="auth-wrap">
     <div class="auth-logo">
-      <div class="auth-logo-img">🌑</div>
-      <h1>Dark Follow | <span>دارك فولو</span></h1>
+      <div class="auth-logo-img">🌕</div>
+      <h1>White Follow | <span>وايت فولو</span></h1>
       <p>منصة الخدمات الرقمية المتكاملة</p>
     </div>
     <div class="auth-card">
@@ -441,8 +441,8 @@ mark,.mark-highlight{background:#f0a000;color:#000;padding:1px 3px;border-radius
     <div class="topbar-left">
       <div class="topbar-back" id="topbar-back" onclick="handleBack()" style="display:none">←</div>
       <div class="dark-logo-header" id="topbar-logo">
-        <div>ᗪᗩᖇK</div>
-        <div class="logo-row2">DARK</div>
+        <div>ᗯᕼITE</div>
+        <div class="logo-row2">WHITE</div>
       </div>
       <div class="topbar-title" id="topbar-title" style="display:none"></div>
     </div>
@@ -498,11 +498,31 @@ mark,.mark-highlight{background:#f0a000;color:#000;padding:1px 3px;border-radius
           <div style="text-align:center">
             <span class="speed-badge" id="svcd-speed-badge">🟢 الخدمة سريعة</span>
           </div>
-          <!-- Pricing display -->
+          <!-- Pricing display: shows total based on qty like darkfollow -->
           <div class="price-display-row">
-            <span class="price-current" id="svcd-price-current">$0.000</span>
-            <span class="price-old" id="svcd-price-old" style="display:none">$0.000</span>
-            <span class="price-discount" id="svcd-price-discount" style="display:none">-0% 🔶</span>
+            <div style="text-align:center;width:100%">
+              <div style="font-size:12px;color:var(--text2);margin-bottom:4px" id="svcd-rate-label">السعر لكل 1000</div>
+              <div style="display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap">
+                <span class="price-discount" id="svcd-price-discount" style="display:none">-0% 🔶</span>
+                <span class="price-old" id="svcd-price-old" style="display:none">$0.000</span>
+                <span class="price-current" id="svcd-price-current">$0.000</span>
+              </div>
+            </div>
+          </div>
+          <!-- LIVE TOTAL — updates with qty like darkfollow -->
+          <div id="live-price-bar" style="display:none;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:13px;color:var(--text2)">مقدار</span>
+              <span style="font-size:15px;font-weight:700;color:var(--text)" id="live-qty-display">0</span>
+            </div>
+            <div style="height:1px;background:var(--border);margin:10px 0"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:13px;color:var(--text2)">سعر</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:13px;color:var(--text2);text-decoration:line-through" id="live-price-old" style="display:none"></span>
+                <span style="font-size:22px;font-weight:800;color:var(--gold)" id="live-price-total">$0.000</span>
+              </div>
+            </div>
           </div>
           <!-- Info grid -->
           <div class="svc-info-grid">
@@ -540,13 +560,6 @@ mark,.mark-highlight{background:#f0a000;color:#000;padding:1px 3px;border-radius
           <div class="form-grp" id="svcd-fixed-qty" style="display:none">
             <label class="form-lbl">الكمية</label>
             <div class="svc-info-item" style="text-align:center;font-weight:700;color:var(--gold);">الكمية: 1 🔒</div>
-          </div>
-          <div class="total-card" id="total-card" style="display:none">
-            <div style="flex:1">
-              <div class="total-label" id="total-label">التكلفة الإجمالية</div>
-              <div id="price-breakdown" style="font-size:10px;color:var(--text2);margin-top:2px;direction:ltr;text-align:right"></div>
-            </div>
-            <span class="total-value" id="total-value">$0.000</span>
           </div>
           <button class="btn-place" onclick="placeOrder()" id="btn-place">إنشاء الطلب</button>
         </div>
@@ -1370,10 +1383,9 @@ function goBackToMain(){showAllViews('main');setTopbarMain();}
 
 function buildSvcCard(s, query){
   const rate=parseFloat(s.rate||0);
-  // Simulate original price as slightly higher (1% discount display)
-  // original_rate = provider_price from Dark Follow (real base price)
+  // original_rate = provider_price from White Follow (real base price)
   const originalRate=parseFloat(s.original_rate||s.old_rate||0);
-  const oldRate=originalRate>0?originalRate:(rate>0?parseFloat((rate*1.01).toFixed(4)):0);
+  const oldRate=originalRate>0?originalRate:0;
   const hasDiscount=oldRate>0&&rate>0&&Math.abs(oldRate-rate)>0.00001;
 
   const card=document.createElement('div');card.className='svc-card';
@@ -1596,7 +1608,9 @@ function openServiceDetail(svc){
   // Pricing
   const rate=parseFloat(svc.rate)||0;
   const origRate=parseFloat(svc.original_rate)||0;
+  // Show per-1000 rate in the top badge
   document.getElementById('svcd-price-current').textContent=`$${rate.toFixed(3)}`;
+  document.getElementById('svcd-rate-label').textContent='السعر لكل 1000';
   const priceOld=document.getElementById('svcd-price-old');
   const priceDisc=document.getElementById('svcd-price-discount');
   if(origRate>0&&origRate>rate){
@@ -1681,15 +1695,33 @@ function calcTotal(){
   const isFixed=_isFixedQtyCategory(_currentSvc);
   const qty=isFixed?1:(parseInt(document.getElementById('svcd-qty').value)||0);
   const rate=parseFloat(_currentSvc.rate)||0;
+  const origRate=parseFloat(_currentSvc.original_rate)||0;
   const total=(qty/1000)*rate;
-  document.getElementById('total-value').textContent=`$${total.toFixed(3)}`;
-  // Calculation breakdown
-  const lbl=document.getElementById('total-label');
-  if(lbl) lbl.textContent='التكلفة الإجمالية';
-  const bd=document.getElementById('price-breakdown');
-  if(bd&&rate>0&&qty>0) bd.textContent=`$${rate.toFixed(3)} per 1000 × ${(qty/1000).toFixed(qty>=1000?1:2)} = $${total.toFixed(3)}`;
-  else if(bd) bd.textContent='';
-  document.getElementById('total-card').style.display='flex';
+  const totalOld=origRate>0?((qty/1000)*origRate):0;
+
+  // Update live qty display
+  document.getElementById('live-qty-display').textContent=(qty||0).toLocaleString();
+
+  // Live price total (the big gold number like darkfollow)
+  document.getElementById('live-price-total').textContent=`$${total.toFixed(3)}`;
+
+  // Strikethrough old price if discount
+  const livePriceOld=document.getElementById('live-price-old');
+  if(origRate>0&&origRate>rate&&totalOld>0){
+    livePriceOld.textContent=`$${totalOld.toFixed(3)}`;
+    livePriceOld.style.display='inline';
+  } else {
+    livePriceOld.style.display='none';
+  }
+
+  // Show live bar
+  document.getElementById('live-price-bar').style.display=qty>0?'block':'none';
+
+  // Also keep total-card in sync (hidden but used for balance check)
+  const tcv=document.getElementById('total-value');
+  if(tcv) tcv.textContent=`$${total.toFixed(3)}`;
+  const tc=document.getElementById('total-card');
+  if(tc) tc.style.display='none'; // hidden, replaced by live-price-bar
 }
 function adjustQty(delta){
   const inp=document.getElementById('svcd-qty');
