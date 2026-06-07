@@ -693,40 +693,35 @@ let _resendTimer = null, _sessionTimer = null, _refreshTimer = null;
 let _searchTimer = null;
 
 // ═══════════════════════════════════════════════════════════
-// CATEGORIES DATA
+// CATEGORIES DATA — loaded dynamically from API
 // ═══════════════════════════════════════════════════════════
-const MAIN_CATS = [
-  {id:1,name:'خدماتي المفضله',icon:'⭐'},{id:2,name:'خدمات دارك',icon:'🔥'},
-  {id:3,name:'قسم البطائق',icon:'💳'},{id:4,name:'قسم شحن الألعاب',icon:'🎮'},
-  {id:5,name:'قسم الاشتراكات',icon:'📺'},{id:6,name:'شحن رصيد الهاتف',icon:'📱'},
-  {id:7,name:'تليجرام مميز',icon:'✨'}
-];
-const SUB_CATS = {
-  1:[{id:101,name:'خدماتي المفضله',icon:'⭐'}],
-  2:[{id:201,name:'عروض العيد | دارك 🔥',icon:'🔥'},{id:202,name:'خدمات انستا | دارك',icon:'📸'},
-     {id:203,name:'خدمات فيسبوك | دارك',icon:'📘'},{id:204,name:'خدمات تليجرام | دارك',icon:'✈️'},
-     {id:205,name:'خدمات التجار | دارك',icon:'🏪'},{id:206,name:'خدمات تلجرام مميز | دارك',icon:'⭐'},
-     {id:207,name:'نجوم وهدايه تلجرام | دارك',icon:'🌟'}],
-  3:[{id:301,name:'بطاقات ايتونز | iTunes',icon:'🍎'},{id:302,name:'بطاقات نينتيندو | Nintendo',icon:'🎮'},
-     {id:303,name:'بطاقات بليزارد | Blizzard',icon:'❄️'},{id:304,name:'بطاقات فورتنايت | Fortnite',icon:'🏗️'},
-     {id:305,name:'بطاقات شحن | Playstation',icon:'🎮'},{id:306,name:'بطاقات فالورانت | Valorant',icon:'🎯'},
-     {id:307,name:'بطاقات ستيم | STEAM',icon:'💨'},{id:308,name:'بطاقات شحن كرانيش رول | crunchyroll',icon:'🍊'},
-     {id:309,name:'بطاقات ريوت جيمز | Riot Games',icon:'⚔️'},{id:310,name:'بطاقات روبلوكس | Roblox',icon:'🧱'},
-     {id:311,name:'بطاقات امزون | Amzoum',icon:'📦'},{id:312,name:'بطاقات ريزر كولد | zGold',icon:'🟡'},
-     {id:313,name:'بطاقات ليج اوف ليجند | League of Legends',icon:'⚔️'}],
-  4:[{id:401,name:'أوكسايد موبايل | Oxide Mobile',icon:'🔥'},{id:402,name:'جينشين إمباكت | Genshin Impact',icon:'🌸'},
-     {id:403,name:'ارينا بريك أوت | Arena Breakout',icon:'🎯'},{id:404,name:'ببجي موبايل | PUBG Mobile',icon:'🔫'},
-     {id:405,name:'دلتا فورس | Delta Force',icon:'💥'},{id:406,name:'كولف ديوتي موبايل | Call of Duty',icon:'🪖'},
-     {id:407,name:'شحن يلا لودو | Ludo',icon:'🎲'}],
-  5:[{id:501,name:'نايترو ديسكورد | Nitro',icon:'💜'},{id:502,name:'العاب ستيم | Steam Games',icon:'💨'},
-     {id:503,name:'نتفلكس | Netflix',icon:'🔴'},{id:504,name:'كيم بأس | Xbox',icon:'🟢'},
-     {id:505,name:'تلجرام مميز | Premium',icon:'⭐'},{id:506,name:'اشتراكات | Playstation Plus',icon:'🎮'}],
-  6:[{id:601,name:'العراق',icon:'🇮🇶'},{id:602,name:'السعودية',icon:'🇸🇦'},
-     {id:603,name:'الاردن',icon:'🇯🇴'},{id:604,name:'لبنان',icon:'🇱🇧'},
-     {id:605,name:'مصر',icon:'🇪🇬'},{id:606,name:'البحرين',icon:'🇧🇭'}],
-  7:[{id:701,name:'خدمات مميز عربي ✅🔥',icon:'⭐'},{id:702,name:'خدمات مميزه بدون نزول ✅👑',icon:'⭐'},
-     {id:703,name:'ستارت بوت رخيصه 🔥',icon:'⭐'}]
-};
+let MAIN_CATS = [];
+let SUB_CATS = {};
+
+async function loadCategoriesFromAPI(){
+  try{
+    const cached=loadFromLocalStorage('df_cats_all',10*60*1000);
+    if(cached&&cached.MAIN_CATS&&cached.SUB_CATS){
+      MAIN_CATS=cached.MAIN_CATS;SUB_CATS=cached.SUB_CATS;return;
+    }
+    const d=await apiCall('/services');
+    const cats=d.categories||[];
+    if(!cats.length)return;
+    MAIN_CATS=cats.map(c=>({
+      id:c.id,
+      name:c.name_ar||c.name_en||'قسم',
+      icon:c.icon||'📦',
+      img:c.image_url||''
+    }));
+    SUB_CATS={};
+    MAIN_CATS.forEach(c=>{
+      SUB_CATS[c.id]=[{id:c.id,name:c.name,icon:c.icon,img:c.img}];
+    });
+    saveToLocalStorage('df_cats_all',{MAIN_CATS,SUB_CATS},10*60*1000);
+  }catch(e){
+    console.error('[cats] failed to load from API:',e);
+  }
+}
 
 // ═══════════════════════════════════════════════════════════
 // HELPERS
@@ -1094,7 +1089,7 @@ function showApp(){
   document.getElementById('app').classList.add('show');
   document.getElementById('tg-fab').style.display='flex';
   updateBalanceDisplay();updateMenuUser();
-  showPage('services');loadMainCategories();
+  showPage('services');loadCategoriesFromAPI().then(()=>loadMainCategories());
   startAutoRefresh();startSessionTimer();
 }
 
@@ -1148,6 +1143,7 @@ function showPage(pageId,pushStack=true){
   document.getElementById('bn-orders').classList.toggle('active',pageId==='orders');
   document.getElementById('bn-menu').classList.toggle('active',pageId==='menu');
   // Page-specific loaders
+  if(pageId==='services'){if(MAIN_CATS.length===0)loadCategoriesFromAPI().then(()=>loadMainCategories());else loadMainCategories();}
   if(pageId==='orders')loadOrders();
   if(pageId==='tickets')loadTickets();
   if(pageId==='funds')loadGateways();
@@ -1177,6 +1173,10 @@ function renderServiceIcon(icon,imgUrl,size=48){
 
 function loadMainCategories(){
   const list=document.getElementById('main-cats-list');
+  if(!MAIN_CATS.length){
+    list.innerHTML='<div class="spinner"></div>';
+    return;
+  }
   const frag=document.createDocumentFragment();
   MAIN_CATS.forEach(c=>{
     const row=document.createElement('div');row.className='cat-row';
