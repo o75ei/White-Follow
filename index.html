@@ -986,15 +986,11 @@ async function doRegister() {
     errEl.classList.add('show'); return;
   }
 
-  // If already verified (SMTP disabled) → go straight to app
-  if (d.verified) {
-    _token = d.token; _user = d.user;
-    localStorage.setItem('u_token', _token);
-    showApp(); return;
-  }
-
+  // ALWAYS show OTP - never skip even if server says verified
   // Send OTP via EmailJS
   const code = d.code || '';
+  _pendingEmail = email;
+
   if (code) {
     try {
       await emailjs.send("service_9uuprjg", "template_21hzvml", {
@@ -1008,10 +1004,13 @@ async function doRegister() {
       console.warn('EmailJS error:', e);
       toast('⚠️ تعذر إرسال الإيميل — تحقق من البريد يدوياً', 'warning');
     }
+  } else if (d.verified) {
+    // Server auto-verified (old behavior) - still show OTP page but pre-fill token
+    window._pendingToken = d.token;
+    window._pendingUser = d.user;
   }
 
-  // Show OTP form
-  _pendingEmail = email;
+  // Always show OTP form
   document.getElementById('otp-email-display').textContent = email;
   document.getElementById('otp-code').value = '';
   document.getElementById('otp-err').classList.remove('show');
