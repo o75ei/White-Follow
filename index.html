@@ -919,6 +919,12 @@ function switchAuthTab(tab) {
     const tabEl = document.getElementById(`tab-${name}`);
     if (tabEl) tabEl.classList.toggle('active', name===tab);
   });
+  // أظهر التابز عند الدخول/التسجيل، أخفها عند OTP و Reset
+  const tabsEl = document.querySelector('.auth-tabs');
+  if (tabsEl) tabsEl.style.display = (tab==='otp'||tab==='reset'||tab==='reset-confirm') ? 'none' : 'flex';
+  // اضبط التاب النشط
+  if (tab==='login') { document.getElementById('tab-login')?.classList.add('active'); document.getElementById('tab-register')?.classList.remove('active'); }
+  else if (tab==='register') { document.getElementById('tab-register')?.classList.add('active'); document.getElementById('tab-login')?.classList.remove('active'); }
 }
 
 async function checkAuth() {
@@ -963,58 +969,79 @@ async function doRegister() {
   const email    = document.getElementById('r-email').value.trim();
   const password = document.getElementById('r-pass').value;
   const errEl    = document.getElementById('r-err');
+  const btn      = document.querySelector('#form-register .btn-auth');
   errEl.classList.remove('show');
   if (!username || !email || password.length < 6) {
     errEl.textContent = 'أكمل جميع الحقول (كلمة المرور 6 أحرف على الأقل)';
     errEl.classList.add('show'); return;
   }
 
-  const d = await fetch(`${API}/auth/register`, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ username, email, password })
-  }).then(r=>r.json()).catch(()=>({error:'network'}));
+  // Show loading
+  const origTxt = btn.textContent;
+  btn.textContent = '⌛ جارٍ الإنشاء...';
+  btn.disabled = true;
 
-  if (!d.ok) {
-    const errMsg = d.error || 'حدث خطأ';
-    if (errMsg.includes('البريد الإلكتروني مسجل') || errMsg.includes('البريد مسجل')) {
-      errEl.textContent = '📧 هذا البريد الإلكتروني مسجل مسبقاً — يمكنك تسجيل الدخول مباشرة';
-    } else if (errMsg.includes('اسم المستخدم مأخوذ')) {
-      errEl.textContent = '👤 اسم المستخدم مأخوذ — اختر اسماً آخر';
-    } else {
-      errEl.textContent = errMsg;
+  try {
+    const d = await fetch(`${API}/auth/register`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ username, email, password })
+    }).then(r=>r.json()).catch(()=>({error:'network'}));
+
+    if (!d.ok) {
+      const errMsg = d.error || 'حدث خطأ';
+      if (errMsg.includes('البريد الإلكتروني مسجل') || errMsg.includes('البريد مسجل')) {
+        errEl.textContent = '📧 هذا البريد الإلكتروني مسجل مسبقاً — يمكنك تسجيل الدخول مباشرة';
+      } else if (errMsg.includes('اسم المستخدم مأخوذ')) {
+        errEl.textContent = '👤 اسم المستخدم مأخوذ — اختر اسماً آخر';
+      } else {
+        errEl.textContent = errMsg;
+      }
+      errEl.classList.add('show');
+      btn.textContent = origTxt; btn.disabled = false;
+      return;
     }
-    errEl.classList.add('show'); return;
-  }
 
-  // ALWAYS show OTP - never skip even if server says verified
-  // Send OTP via EmailJS
-  const code = d.code || '';
-  _pendingEmail = email;
+    // Server responded OK — save pending email
+    const code = d.code || '';
+    _pendingEmail = email;
 
-  if (code) {
-    try {
-      await emailjs.send("service_9uuprjg", "template_21hzvml", {
+    // Try sending via EmailJS (non-blocking — don't await before showing OTP)
+    if (code) {
+      emailjs.send("service_9uuprjg", "template_21hzvml", {
         to_email: email,
         email:    email,
         username: username,
         code:     code
+      }).then(() => {
+        toast('📧 تم إرسال رمز التحقق إلى بريدك', 'success');
+      }).catch(e => {
+        console.warn('EmailJS error:', e);
+        toast('⚠️ الكود وصلك — تحقق من بريدك', 'warning');
       });
-      toast('📧 تم إرسال رمز التحقق إلى بريدك', 'success');
-    } catch(e) {
-      console.warn('EmailJS error:', e);
-      toast('⚠️ تعذر إرسال الإيميل — تحقق من البريد يدوياً', 'warning');
     }
-  } else if (d.verified) {
-    // Server auto-verified (old behavior) - still show OTP page but pre-fill token
-    window._pendingToken = d.token;
-    window._pendingUser = d.user;
-  }
 
-  // Always show OTP form
-  document.getElementById('otp-email-display').textContent = email;
-  document.getElementById('otp-code').value = '';
-  document.getElementById('otp-err').classList.remove('show');
-  switchAuthTab('otp');
+    if (d.verified && d.token) {
+      // حساب تم تأكيده تلقائياً — احتفظ بالتوكن للـ OTP
+      window._pendingToken = d.token;
+      window._pendingUser  = d.user;
+    }
+
+    // أظهر صفحة OTP فوراً
+    document.getElementById('otp-email-display').textContent = email;
+    document.getElementById('otp-code').value = '';
+    document.getElementById('otp-err').classList.remove('show');
+    // أخفِ التابز حتى لا يتشتت المستخدم
+    document.querySelector('.auth-tabs').style.display = 'none';
+    switchAuthTab('otp');
+
+  } catch(e) {
+    console.error('Register error:', e);
+    errEl.textContent = 'حدث خطأ غير متوقع. حاول مجدداً.';
+    errEl.classList.add('show');
+  } finally {
+    btn.textContent = origTxt;
+    btn.disabled = false;
+  }
 }
 
 async function doVerifyOTP() {
