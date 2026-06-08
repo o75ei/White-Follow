@@ -2673,21 +2673,17 @@ def _sync_provider_catalog(provider_id=None):
                         ).fetchone()
 
                         if existing:
-                            # Update price + image if changed
-                            if existing["provider_price"] != provider_price:
-                                db.execute("""
-                                    UPDATE services SET
-                                        provider_price=?, final_price=?,
-                                        category_id=?, image_url=?,
-                                        updated_at=datetime('now')
-                                    WHERE id=?
-                                """, (provider_price, final_price, cat_id, img_url, existing["id"]))
-                            else:
-                                # Still update image_url & category
-                                db.execute("""
-                                    UPDATE services SET category_id=?, image_url=?, updated_at=datetime('now')
-                                    WHERE id=?
-                                """, (cat_id, img_url, existing["id"]))
+                            # Always update price + final_price (with markup) + image + category
+                            db.execute("""
+                                UPDATE services SET
+                                    provider_price=?, final_price=?,
+                                    markup_type=?, markup_value=?,
+                                    category_id=?, image_url=?,
+                                    updated_at=datetime('now')
+                                WHERE id=?
+                            """, (provider_price, final_price,
+                                  markup_type, markup_value,
+                                  cat_id, img_url, existing["id"]))
                         else:
                             svc_name = str(svc.get("name", "")).strip()
                             db.execute("""
