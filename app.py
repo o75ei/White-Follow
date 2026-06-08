@@ -7,6 +7,11 @@ from flask import Flask, request, jsonify, send_file, redirect, session, make_re
 from flask_cors import CORS
 import requests, os, threading, json, time, hashlib, hmac, secrets
 import sqlite3, datetime, logging, smtplib, random, string
+try:
+    import psycopg2, psycopg2.extras
+    _PG_AVAILABLE = True
+except ImportError:
+    _PG_AVAILABLE = False
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from functools import wraps
@@ -51,12 +56,101 @@ SMTP_FROM     = os.environ.get("SMTP_FROM", SMTP_USER)
 EMAIL_VERIFY  = os.environ.get("EMAIL_VERIFY", "1")
 
 # ─────────────────────────────────────────────
-# Database — SQLite (Railway persistent volume or ephemeral)
+# Database — PostgreSQL (Supabase) or SQLite fallback
 # ─────────────────────────────────────────────
-DB_PATH = os.environ.get("DB_PATH", "/data/smm.db")
-os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+DB_PATH      = os.environ.get("DB_PATH", "/data/smm.db")
+
+_USE_PG = bool(DATABASE_URL and _PG_AVAILABLE)
+
+if not _USE_PG:
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+
+class _PGRow(dict):
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return list(self.values())[key]
+        return super().__getitem__(key)
+
+class _PGCursor:
+    def __init__(self, cur):
+        self._cur = cur
+        self.lastrowid = None
+
+    def _fix(self, sql, params=None):
+        sql = sql.replace("?", "%s")
+        sql = sql.replace("AUTOINCREMENT", "")
+        sql = sql.replace("INTEGER PRIMARY KEY", "SERIAL PRIMARY KEY")
+        sql = sql.replace("datetime('now')", "NOW()")
+        sql = sql.replace("date('now')", "CURRENT_DATE")
+        sql = sql.replace("INSERT OR IGNORE INTO", "INSERT INTO")
+        sql = sql.replace("INSERT OR REPLACE INTO", "INSERT INTO")
+        if "INSERT INTO settings" in sql and "ON CONFLICT" not in sql:
+            sql = sql.rstrip().rstrip(";") + " ON CONFLICT(key) DO NOTHING"
+        return sql, list(params) if params else []
+
+    def execute(self, sql, params=None):
+        sql, params = self._fix(sql, params)
+        self._cur.execute(sql, params)
+        try:
+            row = self._cur.fetchone()
+            if row:
+                self.lastrowid = list(row.values())[0]
+        except Exception:
+            self.lastrowid = None
+        return self
+
+    def executemany(self, sql, seq):
+        sql, _ = self._fix(sql)
+        self._cur.executemany(sql, seq)
+
+    def fetchone(self):
+        row = self._cur.fetchone()
+        return _PGRow(row) if row else None
+
+    def fetchall(self):
+        return [_PGRow(r) for r in (self._cur.fetchall() or [])]
+
+    @property
+    def rowcount(self):
+        return self._cur.rowcount
+
+class _PGConn:
+    def __init__(self, conn):
+        self._conn = conn
+        self._cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        self._wrap = _PGCursor(self._cur)
+
+    def execute(self, sql, params=None):
+        self._wrap.execute(sql, params)
+        return self._wrap
+
+    def executemany(self, sql, seq):
+        self._wrap.executemany(sql, seq)
+
+    def executescript(self, script):
+        for stmt in script.split(";"):
+            stmt = stmt.strip()
+            if stmt:
+                try:
+                    self._wrap.execute(stmt + ";")
+                except Exception as e:
+                    log.debug(f"[PG] skip: {e}")
+
+    def commit(self):   self._conn.commit()
+    def rollback(self): self._conn.rollback()
+    def close(self):    self._conn.close()
+
+    def __enter__(self): return self
+    def __exit__(self, *a):
+        if a[0]: self._conn.rollback()
+        else:    self._conn.commit()
+        return False
 
 def get_db():
+    if _USE_PG:
+        conn = psycopg2.connect(DATABASE_URL)
+        return _PGConn(conn)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
@@ -1376,7 +1470,7 @@ def get_translations(lang):
 
 @app.route("/settings/public", methods=["GET"])
 def public_settings():
-    keys = ["site_name", "currency", "min_deposit", "maintenance_mode", "faq_ar", "faq_en", "tos_ar", "tos_en"]
+    keys = ["site_name", "currency", "min_deposit", "maintenance_mode", "faq_ar", "faq_en", "tos_ar", "tos_en", "global_markup_type", "global_markup_value"]
     with get_db() as db:
         rows = db.execute(f"SELECT key, value FROM settings WHERE key IN ({','.join('?'*len(keys))})", keys).fetchall()
     return jsonify({r["key"]: r["value"] for r in rows})
