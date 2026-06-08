@@ -2135,7 +2135,11 @@ def admin_darkfollow_balance():
     if not api_key:
         return jsonify({"error": "DARKFOLLOW_API_KEY غير مضبوط"}), 400
     try:
-        res = requests.post(api_url, data={"key": api_key, "action": "balance"}, timeout=10)
+        if "darkfollow" in api_url.lower():
+            base_url = api_url.rstrip("/").split("?")[0]
+            res = requests.get(f"{base_url}?action=balance&key={api_key}", timeout=10)
+        else:
+            res = requests.post(api_url, data={"key": api_key, "action": "balance"}, timeout=10)
         data = res.json()
         balance = data.get("balance", "0")
         currency = data.get("currency", "USD")
