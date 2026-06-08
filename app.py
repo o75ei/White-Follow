@@ -113,8 +113,11 @@ class _PGConn:
         return False
 
 def get_db():
+    db_url = os.environ.get("DATABASE_URL", "")
+    if not db_url:
+        raise Exception("DATABASE_URL غير موجود — تشغيل بدون قاعدة بيانات")
     conn = psycopg2.connect(
-        os.environ.get("DATABASE_URL"),
+        db_url,
         connect_timeout=10,
         cursor_factory=psycopg2.extras.RealDictCursor
     )
@@ -2665,13 +2668,20 @@ def _cron_sync_orders():
 def _cron_loop():
     _catalog_counter = 0
     while True:
-        time.sleep(60)
-        _cron_sync_orders()
-        _sync_provider_balance()
-        _catalog_counter += 1
-        if _catalog_counter >= 5:   # every 5 minutes
-            _catalog_counter = 0
-            _sync_provider_catalog()
+        try:
+            time.sleep(60)
+            try: _cron_sync_orders()
+            except Exception as e: log.error(f"[cron] sync_orders: {e}")
+            try: _sync_provider_balance()
+            except Exception as e: log.error(f"[cron] sync_balance: {e}")
+            _catalog_counter += 1
+            if _catalog_counter >= 5:
+                _catalog_counter = 0
+                try: _sync_provider_catalog()
+                except Exception as e: log.error(f"[cron] sync_catalog: {e}")
+        except Exception as e:
+            log.error(f"[cron] fatal: {e}")
+            time.sleep(10)
 
 # ─────────────────────────────────────────────
 # Auto-Sync Dark Follow: Categories + Services + Images
