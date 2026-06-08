@@ -927,6 +927,23 @@ def services_public():
     return jsonify(resp)
 
 # ─────────────────────────────────────────────
+# API — Live Prices by provider_service_id
+# ─────────────────────────────────────────────
+@app.route("/api/prices", methods=["GET"])
+def api_prices():
+    """
+    Returns a dict { provider_service_id: final_price }
+    for all active services. Used by frontend to update
+    hardcoded prices dynamically without page reload.
+    """
+    with get_db() as db:
+        rows = db.execute(
+            "SELECT provider_service_id, final_price FROM services WHERE is_active=1 AND provider_service_id IS NOT NULL AND provider_service_id != ''"
+        ).fetchall()
+    prices = {r["provider_service_id"]: r["final_price"] for r in rows}
+    return jsonify({"ok": True, "prices": prices})
+
+# ─────────────────────────────────────────────
 # Orders (User)
 # ─────────────────────────────────────────────
 @app.route("/order/place", methods=["POST"])
@@ -2644,6 +2661,12 @@ def _startup():
     log.info("✅ SMM Panel started")
 
 _startup()
+
+# ─────────────────────────────────────────────
+# Gunicorn config hint (add to gunicorn.conf.py):
+# workers = 1
+# preload_app = True
+# ─────────────────────────────────────────────
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
