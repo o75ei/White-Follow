@@ -437,12 +437,83 @@ def admin_redirect():
 
 @app.route("/")
 def home():
-    return send_file("index.html")
+    resp = make_response(send_file("index.html"))
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
 
 @app.route("/app")
 @app.route("/app2")
 def serve_app():
-    return send_file("index.html")
+    resp = make_response(send_file("index.html"))
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
+
+@app.route("/bust-cache")
+def bust_cache():
+    """
+    زيارة هذا الرابط تجبر Telegram WebView على مسح الكاش وإعادة تحميل البوت.
+    استخدم: https://YOUR-APP.up.railway.app/bust-cache
+    """
+    import datetime
+    ts = int(datetime.datetime.utcnow().timestamp())
+    html_page = f"""<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تحديث البوت...</title>
+<style>
+  body {{ background:#0f0f0f; color:#fff; font-family:'Tajawal',sans-serif;
+         display:flex; flex-direction:column; align-items:center;
+         justify-content:center; min-height:100vh; margin:0; gap:16px; }}
+  .spinner {{ width:48px; height:48px; border:4px solid #333;
+             border-top-color:#DAA520; border-radius:50%;
+             animation:spin 0.8s linear infinite; }}
+  @keyframes spin {{ to {{ transform:rotate(360deg); }} }}
+  p {{ font-size:18px; color:#DAA520; }}
+  small {{ color:#666; font-size:13px; }}
+</style>
+</head>
+<body>
+<div class="spinner"></div>
+<p>جاري مسح الكاش وتحديث البوت...</p>
+<small>سيتم إعادة التوجيه تلقائياً</small>
+<script>
+// مسح كل أنواع الكاش
+try {{ localStorage.clear(); }} catch(e){{}}
+try {{ sessionStorage.clear(); }} catch(e){{}}
+
+// مسح Service Workers
+if ('serviceWorker' in navigator) {{
+  navigator.serviceWorker.getRegistrations().then(function(regs) {{
+    regs.forEach(function(r) {{ r.unregister(); }});
+  }});
+}}
+
+// مسح Cache API
+if ('caches' in window) {{
+  caches.keys().then(function(names) {{
+    names.forEach(function(name) {{ caches.delete(name); }});
+  }});
+}}
+
+// إعادة التوجيه بعد ثانية مع timestamp يكسر الكاش
+setTimeout(function() {{
+  window.location.replace('/?v={ts}');
+}}, 1200);
+</script>
+</body>
+</html>"""
+    resp = make_response(html_page)
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    resp.headers["Content-Type"] = "text/html; charset=utf-8"
+    return resp
 
 @app.route("/health")
 def health():
