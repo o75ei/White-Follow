@@ -835,7 +835,7 @@ function showDashboard() {
 
   // تحميل البيانات الأولية
   fetchDFBalance();
-  loadUsersStats();
+  loadUsers();        // ← إصلاح: تحميل المستخدمين فعلياً من السيرفر
   loadCurrentMarkup();
 
   // تحديث حالة البوت
