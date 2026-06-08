@@ -2933,9 +2933,11 @@ def _startup():
     except Exception as e:
         log.error(f"[startup] DB init failed — will retry lazily: {e}")
 
-    # ── Telegram commands ──
+    # ── Telegram Webhook + Commands ──
     if TELEGRAM_BOT_TOKEN:
         try:
+            webhook_url = f"{WEBAPP_URL}/webhook"
+            threading.Thread(target=lambda: tg("setWebhook", {"url": webhook_url}), daemon=True).start()
             threading.Thread(target=lambda: tg("setMyCommands", {"commands": [
                 {"command": "start",   "description": "فتح التطبيق"},
                 {"command": "balance", "description": "عرض رصيدي"},
@@ -2943,7 +2945,7 @@ def _startup():
                 {"command": "support", "description": "الدعم الفني"}
             ]}), daemon=True).start()
         except Exception as e:
-            log.error(f"[startup] TG setMyCommands failed: {e}")
+            log.error(f"[startup] TG setup failed: {e}")
 
     # ── Background cron ──
     threading.Thread(target=_cron_loop, daemon=True).start()
