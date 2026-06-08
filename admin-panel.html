@@ -626,17 +626,17 @@
       <p class="section-title">هامش الربح</p>
       <div class="panel-card">
         <h3>📈 تعديل هامش الربح</h3>
-        <p class="desc">الزيادة تُضاف تلقائياً على سعر المزود لكل الخدمات في البوت</p>
+        <p class="desc">المبلغ يُضاف تلقائياً على سعر كل خدمة — مثال: 1 يعني +$1 على كل خدمة</p>
 
         <div class="markup-display">
-          <span class="lbl">القيمة الحالية</span>
-          <span class="val" id="markup-current-val">$1.00</span>
+          <span class="lbl">القيمة الحالية ($)</span>
+          <span class="val" id="markup-current-val">$0.00</span>
         </div>
 
         <div class="input-row">
           <input class="p-input" id="markup-input" type="number"
-                 min="0" step="0.1" value="1.00"
-                 placeholder="مثال: 1.50" />
+                 min="0" step="0.1" value="0"
+                 placeholder="مثال: 1 (يعني +$1 على كل خدمة)" />
           <button class="btn btn-gold" onclick="saveMarkup()">💾 حفظ وإرسال للبوت</button>
         </div>
         <div class="alert" id="markup-alert"></div>
@@ -953,7 +953,7 @@ async function saveMarkup() {
 
   document.getElementById('markup-current-val').textContent = '$' + val.toFixed(2);
   document.getElementById('stat-markup').textContent = '$' + val.toFixed(2);
-  showAlert('markup-alert', '✅ تم حفظ هامش الربح: $' + val.toFixed(2), 'success');
+  showAlert('markup-alert', '✅ تم حفظ هامش الربح: $' + val.toFixed(2) + ' لكل خدمة', 'success');
 }
 
 // ── تحميل المستخدمين من السيرفر ───────────────────────────────
@@ -1002,9 +1002,9 @@ function renderUsersTable(users) {
       <td class="uid-cell">${esc(u.uid)}</td>
       <td style="font-size:12px;">${esc(u.email||'—')}</td>
       <td><span class="balance-badge">${(u.balance||0).toFixed(2)}</span></td>
-      <td style="color:var(--muted);font-size:12px;">${(u.totalCharged||0).toFixed(2)}</td>
-      <td style="color:#ff6677;font-size:12px;">${(u.totalSpent||0).toFixed(2)}</td>
-      <td style="color:var(--muted);font-size:12px;">${u.orders||0}</td>
+      <td style="color:var(--muted);font-size:12px;">${(u.total_charged||0).toFixed(2)}</td>
+      <td style="color:#ff6677;font-size:12px;">${(u.total_spent||0).toFixed(2)}</td>
+      <td style="color:var(--muted);font-size:12px;">${u.orders_count||0}</td>
       <td>
         <button class="inline-btn ib-charge" onclick="quickCharge('${esc(u.uid)}')">+ شحن</button>
         <button class="inline-btn ib-deduct" onclick="quickDeduct('${esc(u.uid)}')">− خصم</button>
@@ -1049,7 +1049,7 @@ async function _modifyBalance(uid, amount, type) {
 
   if (_usersCache[uid]) {
     _usersCache[uid].balance = Math.max(0, (_usersCache[uid].balance||0) + amount);
-    if (amount > 0) _usersCache[uid].totalCharged = (_usersCache[uid].totalCharged||0) + amount;
+    if (amount > 0) _usersCache[uid].total_charged = (_usersCache[uid].total_charged||0) + amount;
   }
 
   renderUsersTable(Object.values(_usersCache));
@@ -1071,7 +1071,7 @@ async function searchTopupUser() {
     });
     const data = await res.json();
 
-    if (data && data.uid) {
+    if (res.ok && data && data.uid) {
       _topupFoundUid = data.uid;
       document.getElementById('topup-found-email').textContent   = data.email || data.uid;
       document.getElementById('topup-found-balance').textContent = (data.balance||0).toFixed(2) + ' د.ع';
