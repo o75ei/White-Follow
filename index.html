@@ -5072,5 +5072,101 @@ function _runInitMarkupLabel() {
 <input type="file" id="icon-pick-gallery" accept="image/*" style="display:none" />
 <input type="file" id="icon-pick-camera"  accept="image/*" capture="environment" style="display:none" />
 <!-- ════════════════════════════════════════ -->
+<!-- ── Live Price Sync from Server ── -->
+<script>
+(async function syncLivePrices() {
+  try {
+    const BASE = window.location.origin;
+    const res = await fetch(BASE + '/services?lang=ar');
+    if (!res.ok) return;
+    const data = await res.json();
+    const services = data.services || data.data || [];
+    if (!services.length) return;
+
+    // Build lookup: name_ar keywords → {rate, provider_service_id, id}
+    // Also build by name_en keywords
+    const lookup = {};
+    services.forEach(s => {
+      const nameAr = (s.name_ar || '').toLowerCase();
+      const nameEn = (s.name_en || '').toLowerCase();
+      const rate = parseFloat(s.rate) || 0;
+      lookup[nameAr] = { rate, id: s.id, pid: s.provider_service_id };
+      if (nameEn) lookup[nameEn] = { rate, id: s.id, pid: s.provider_service_id };
+    });
+
+    // Map icon-key keywords to search terms
+    const keyMap = {
+      // انستا
+      'insta_devil':    ['ديفل','devil'],
+      'insta_ice':      ['ايس','ice'],
+      'insta_shark':    ['شارك','shark'],
+      'insta_joker':    ['جوكر','joker'],
+      'insta_dragon':   ['دراجون','dragon'],
+      'insta_falcon':   ['فالكون','falcon'],
+      'insta_long':     ['لونغ','long'],
+      'insta_bear':     ['بير','bear'],
+      'insta_anaconda': ['اناكوندا','anaconda'],
+      'insta_panda':    ['باندا','panda'],
+      'insta_tiger':    ['تايكر','tiger'],
+      // تيليجرام
+      'tele_tg_deleted_limited': ['محذوفة','deleted_limited','عرض محدود'],
+      'tele_tg_deleted_nodrop':  ['محذوفه','deleted_nodrop','بدون نزول'],
+      'tele_tg_lifetime':        ['مدى الحياة','lifetime'],
+      'tele_tg_forever':         ['للابد','forever'],
+      'tele_tg_online':          ['متصلين','online'],
+      'tele_tg_search':          ['عن طريق البحث','search'],
+      'tele_tg_cheap':           ['رخيص','cheap'],
+      'tele_tg_nodrop30':        ['30 يوم','nodrop30'],
+      'tele_tg_nodrop15':        ['15 يوم','nodrop15'],
+      'tele_tg_nodrop7':         ['7 ايام','nodrop7'],
+    };
+
+    // Find best match for each icon-key
+    function findService(keywords) {
+      for (const kw of keywords) {
+        const kwL = kw.toLowerCase();
+        for (const [name, svc] of Object.entries(lookup)) {
+          if (name.includes(kwL)) return svc;
+        }
+      }
+      return null;
+    }
+
+    // Cart SVG for price badge
+    const cartSVG = `<svg viewBox="0 0 24 24"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>`;
+
+    // Update each button
+    document.querySelectorAll('[data-icon-key]').forEach(btn => {
+      const key = btn.getAttribute('data-icon-key');
+      const keywords = keyMap[key];
+      if (!keywords) return;
+
+      const svc = findService(keywords);
+      if (!svc || !svc.rate) return;
+
+      const newRate = svc.rate.toFixed(2);
+
+      // Update price badge text
+      const badge = btn.querySelector('.price-badge');
+      if (badge) {
+        badge.innerHTML = `${cartSVG}$${newRate}`;
+      }
+
+      // Update onclick to pass new rate
+      const onclick = btn.getAttribute('onclick') || '';
+      const updated = onclick.replace(/,'[\d.]+'\)/, `,'${newRate}')`);
+      if (updated !== onclick) btn.setAttribute('onclick', updated);
+
+      // Store service id for ordering
+      btn.setAttribute('data-service-id', svc.pid || svc.id);
+    });
+
+    console.log('[LivePrice] Updated prices from server');
+  } catch(e) {
+    console.warn('[LivePrice] Failed to sync prices:', e);
+  }
+})();
+</script>
+<!-- ════════════════════════════════════════ -->
 </body>
 </html>
