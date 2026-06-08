@@ -149,8 +149,11 @@ class _PGConn:
 
 def get_db():
     if _USE_PG:
-        conn = psycopg2.connect(DATABASE_URL)
-        return _PGConn(conn)
+        try:
+            conn = psycopg2.connect(DATABASE_URL, connect_timeout=10)
+            return _PGConn(conn)
+        except Exception as e:
+            log.error(f"[DB] PostgreSQL unavailable, falling back to SQLite: {e}")
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
@@ -2863,7 +2866,11 @@ def cron_sync():
 # Startup
 # ─────────────────────────────────────────────
 def _startup():
-    init_db()
+    try:
+        init_db()
+        log.info("[startup] Database initialized OK")
+    except Exception as e:
+        log.error(f"[startup] DB init failed (will retry on next request): {e}")
     if TELEGRAM_BOT_TOKEN:
         threading.Thread(target=lambda: tg("setMyCommands", {"commands": [
             {"command": "start", "description": "فتح التطبيق"},
