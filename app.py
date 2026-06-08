@@ -488,6 +488,34 @@ def webhook():
                 ]
             }
         })
+    elif text.startswith("/balance"):
+        with get_db() as db:
+            user_data = db.execute(
+                "SELECT balance FROM users WHERE telegram_id=?", (tg_id,)
+            ).fetchone()
+        balance = user_data["balance"] if user_data else 0
+        tg("sendMessage", {
+            "chat_id": chat_id,
+            "text": f"💰 رصيدك الحالي: <b>${balance:.2f}</b>",
+            "parse_mode": "HTML"
+        })
+    elif text.startswith("/orders"):
+        with get_db() as db:
+            orders = db.execute("""
+                SELECT o.id, o.status, s.name_ar
+                FROM orders o
+                LEFT JOIN services s ON s.id=o.service_id
+                WHERE o.user_id=(SELECT id FROM users WHERE telegram_id=?)
+                ORDER BY o.created_at DESC LIMIT 5
+            """, (tg_id,)).fetchall()
+        if not orders:
+            text_msg = "📭 لا توجد طلبات"
+        else:
+            text_msg = "📦 آخر 5 طلبات:\n\n"
+            for o in orders:
+                status_emoji = {"pending":"🟡","active":"🟢","completed":"✅","cancelled":"❌","partial":"⚠️"}.get(o["status"],"⚪")
+                text_msg += f"{status_emoji} #{o['id']} - {o['name_ar'] or 'خدمة'}\n"
+        tg("sendMessage", {"chat_id": chat_id, "text": text_msg})
     elif text.startswith("/support"):
         tg("sendMessage", {
             "chat_id": chat_id,
@@ -514,16 +542,16 @@ def _send_verification_email(to_email, code, username):
         msg["From"]    = SMTP_FROM or SMTP_USER
         msg["To"]      = to_email
         html = f"""
-        <div dir="rtl" style="font-family:Arial;max-width:480px;margin:0 auto;background:#f5f7fa;color:#1a2a3a;padding:32px;border-radius:12px;border:1px solid #dde4ee;">
-          <h2 style="color:#0066cc;letter-spacing:2px;text-align:center;">⚡ White Follow</h2>
+        <div dir="rtl" style="font-family:Arial;max-width:480px;margin:0 auto;background:#141414;color:#ffffff;padding:32px;border-radius:12px;border:1px solid #2a2a2a;">
+          <h2 style="color:#f0a000;letter-spacing:2px;text-align:center;">🌕 White Follow</h2>
           <p>مرحباً <strong>{username}</strong>،</p>
-          <p>رمز التحقق الخاص بك:</p>
-          <div style="background:#fff;border:2px solid #0066cc;border-radius:8px;padding:24px;text-align:center;margin:20px 0;">
-            <span style="font-size:40px;font-weight:700;letter-spacing:10px;color:#0066cc;font-family:monospace;">{code}</span>
+          <p style="color:#8c8c8c;">رمز التحقق الخاص بك:</p>
+          <div style="background:#1a1a1a;border:2px solid #f0a000;border-radius:8px;padding:24px;text-align:center;margin:20px 0;">
+            <span style="font-size:40px;font-weight:700;letter-spacing:10px;color:#f0a000;font-family:monospace;">{code}</span>
           </div>
-          <p style="color:#6a8aaa;font-size:12px;text-align:center;">صالح لمدة 10 دقائق. لا تشاركه مع أحد.</p>
-          <hr style="border:none;border-top:1px solid #dde4ee;margin:16px 0;"/>
-          <p style="color:#aaa;font-size:11px;text-align:center;">White Follow — منصة خدمات التواصل الاجتماعي</p>
+          <p style="color:#666666;font-size:12px;text-align:center;">صالح لمدة 10 دقائق. لا تشاركه مع أحد.</p>
+          <hr style="border:none;border-top:1px solid #2a2a2a;margin:16px 0;"/>
+          <p style="color:#666666;font-size:11px;text-align:center;">White Follow — منصة خدمات التواصل الاجتماعي</p>
         </div>"""
         msg.attach(MIMEText(html, "html"))
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as srv:
@@ -1073,7 +1101,10 @@ def cancel_order(order_id):
     user = request.current_user
     with get_db() as db:
         order = db.execute(
-            "SELECT * FROM orders WHERE id=? AND user_id=?", (order_id, user["id"])
+            "SELECT o.*, p.api_url, p.api_key FROM orders o "
+            "JOIN services s ON s.id=o.service_id "
+            "JOIN providers p ON p.id=s.provider_id "
+            "WHERE o.id=? AND o.user_id=?", (order_id, user["id"])
         ).fetchone()
     if not order:
         return jsonify({"error": "الطلب غير موجود"}), 404
@@ -1081,6 +1112,19 @@ def cancel_order(order_id):
         return jsonify({"error": "لا يمكن إلغاء هذا الطلب"}), 400
     if (order["start_count"] or 0) > 0:
         return jsonify({"error": "الطلب بدأ التنفيذ، لا يمكن إلغاؤه"}), 400
+    # Try to cancel on provider first (best-effort, don't block on failure)
+    if order.get("provider_order_id"):
+        try:
+            api_url = order["api_url"]
+            api_key = order["api_key"]
+            if "darkfollow" in api_url.lower():
+                base_url = api_url.rstrip("/").split("?")[0]
+                cancel_url = f"{base_url}?action=cancel&key={api_key}&order={order['provider_order_id']}"
+                requests.get(cancel_url, timeout=10)
+            else:
+                requests.post(api_url, data={"key": api_key, "action": "cancel", "order": order["provider_order_id"]}, timeout=10)
+        except Exception as e:
+            log.warning(f"[cancel] provider cancel failed (still refunding): {e}")
     with get_db() as db:
         db.execute("UPDATE orders SET status='cancelled', updated_at=datetime('now') WHERE id=?", (order_id,))
         db.execute("UPDATE users SET balance=balance+?, orders_count=MAX(0,orders_count-1) WHERE id=?",
@@ -1269,14 +1313,25 @@ def admin_stats():
             FROM orders WHERE status!='cancelled'
             GROUP BY month ORDER BY month DESC LIMIT 12
         """).fetchall()
+        active_orders = db.execute(
+            "SELECT COUNT(*) as c FROM orders WHERE status IN ('pending','active','partial')"
+        ).fetchone()["c"]
+        total_user_balance = db.execute(
+            "SELECT COALESCE(SUM(balance),0) as s FROM users"
+        ).fetchone()["s"] or 0
     return jsonify({
-        "total_users": total_users,
-        "total_orders": total_orders,
-        "total_revenue": round(total_revenue, 2),
-        "pending_payments": pending_pay,
-        "open_tickets": open_tickets,
-        "today_orders": today_orders,
-        "monthly_revenue": [dict(r) for r in monthly]
+        "ok": True,
+        "stats": {
+            "total_users": total_users,
+            "total_orders": total_orders,
+            "total_revenue": round(total_revenue, 2),
+            "pending_payments": pending_pay,
+            "open_tickets": open_tickets,
+            "orders_today": today_orders,
+            "active_orders": active_orders,
+            "total_user_balance": round(total_user_balance, 2),
+            "monthly_revenue": [dict(r) for r in monthly]
+        }
     })
 
 # ─────────────────────────────────────────────
@@ -1286,12 +1341,11 @@ def admin_stats():
 @require_admin
 def admin_users():
     page   = int(request.args.get("page", 1))
-    limit  = 50
+    limit  = min(int(request.args.get("limit", 50)), 200)
     offset = (page - 1) * limit
-    search = request.args.get("q", "").strip()
+    search = (request.args.get("search") or request.args.get("q", "")).strip()
     with get_db() as db:
         if search:
-            # Search by email, username, telegram_id, or numeric ID
             pat = f"%{search}%"
             users = db.execute(
                 """SELECT * FROM users
@@ -1311,20 +1365,40 @@ def admin_users():
                 "SELECT * FROM users ORDER BY joined_at DESC LIMIT ? OFFSET ?", (limit, offset)
             ).fetchall()
             total = db.execute("SELECT COUNT(*) as c FROM users").fetchone()["c"]
-    return jsonify({"users": [dict(u) for u in users], "total": total, "page": page})
+    return jsonify({"ok": True, "users": [dict(u) for u in users], "total": total, "page": page})
 
 @app.route("/admin/users/<int:uid>/balance", methods=["POST"])
 @require_admin
 def admin_add_balance(uid):
     data = request.get_json(silent=True) or {}
     amount = float(data.get("amount", 0))
+    operation = data.get("operation", "add")
+    note = data.get("note", "")
+    if amount < 0 and operation == "add":
+        operation = "subtract"
+        amount = abs(amount)
     with get_db() as db:
-        db.execute(
-            "UPDATE users SET balance=balance+?, total_charged=total_charged+? WHERE id=?",
-            (amount, amount, uid)
-        )
+        user = db.execute("SELECT balance FROM users WHERE id=?", (uid,)).fetchone()
+        if not user:
+            return jsonify({"error": "المستخدم غير موجود"}), 404
+        current = float(user["balance"] or 0)
+        if operation == "add":
+            new_bal = current + amount
+            db.execute("UPDATE users SET balance=?, total_charged=total_charged+? WHERE id=?",
+                       (new_bal, amount, uid))
+        elif operation == "subtract":
+            new_bal = max(0, current - amount)
+            db.execute("UPDATE users SET balance=? WHERE id=?", (new_bal, uid))
+        elif operation == "set":
+            new_bal = amount
+            diff = max(0, amount - current)
+            db.execute("UPDATE users SET balance=?, total_charged=total_charged+? WHERE id=?",
+                       (new_bal, diff, uid))
+        else:
+            return jsonify({"error": "عملية غير صحيحة"}), 400
         db.commit()
-    return jsonify({"ok": True})
+    log.info(f"[admin] balance {operation} uid={uid} amount={amount} note={note}")
+    return jsonify({"ok": True, "new_balance": new_bal})
 
 @app.route("/admin/users/<int:uid>/ban", methods=["POST"])
 @require_admin
@@ -1638,17 +1712,17 @@ def admin_payments():
     with get_db() as db:
         if status:
             rows = db.execute("""
-                SELECT p.*, u.email, u.username FROM payments p
+                SELECT p.*, u.email as user_email, u.username FROM payments p
                 LEFT JOIN users u ON u.id=p.user_id
                 WHERE p.status=? ORDER BY p.created_at DESC LIMIT 100
             """, (status,)).fetchall()
         else:
             rows = db.execute("""
-                SELECT p.*, u.email, u.username FROM payments p
+                SELECT p.*, u.email as user_email, u.username FROM payments p
                 LEFT JOIN users u ON u.id=p.user_id
                 ORDER BY p.created_at DESC LIMIT 100
             """).fetchall()
-    return jsonify({"payments": [dict(r) for r in rows]})
+    return jsonify({"ok": True, "payments": [dict(r) for r in rows]})
 
 @app.route("/admin/payments/<int:pid>/approve", methods=["POST"])
 @require_admin
@@ -1718,24 +1792,24 @@ def admin_update_gateway(gid):
 def admin_orders():
     status = request.args.get("status", "")
     page = int(request.args.get("page", 1))
-    limit = 50
+    limit = min(int(request.args.get("limit", 50)), 200)
     offset = (page - 1) * limit
     with get_db() as db:
         if status:
             rows = db.execute("""
-                SELECT o.*, u.email, s.name_ar FROM orders o
+                SELECT o.*, u.email as user_email, s.name_ar as service_name FROM orders o
                 LEFT JOIN users u ON u.id=o.user_id
                 LEFT JOIN services s ON s.id=o.service_id
                 WHERE o.status=? ORDER BY o.created_at DESC LIMIT ? OFFSET ?
             """, (status, limit, offset)).fetchall()
         else:
             rows = db.execute("""
-                SELECT o.*, u.email, s.name_ar FROM orders o
+                SELECT o.*, u.email as user_email, s.name_ar as service_name FROM orders o
                 LEFT JOIN users u ON u.id=o.user_id
                 LEFT JOIN services s ON s.id=o.service_id
                 ORDER BY o.created_at DESC LIMIT ? OFFSET ?
             """, (limit, offset)).fetchall()
-    return jsonify({"orders": [dict(r) for r in rows]})
+    return jsonify({"ok": True, "orders": [dict(r) for r in rows]})
 
 # ─────────────────────────────────────────────
 # ADMIN — Tickets
@@ -1745,23 +1819,26 @@ def admin_orders():
 def admin_tickets():
     with get_db() as db:
         rows = db.execute("""
-            SELECT t.*, u.email, u.username FROM tickets t
+            SELECT t.*, u.email as user_email, u.username FROM tickets t
             LEFT JOIN users u ON u.id=t.user_id
             ORDER BY t.updated_at DESC LIMIT 100
         """).fetchall()
-    return jsonify({"tickets": [dict(r) for r in rows]})
+    return jsonify({"ok": True, "tickets": [dict(r) for r in rows]})
 
 @app.route("/admin/tickets/<int:tid>/reply", methods=["POST"])
 @require_admin
 def admin_ticket_reply(tid):
     data = request.get_json(silent=True) or {}
     message = data.get("message", "").strip()
+    close = data.get("close", False)
     if not message:
         return jsonify({"error": "رسالة مطلوبة"}), 400
+    new_status = "closed" if close else "answered"
     with get_db() as db:
         db.execute("INSERT INTO ticket_messages (ticket_id,sender_type,message) VALUES (?,?,?)",
                    (tid, "admin", message))
-        db.execute("UPDATE tickets SET status='answered', updated_at=datetime('now') WHERE id=?", (tid,))
+        db.execute("UPDATE tickets SET status=?, updated_at=datetime('now') WHERE id=?",
+                   (new_status, tid))
         db.commit()
     return jsonify({"ok": True})
 
@@ -1949,6 +2026,93 @@ def admin_profit():
         result.append(d)
     return jsonify({"monthly": result})
 
+# ── Admin: PIN check (for admin.html gate) ──
+@app.route("/admin/check-pin", methods=["POST"])
+def admin_check_pin():
+    data = request.get_json(silent=True) or {}
+    pin = str(data.get("pin","")).strip()
+    if not pin:
+        return jsonify({"ok": False, "error": "رمز مطلوب"}), 400
+    with get_db() as db:
+        row = db.execute("SELECT value FROM settings WHERE key='admin_pin'").fetchone()
+    stored = row["value"] if row else os.environ.get("ADMIN_PIN","147258")
+    if pin == stored:
+        return jsonify({"ok": True})
+    return jsonify({"ok": False, "error": "رمز خاطئ"}), 401
+
+# ── Admin: GET single user ──
+@app.route("/admin/users/<int:uid>", methods=["GET"])
+@require_admin
+def admin_get_user(uid):
+    with get_db() as db:
+        u = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+    if not u:
+        return jsonify({"error": "المستخدم غير موجود"}), 404
+    return jsonify({"ok": True, "user": dict(u)})
+
+# ── Admin: Unban user ──
+@app.route("/admin/users/<int:uid>/unban", methods=["POST"])
+@require_admin
+def admin_unban_user(uid):
+    with get_db() as db:
+        db.execute("UPDATE users SET is_banned=0 WHERE id=?", (uid,))
+        db.commit()
+    return jsonify({"ok": True})
+
+# ── Admin: GET single order ──
+@app.route("/admin/orders/<int:oid>", methods=["GET"])
+@require_admin
+def admin_get_order(oid):
+    with get_db() as db:
+        o = db.execute("""
+            SELECT o.*, s.name_ar as service_name, u.email as user_email
+            FROM orders o
+            LEFT JOIN services s ON s.id=o.service_id
+            LEFT JOIN users u ON u.id=o.user_id
+            WHERE o.id=?
+        """, (oid,)).fetchone()
+    if not o:
+        return jsonify({"error": "الطلب غير موجود"}), 404
+    return jsonify({"ok": True, "order": dict(o)})
+
+# ── Admin: GET single ticket with messages ──
+@app.route("/admin/tickets/<int:tid>", methods=["GET"])
+@require_admin
+def admin_get_ticket(tid):
+    with get_db() as db:
+        t = db.execute("""
+            SELECT tk.*, u.email as user_email
+            FROM tickets tk
+            LEFT JOIN users u ON u.id=tk.user_id
+            WHERE tk.id=?
+        """, (tid,)).fetchone()
+        if not t:
+            return jsonify({"error": "التذكرة غير موجودة"}), 404
+        msgs = db.execute("""
+            SELECT * FROM ticket_messages WHERE ticket_id=? ORDER BY created_at ASC
+        """, (tid,)).fetchall()
+    result = dict(t)
+    result["messages"] = [dict(m) for m in msgs]
+    return jsonify({"ok": True, "ticket": result})
+
+# ── Admin: Bulk settings save ──
+@app.route("/admin/settings/bulk", methods=["POST"])
+@require_admin
+def admin_settings_bulk():
+    data = request.get_json(silent=True) or {}
+    with get_db() as db:
+        for key, value in data.items():
+            if value is None:
+                continue
+            existing = db.execute("SELECT id FROM settings WHERE key=?", (key,)).fetchone()
+            if existing:
+                db.execute("UPDATE settings SET value=?, updated_at=datetime('now') WHERE key=?",
+                           (str(value), key))
+            else:
+                db.execute("INSERT INTO settings (key, value) VALUES (?,?)", (key, str(value)))
+        db.commit()
+    return jsonify({"ok": True})
+
 # ─────────────────────────────────────────────
 # Cron Job: Sync Orders
 # ─────────────────────────────────────────────
@@ -1994,15 +2158,24 @@ def _cron_sync_orders():
                 results = resp.json()
 
                 with get_db() as db:
+                    STATUS_MAP = {
+                        "pending": "pending", "in progress": "active",
+                        "inprogress": "active", "processing": "active",
+                        "completed": "completed", "complete": "completed",
+                        "canceled": "cancelled", "cancelled": "cancelled",
+                        "partial": "partial", "active": "active"
+                    }
                     for o in orders:
                         info = results.get(str(o["provider_order_id"]), {})
                         if not info:
                             continue
-                        new_status = str(info.get("status","pending")).lower()
-                        remains = info.get("remains", 0)
-                        db.execute("""UPDATE orders SET status=?, remains=?,
+                        raw_status = str(info.get("status","pending")).lower().strip()
+                        new_status = STATUS_MAP.get(raw_status, raw_status)
+                        remains = int(info.get("remains", 0))
+                        start_count = int(info.get("start_count", o.get("start_count", 0)))
+                        db.execute("""UPDATE orders SET status=?, remains=?, start_count=?,
                             updated_at=datetime('now') WHERE id=?""",
-                            (new_status, remains, o["id"]))
+                            (new_status, remains, start_count, o["id"]))
                         updated += 1
                     db.commit()
             except Exception as e:
@@ -2311,6 +2484,8 @@ def _startup():
     if TELEGRAM_BOT_TOKEN:
         threading.Thread(target=lambda: tg("setMyCommands", {"commands": [
             {"command": "start", "description": "فتح التطبيق"},
+            {"command": "balance", "description": "عرض رصيدي"},
+            {"command": "orders", "description": "آخر 5 طلبات"},
             {"command": "support", "description": "الدعم الفني"}
         ]}), daemon=True).start()
     threading.Thread(target=_cron_loop, daemon=True).start()
