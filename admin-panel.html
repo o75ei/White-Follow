@@ -1,1193 +1,1178 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
-<title>White Follow — لوحة التحكم</title>
-<style>
-:root{
-  --bg:#0a0a0a;--card:#141414;--card2:#1a1a1a;
-  --border:#2a2a2a;--border2:#333333;
-  --text:#ffffff;--text2:#8c8c8c;
-  --accent:#f0a000;--gold:#f0a000;
-  --success:#00c853;--warning:#ff9100;--danger:#ff1744;--muted:#666666;
-  --font:'Cairo','Tajawal',sans-serif;
-  --sb:220px;
-}
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-html,body{width:100%;max-width:100%;overflow-x:hidden;}
-body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;}
-a{color:inherit;text-decoration:none;}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🔐 لوحة تحكم | White Follow</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-/* ─ Layout ─ */
-.layout{display:flex;min-height:100vh;width:100%;overflow-x:hidden;}
-.sidebar{width:var(--sb);background:var(--card);border-left:1px solid var(--border);position:fixed;top:0;right:0;height:100vh;display:flex;flex-direction:column;z-index:100;transition:transform .3s;}
-.content{margin-right:var(--sb);padding:16px;flex:1;min-height:100vh;min-width:0;width:calc(100% - var(--sb));box-sizing:border-box;overflow-x:hidden;}
+    :root {
+      --bg:      #0a0a0f;
+      --card:    #111118;
+      --card2:   #16161f;
+      --border:  rgba(255,255,255,0.07);
+      --accent:  #DAA520;
+      --accent2: #B8860B;
+      --red:     #ff2233;
+      --green:   #1DB954;
+      --purple:  #8b5cf6;
+      --blue:    #3b82f6;
+      --text:    #f0f0f0;
+      --muted:   #666;
+      --font:    'Segoe UI', 'Tajawal', system-ui, sans-serif;
+    }
 
-/* ─ Mobile sidebar ─ */
-.mob-header{display:none;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:90;}
-.mob-menu-btn{background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;padding:4px;}
-.mob-title{font-size:15px;font-weight:800;color:var(--gold);}
-.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99;}
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+    }
 
-/* ─ Sidebar ─ */
-.sidebar-logo{padding:16px;border-bottom:1px solid var(--border);text-align:center;}
-.sidebar-logo .logo-icon{font-size:26px;margin-bottom:2px;}
-.sidebar-logo h1{font-size:15px;font-weight:800;color:var(--gold);}
-.sidebar-logo p{font-size:10px;color:var(--text2);margin-top:1px;}
-.sidebar-nav{padding:10px 8px;flex:1;overflow-y:auto;}
-.nav-section{font-size:10px;color:var(--muted);padding:10px 10px 4px;text-transform:uppercase;letter-spacing:1px;}
-.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13px;color:var(--text2);transition:all .2s;margin-bottom:2px;}
-.nav-item:hover{background:var(--border);color:var(--text);}
-.nav-item.active{background:rgba(240,160,0,0.12);color:var(--gold);}
-.nav-item .ni{font-size:15px;width:18px;text-align:center;flex-shrink:0;}
-.sidebar-footer{padding:14px;border-top:1px solid var(--border);}
-/* Provider balance card in sidebar */
-.prov-bal-card{background:var(--card2);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin-bottom:10px;text-align:center;}
-.prov-bal-label{font-size:10px;color:var(--text2);margin-bottom:3px;}
-.prov-bal-value{font-size:16px;font-weight:800;color:var(--gold);}
-.logout-btn{width:100%;padding:10px;border:1px solid rgba(255,23,68,.3);border-radius:10px;background:rgba(255,23,68,.08);color:var(--danger);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);}
+    /* ── Login Screen ── */
+    #login-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+      background: radial-gradient(ellipse at 50% 0%, rgba(218,165,32,0.12) 0%, transparent 70%);
+    }
 
-/* ─ Header ─ */
-.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
-.page-title{font-size:18px;font-weight:800;}
-.page-subtitle{font-size:12px;color:var(--text2);margin-top:2px;}
-.header-actions{display:flex;gap:8px;flex-wrap:wrap;}
-.btn{padding:9px 16px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);transition:opacity .2s;white-space:nowrap;}
-.btn:active{opacity:.7;}
-.btn-primary{background:var(--gold);color:#000;}
-.btn-success{background:var(--success);color:#fff;}
-.btn-danger{background:var(--danger);color:#fff;}
-.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--text2);}
-.btn-blue{background:#1a6fbf;color:#fff;}
+    .login-card {
+      background: var(--card);
+      border: 1px solid rgba(218,165,32,0.2);
+      border-radius: 24px;
+      padding: 40px 32px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 0 60px rgba(218,165,32,0.08);
+    }
 
-/* ─ Stats Grid ─ */
-.stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px;}
-.stat-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;position:relative;overflow:hidden;}
-.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--gold);}
-.stat-card.green::before{background:var(--success);}
-.stat-card.red::before{background:var(--danger);}
-.stat-card.orange::before{background:var(--warning);}
-.stat-icon{font-size:22px;margin-bottom:8px;}
-.stat-label{font-size:11px;color:var(--text2);margin-bottom:4px;}
-.stat-value{font-size:22px;font-weight:800;}
-.stat-value.gold{color:var(--gold);}
-.stat-value.green{color:var(--success);}
-.stat-sub{font-size:11px;color:var(--text2);margin-top:3px;}
+    .login-logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
 
-/* ─ Cards ─ */
-.card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:16px;}
-.card-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
-.card-title{font-size:13px;font-weight:700;}
-.card-body{padding:16px;}
+    .login-logo .shield {
+      font-size: 52px;
+      display: block;
+      margin-bottom: 10px;
+    }
 
-/* ─ Table ─ */
-.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-table{width:100%;border-collapse:collapse;font-size:12px;min-width:500px;}
-th{background:var(--card2);padding:10px 12px;text-align:right;font-size:11px;color:var(--text2);font-weight:600;white-space:nowrap;}
-td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
-tr:last-child td{border-bottom:none;}
-tr:hover td{background:rgba(255,255,255,.02);}
+    .login-logo h1 {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+    }
 
-/* ─ Badge ─ */
-.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
-.badge-success{background:rgba(0,200,83,.15);color:var(--success);}
-.badge-warning{background:rgba(255,145,0,.15);color:var(--warning);}
-.badge-danger{background:rgba(255,23,68,.15);color:var(--danger);}
-.badge-info{background:rgba(240,160,0,.15);color:var(--gold);}
-.badge-muted{background:rgba(102,102,102,.15);color:var(--muted);}
+    .login-logo p {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
 
-/* ─ Form ─ */
-.form-row{display:grid;gap:14px;}
-.form-row.cols-2{grid-template-columns:1fr 1fr;}
-.form-grp label{display:block;font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600;}
-.form-ctrl{width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:border-color .2s;}
-.form-ctrl:focus{border-color:var(--gold);}
-select.form-ctrl option{background:var(--card);}
-textarea.form-ctrl{resize:vertical;}
+    .field-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 8px;
+      display: block;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
 
-/* ─ Search ─ */
-.search-row{display:flex;gap:8px;margin-bottom:14px;}
-.search-inp{flex:1;background:var(--card2);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;min-width:0;}
-.search-inp:focus{border-color:var(--gold);}
-.search-inp::placeholder{color:var(--muted);}
+    .field-wrap {
+      position: relative;
+      margin-bottom: 20px;
+    }
 
-/* ─ Filter Pills ─ */
-.filter-pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
-.pill{padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--border2);color:var(--text2);background:transparent;}
-.pill.active{background:var(--gold);color:#000;border-color:var(--gold);}
+    .field-input {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: var(--font);
+      outline: none;
+      transition: border-color 0.2s;
+      direction: ltr;
+      text-align: center;
+      letter-spacing: 3px;
+    }
 
-/* ─ User Row ─ */
-.user-cell{display:flex;align-items:center;gap:8px;}
-.user-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#2a1a00,#3a2a00);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--gold);flex-shrink:0;}
+    .field-input:focus { border-color: rgba(218,165,32,0.5); }
 
-/* ─ Loading ─ */
-.loading{text-align:center;padding:40px;color:var(--text2);}
-.spinner{display:inline-block;width:24px;height:24px;border:3px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:8px;}
-@keyframes spin{to{transform:rotate(360deg);}}
+    .btn-login {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #000;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: opacity 0.2s, transform 0.1s;
+      letter-spacing: 0.5px;
+    }
 
-/* ─ Modal ─ */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:flex;align-items:flex-end;justify-content:center;padding:0;opacity:0;visibility:hidden;transition:all .25s;}
-.modal-overlay.show{opacity:1;visibility:visible;}
-.modal{background:var(--card);border:1px solid var(--border2);border-radius:20px 20px 0 0;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;transform:translateY(40px);transition:transform .25s;}
-.modal-overlay.show .modal{transform:translateY(0);}
-.modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1;}
-.modal-header h3{font-size:14px;font-weight:800;}
-.modal-close{background:var(--card2);border:none;color:var(--text2);font-size:16px;cursor:pointer;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
-.modal-body{padding:16px 20px;}
-.modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;}
+    .btn-login:hover  { opacity: 0.9; }
+    .btn-login:active { transform: scale(0.98); }
 
-/* ─ Toast ─ */
-#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--card2);border:1px solid var(--border2);border-radius:10px;padding:10px 20px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;}
-#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+    .login-err {
+      display: none;
+      background: rgba(255,34,51,0.1);
+      border: 1px solid rgba(255,34,51,0.3);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #ff6677;
+      text-align: center;
+      margin-top: 16px;
+    }
 
-/* ─ Settings ─ */
-.settings-section{margin-bottom:24px;}
-.settings-section h3{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.5px;}
+    /* ── Dashboard ── */
+    #dashboard { display: none; }
 
-/* ─ Server URL Card ─ */
-.server-card{background:var(--card2);border:1px solid var(--border2);border-radius:12px;padding:14px 16px;margin-bottom:14px;}
-.server-card-title{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
-.server-url-display{font-size:12px;color:var(--gold);word-break:break-all;direction:ltr;text-align:left;background:var(--card);border-radius:8px;padding:8px 10px;margin-bottom:8px;border:1px solid var(--border);}
+    .topbar {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
 
-/* ─ Markup preview ─ */
-.markup-preview{background:var(--card2);border:1px solid var(--border2);border-radius:10px;padding:12px;margin-top:10px;font-size:12px;}
-.markup-preview-row{display:flex;justify-content:space-between;margin-bottom:4px;}
-.markup-preview-row:last-child{margin-bottom:0;font-weight:700;color:var(--gold);}
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
 
-/* ─ Sync page ─ */
-.sync-service-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:12px;}
-.sync-service-row:last-child{border-bottom:none;}
-.sync-badge-new{background:rgba(0,200,83,.15);color:var(--success);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;}
-.sync-badge-update{background:rgba(240,160,0,.15);color:var(--gold);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;}
+    .topbar-brand .badge {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #000;
+      font-size: 10px;
+      font-weight: 900;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 1px;
+    }
 
-/* ─ PIN gate ─ */
-#pin-gate{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;align-items:center;justify-content:center;}
-.pin-wrap{background:var(--card);border:1px solid var(--border2);border-radius:20px;padding:32px 24px;text-align:center;width:300px;max-width:90vw;}
-.pin-icon{font-size:40px;margin-bottom:10px;}
-.pin-title{font-size:18px;font-weight:800;color:var(--gold);margin-bottom:4px;}
-.pin-sub{font-size:12px;color:var(--text2);margin-bottom:18px;}
-.pin-input{width:100%;background:var(--card2);border:2px solid var(--border2);border-radius:10px;padding:14px;text-align:center;font-size:24px;font-weight:800;letter-spacing:8px;color:var(--text);font-family:var(--font);outline:none;margin-bottom:12px;}
-.pin-input:focus{border-color:var(--gold);}
-.pin-btn{width:100%;padding:14px;background:var(--gold);color:#000;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:var(--font);}
-.pin-err{font-size:12px;color:var(--danger);margin-top:8px;min-height:18px;}
+    .topbar-brand span {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--accent);
+    }
 
-/* ─ Responsive ─ */
-@media(max-width:700px){
-  :root{--sb:0px;}
-  .sidebar{transform:translateX(110%);width:80vw;max-width:280px;}
-  .sidebar.open{transform:translateX(0);}
-  .sidebar-overlay.open{display:block;}
-  .layout{display:block !important;}
-  .content{margin-right:0 !important;width:100% !important;padding:12px;box-sizing:border-box;}
-  .mob-header{display:flex;}
-  .stats-grid{grid-template-columns:1fr 1fr;}
-  .form-row.cols-2{grid-template-columns:1fr;}
-  .page-header{flex-direction:column;}
-  .stat-value{font-size:18px;}
-  .stat-card{padding:12px;}
-}
-</style>
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .status-txt { font-size: 12px; color: var(--muted); }
+
+    .btn-logout {
+      background: rgba(255,34,51,0.1);
+      border: 1px solid rgba(255,34,51,0.2);
+      color: var(--red);
+      padding: 7px 14px;
+      border-radius: 9px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      font-family: var(--font);
+      transition: background 0.2s;
+    }
+
+    .btn-logout:hover { background: rgba(255,34,51,0.2); }
+
+    /* ── Grid Layout ── */
+    .dashboard-body {
+      padding: 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+      margin-top: 32px;
+    }
+
+    .section-title:first-child { margin-top: 0; }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 8px;
+    }
+
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .stat-card .stat-icon { font-size: 24px; }
+    .stat-card .stat-val  { font-size: 26px; font-weight: 900; color: var(--text); }
+    .stat-card .stat-lbl  { font-size: 12px; color: var(--muted); }
+
+    /* ── Cards ── */
+    .panel-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+
+    .panel-card h3 {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .panel-card .desc {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .p-input {
+      flex: 1;
+      min-width: 180px;
+      background: rgba(255,255,255,0.04);
+      border: 1.5px solid var(--border);
+      border-radius: 11px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: var(--font);
+      outline: none;
+      transition: border-color 0.2s;
+      direction: ltr;
+    }
+
+    .p-input:focus { border-color: rgba(255,255,255,0.2); }
+
+    .p-input.arabic { direction: rtl; }
+
+    .btn {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 11px;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: opacity 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .btn:active { transform: scale(0.97); }
+    .btn:hover  { opacity: 0.85; }
+
+    .btn-gold   { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #000; }
+    .btn-green  { background: linear-gradient(135deg, var(--green), #16a34a); color: #fff; }
+    .btn-red    { background: linear-gradient(135deg, var(--red), #cc0011); color: #fff; }
+    .btn-purple { background: linear-gradient(135deg, var(--purple), #6d28d9); color: #fff; }
+    .btn-blue   { background: linear-gradient(135deg, var(--blue), #1d4ed8); color: #fff; }
+    .btn-gray   { background: rgba(255,255,255,0.08); color: var(--text); }
+
+    /* ── Alert Box ── */
+    .alert {
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 13px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    .alert.success { background: rgba(29,185,84,0.12); border: 1px solid rgba(29,185,84,0.25); color: #4ade80; }
+    .alert.error   { background: rgba(255,34,51,0.10); border: 1px solid rgba(255,34,51,0.25); color: #ff6677; }
+    .alert.info    { background: rgba(59,130,246,0.10); border: 1px solid rgba(59,130,246,0.25); color: #60a5fa; }
+
+    /* ── Users Table ── */
+    .users-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+
+    .users-table th {
+      text-align: right;
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.03);
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .users-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      vertical-align: middle;
+    }
+
+    .users-table tr:last-child td { border-bottom: none; }
+    .users-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .uid-cell { font-family: monospace; font-size: 11px; color: var(--muted); }
+
+    .balance-badge {
+      background: rgba(29,185,84,0.12);
+      color: #4ade80;
+      border-radius: 7px;
+      padding: 3px 9px;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .inline-btn {
+      padding: 5px 11px;
+      border: none;
+      border-radius: 7px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: var(--font);
+      margin-right: 4px;
+      transition: opacity 0.2s;
+    }
+
+    .inline-btn:hover { opacity: 0.8; }
+    .ib-charge { background: rgba(29,185,84,0.15); color: #4ade80; }
+    .ib-deduct { background: rgba(255,34,51,0.12); color: #ff6677; }
+
+    /* ── Bot Link Status ── */
+    .bot-link-bar {
+      background: rgba(59,130,246,0.08);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 14px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .bot-link-bar .icon { font-size: 22px; }
+    .bot-link-bar .txt { flex: 1; }
+    .bot-link-bar .txt strong { font-size: 13px; color: var(--text); display: block; }
+    .bot-link-bar .txt small  { font-size: 11px; color: var(--muted); }
+
+    /* Markup Display */
+    .markup-display {
+      background: rgba(218,165,32,0.08);
+      border: 1px solid rgba(218,165,32,0.2);
+      border-radius: 12px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .markup-display .lbl { font-size: 12px; color: var(--muted); }
+    .markup-display .val { font-size: 22px; font-weight: 900; color: var(--accent); }
+
+    /* DF Balance */
+    .df-balance-card {
+      background: linear-gradient(135deg, rgba(255,34,51,0.08), rgba(255,34,51,0.03));
+      border: 1px solid rgba(255,34,51,0.2);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .df-balance-card .df-lbl { font-size: 12px; color: var(--muted); }
+    .df-balance-card .df-val { font-size: 28px; font-weight: 900; color: var(--red); }
+
+    /* Search box */
+    .search-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .dashboard-body { padding: 16px; }
+      .stats-row { grid-template-columns: 1fr 1fr; }
+      .topbar { padding: 12px 16px; }
+      .input-row { flex-direction: column; }
+      .input-row .btn { width: 100%; }
+    }
+
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .tab-btn {
+      padding: 9px 18px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: var(--font);
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: rgba(218,165,32,0.12);
+      border-color: rgba(218,165,32,0.35);
+      color: var(--accent);
+    }
+
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* Spinner */
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.15);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
 
-<!-- PIN Gate -->
-<div id="pin-gate">
-  <div class="pin-wrap">
-    <div class="pin-icon">🔐</div>
-    <div class="pin-title">لوحة التحكم</div>
-    <div class="pin-sub">أدخل رمز الدخول للمتابعة</div>
-    <input class="pin-input" id="pin-inp" type="password" maxlength="8" placeholder="••••••" dir="ltr"/>
-    <button class="pin-btn" onclick="checkPin()">دخول</button>
-    <div class="pin-err" id="pin-err"></div>
+<!-- ══════════════════════════════════════════════════════════
+     شاشة تسجيل الدخول
+═══════════════════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <span class="shield">🔐</span>
+      <h1>لوحة التحكم</h1>
+      <p>White Follow — Admin Panel</p>
+    </div>
+
+    <label class="field-label">كلمة سر الأدمن</label>
+    <div class="field-wrap">
+      <input id="lp-key" class="field-input" type="password"
+             placeholder="••••••••••••"
+             maxlength="40"
+             onkeydown="if(event.key==='Enter') doLogin()" />
+    </div>
+
+    <button class="btn-login" onclick="doLogin()">دخول 🚀</button>
+    <div class="login-err" id="login-err">❌ كلمة السر غير صحيحة</div>
   </div>
 </div>
 
-<!-- Sidebar Overlay (mobile) -->
-<div class="sidebar-overlay" id="sb-overlay" onclick="closeSidebar()"></div>
+<!-- ══════════════════════════════════════════════════════════
+     لوحة التحكم الرئيسية
+═══════════════════════════════════════════════════════════ -->
+<div id="dashboard">
 
-<!-- Layout -->
-<div class="layout" id="main-layout" style="display:none;">
-
-  <!-- Mobile Header -->
-  <div class="mob-header">
-    <div style="display:flex;gap:4px;align-items:center;">
-      <button class="mob-menu-btn" onclick="openSidebar()">☰</button>
-      <button class="mob-menu-btn" id="back-btn" onclick="goBack()" style="display:none;font-size:13px;font-weight:700;color:var(--gold);">← رجوع</button>
+  <!-- شريط علوي -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <span>⚙️</span>
+      <span>لوحة التحكم</span>
+      <div class="badge">ADMIN</div>
     </div>
-    <div class="mob-title" id="mob-title-txt">🌕 White Follow</div>
-    <button class="btn btn-outline" style="padding:6px 10px;font-size:11px;" onclick="loadPage(_currentPage)">🔄</button>
+    <div class="topbar-right">
+      <div class="status-dot"></div>
+      <span class="status-txt" id="conn-status">متصل</span>
+      <button class="btn-logout" onclick="doLogout()">تسجيل خروج</button>
+    </div>
   </div>
 
-  <!-- Sidebar -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo">
-      <div class="logo-icon">🌕</div>
-      <h1>White Follow</h1>
-      <p>لوحة التحكم الإدارية</p>
-    </div>
-    <nav class="sidebar-nav">
-      <div class="nav-section">الرئيسية</div>
-      <div class="nav-item active" onclick="nav('dashboard')"><span class="ni">📊</span>الإحصائيات</div>
-      <div class="nav-item" onclick="nav('users')"><span class="ni">👥</span>المستخدمون</div>
-      <div class="nav-item" onclick="nav('orders')"><span class="ni">🛒</span>الطلبات</div>
-      <div class="nav-section">المالية</div>
-      <div class="nav-item" onclick="nav('payments')"><span class="ni">💳</span>طلبات الشحن</div>
-      <div class="nav-item" onclick="nav('tickets')"><span class="ni">🎫</span>تذاكر الدعم</div>
-      <div class="nav-section">الإدارة</div>
-      <div class="nav-item" onclick="nav('services')"><span class="ni">⚙️</span>الخدمات والمزامنة</div>
-      <div class="nav-item" onclick="nav('settings')"><span class="ni">🔧</span>الإعدادات</div>
-    </nav>
-    <div class="sidebar-footer">
-      <div class="prov-bal-card">
-        <div class="prov-bal-label">💰 رصيد دارك فولو</div>
-        <div class="prov-bal-value" id="provider-bal">—</div>
-        <div style="font-size:10px;color:var(--text2);margin-top:3px;" id="provider-bal-sub"></div>
+  <!-- المحتوى -->
+  <div class="dashboard-body">
+
+    <!-- شريط حالة الاتصال بالبوت -->
+    <div class="bot-link-bar" id="bot-link-bar">
+      <span class="icon">🤖</span>
+      <div class="txt">
+        <strong id="bot-url-display">جاري الاتصال...</strong>
+        <small>رابط السيرفر (Railway)</small>
       </div>
-      <button class="logout-btn" onclick="logout()">🔒 تسجيل الخروج</button>
+      <button class="btn btn-gray" onclick="pingServer()" style="padding:8px 14px;font-size:12px;">فحص الاتصال</button>
     </div>
-  </aside>
 
-  <!-- Content -->
-  <main class="content" id="content-area"></main>
-</div>
-
-<!-- Modal -->
-<div class="modal-overlay" id="modal" onclick="e=>{if(e.target===this)closeModal()}">
-  <div class="modal" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <h3 id="modal-title">—</h3>
-      <button class="modal-close" onclick="closeModal()">✕</button>
+    <!-- تبويبات -->
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('overview')">📊 نظرة عامة</button>
+      <button class="tab-btn" onclick="switchTab('balance')">💰 الرصيد والأسعار</button>
+      <button class="tab-btn" onclick="switchTab('users')">👥 المستخدمون</button>
+      <button class="tab-btn" onclick="switchTab('topup')">💳 تعبئة رصيد</button>
+      <button class="tab-btn" onclick="switchTab('settings')">⚙️ الإعدادات</button>
     </div>
-    <div class="modal-body" id="modal-body"></div>
-    <div class="modal-footer" id="modal-footer" style="display:none;"></div>
-  </div>
-</div>
 
-<div id="toast"></div>
+    <!-- ═══ تبويب: نظرة عامة ═══ -->
+    <div class="tab-pane active" id="tab-overview">
+
+      <!-- إحصائيات سريعة -->
+      <p class="section-title">إحصائيات سريعة</p>
+      <div class="stats-row">
+        <div class="stat-card">
+          <span class="stat-icon">💹</span>
+          <span class="stat-val" id="stat-df-balance">—</span>
+          <span class="stat-lbl">رصيد دارك فولو ($)</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-icon">👥</span>
+          <span class="stat-val" id="stat-users">0</span>
+          <span class="stat-lbl">إجمالي المستخدمين</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-icon">📈</span>
+          <span class="stat-val" id="stat-markup">$1.00</span>
+          <span class="stat-lbl">هامش الربح الحالي</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-icon">💵</span>
+          <span class="stat-val" id="stat-total-bal">0</span>
+          <span class="stat-lbl">مجموع أرصدة العملاء</span>
+        </div>
+      </div>
+
+      <!-- أزرار سريعة -->
+      <p class="section-title">إجراءات سريعة</p>
+      <div class="panel-card">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-red" onclick="fetchDFBalance()">🔄 تحديث رصيد دارك فولو</button>
+          <button class="btn btn-gold" onclick="pushToBot('reload')">🔁 إعادة تحميل البوت</button>
+          <button class="btn btn-blue" onclick="loadUsers()">🔃 تحديث بيانات المستخدمين</button>
+          <button class="btn btn-green" onclick="switchTab('topup')">💰 تعبئة رصيد مستخدم</button>
+        </div>
+        <div class="alert" id="quick-alert"></div>
+      </div>
+
+    </div>
+
+    <!-- ═══ تبويب: الرصيد والأسعار ═══ -->
+    <div class="tab-pane" id="tab-balance">
+
+      <!-- رصيد دارك فولو -->
+      <p class="section-title">رصيد حساب دارك فولو</p>
+      <div class="df-balance-card">
+        <div>
+          <div class="df-lbl">رصيدك بالموقع</div>
+          <div class="df-val" id="df-balance-val">جاري التحميل...</div>
+        </div>
+        <button class="btn btn-red" onclick="fetchDFBalance()">🔄 تحديث</button>
+      </div>
+
+      <!-- هامش الربح -->
+      <p class="section-title">هامش الربح</p>
+      <div class="panel-card">
+        <h3>📈 تعديل هامش الربح</h3>
+        <p class="desc">الزيادة تُضاف تلقائياً على سعر المزود لكل الخدمات في البوت</p>
+
+        <div class="markup-display">
+          <span class="lbl">القيمة الحالية</span>
+          <span class="val" id="markup-current-val">$1.00</span>
+        </div>
+
+        <div class="input-row">
+          <input class="p-input" id="markup-input" type="number"
+                 min="0" step="0.1" value="1.00"
+                 placeholder="مثال: 1.50" />
+          <button class="btn btn-gold" onclick="saveMarkup()">💾 حفظ وإرسال للبوت</button>
+        </div>
+        <div class="alert" id="markup-alert"></div>
+      </div>
+
+    </div>
+
+    <!-- ═══ تبويب: المستخدمون ═══ -->
+    <div class="tab-pane" id="tab-users">
+
+      <p class="section-title">إدارة المستخدمين</p>
+
+      <div class="panel-card">
+        <div class="search-row">
+          <input class="p-input arabic" id="users-search"
+                 placeholder="🔍 بحث بـ UID أو الإيميل..."
+                 oninput="filterUsersTable()" />
+          <button class="btn btn-blue" onclick="loadUsers()">تحديث 🔃</button>
+        </div>
+
+        <div id="users-table-wrap" style="overflow-x:auto;">
+          <table class="users-table" id="users-table">
+            <thead>
+              <tr>
+                <th>UID</th>
+                <th>الإيميل</th>
+                <th>الرصيد</th>
+                <th>الشحن الكلي</th>
+                <th>الصرف الكلي</th>
+                <th>الطلبات</th>
+                <th>إجراء</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody">
+              <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">اضغط "تحديث" لتحميل البيانات</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="alert" id="users-alert"></div>
+      </div>
+
+    </div>
+
+    <!-- ═══ تبويب: تعبئة رصيد ═══ -->
+    <div class="tab-pane" id="tab-topup">
+
+      <p class="section-title">تعبئة رصيد مستخدم</p>
+
+      <div class="panel-card">
+        <h3>💳 شحن رصيد</h3>
+        <p class="desc">ابحث عن المستخدم ثم أدخل المبلغ</p>
+
+        <div class="input-row" style="margin-bottom:12px;">
+          <input class="p-input arabic" id="topup-uid"
+                 placeholder="أدخل UID المستخدم..." />
+          <button class="btn btn-blue" onclick="searchTopupUser()">بحث 🔍</button>
+        </div>
+
+        <div id="topup-user-card" style="display:none;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;">
+          <div style="font-size:13px;color:var(--muted);">المستخدم</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text);margin-top:4px;" id="topup-found-email">—</div>
+          <div style="font-size:13px;color:#4ade80;margin-top:4px;">الرصيد الحالي: <b id="topup-found-balance">—</b></div>
+        </div>
+
+        <div class="input-row">
+          <input class="p-input" id="topup-amount"
+                 type="number" min="0.01" step="0.01"
+                 placeholder="المبلغ (د.ع)" />
+          <button class="btn btn-green" onclick="executeTopup()">✅ تعبئة الرصيد</button>
+        </div>
+
+        <div id="topup-not-found" style="display:none;color:#ff6677;font-size:13px;margin-top:10px;">❌ المستخدم غير موجود</div>
+        <div class="alert" id="topup-alert"></div>
+      </div>
+
+    </div>
+
+    <!-- ═══ تبويب: الإعدادات ═══ -->
+    <div class="tab-pane" id="tab-settings">
+
+      <p class="section-title">إعدادات اللوحة</p>
+
+      <div class="panel-card">
+        <h3>🔗 رابط السيرفر (Railway)</h3>
+        <p class="desc">الرابط المرتبط حالياً ببوتك</p>
+        <div class="input-row">
+          <input class="p-input" id="server-url-input"
+                 type="url" placeholder="https://..." dir="ltr" />
+          <button class="btn btn-gold" onclick="saveServerUrl()">💾 حفظ</button>
+        </div>
+        <div class="alert" id="url-alert"></div>
+      </div>
+
+      <div class="panel-card">
+        <h3>🤖 إرسال أمر للبوت</h3>
+        <p class="desc">إجبار البوت على إعادة التحميل</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-gold" onclick="pushToBot('reload')">🔁 إعادة تحميل البوت</button>
+          <button class="btn btn-green" onclick="connectBotSession()">🔌 ربط جلسة الأدمن بالبوت</button>
+        </div>
+        <div class="alert" id="bot-alert"></div>
+      </div>
+
+      <div class="panel-card" style="border-color:rgba(255,34,51,0.2);">
+        <h3 style="color:var(--red);">⚠️ منطقة الخطر</h3>
+        <p class="desc">إجراءات لا يمكن التراجع عنها</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-red" onclick="clearAllCache()">🗑️ مسح بيانات الكاش المحلي</button>
+        </div>
+      </div>
+
+    </div>
+
+  </div><!-- / dashboard-body -->
+</div><!-- / dashboard -->
 
 <script>
-const API = window.location.origin;
-const ADMIN_PIN_KEY = 'wf_admin_pin_ok';
-let _currentPage = 'dashboard';
-let _prevPage = null;
+// ══════════════════════════════════════════════════════════════
+//  White Follow — Admin Panel JS
+//  يتصل بـ Railway عبر fetch() + يرسل أوامر للبوت عبر
+//  BroadcastChannel + localStorage events
+// ══════════════════════════════════════════════════════════════
 
-function goBack(){
-  const target = _prevPage || 'dashboard';
-  _prevPage = null;
-  showPage(target);
-}
-function updateBackBtn(page){
-  const btn = document.getElementById('back-btn');
-  if(!btn) return;
-  if(page === 'dashboard'){
-    btn.style.display = 'none';
-  } else {
-    btn.style.display = 'inline-flex';
+const PANEL_VERSION = '1.0.0';
+// رابط السيرفر الافتراضي — يمكن تعديله من تبويب الإعدادات
+const DEFAULT_SERVER = 'https://web-production-005fc.up.railway.app';
+
+// ── State ─────────────────────────────────────────────────────
+let _adminKey    = '';
+let _serverUrl   = '';
+let _usersCache  = {};
+let _topupFoundUid = null;
+let _bc          = null; // BroadcastChannel
+
+// ── Startup ───────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function() {
+  // استرجاع الرابط المحفوظ
+  _serverUrl = localStorage.getItem('wf_panel_server') || DEFAULT_SERVER;
+  document.getElementById('server-url-input').value = _serverUrl;
+  document.getElementById('bot-url-display').textContent = _serverUrl;
+
+  // فحص جلسة محفوظة
+  const saved = sessionStorage.getItem('wf_panel_key');
+  if (saved) {
+    _adminKey = saved;
+    showDashboard();
   }
-}
 
-// ─── Sidebar mobile ───
-function openSidebar(){
-  document.getElementById('sidebar').classList.add('open');
-  document.getElementById('sb-overlay').classList.add('open');
-}
-function closeSidebar(){
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('sb-overlay').classList.remove('open');
-}
-function nav(page){
-  closeSidebar();
-  showPage(page);
-}
-
-// ─── PIN ───
-document.getElementById('pin-inp').addEventListener('keydown',e=>{if(e.key==='Enter')checkPin();});
-function checkPin(){
-  const val = document.getElementById('pin-inp').value;
-  fetch(`${API}/admin/check-pin`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:val})})
-  .then(r=>r.json()).then(d=>{
-    if(d.ok) enterAdmin();
-    else document.getElementById('pin-err').textContent='رمز خاطئ، حاول مجدداً';
-  }).catch(()=>{
-    if(val==='147258'||val.length>=4) enterAdmin();
-    else document.getElementById('pin-err').textContent='رمز خاطئ';
-  });
-}
-function enterAdmin(){
-  sessionStorage.setItem(ADMIN_PIN_KEY,'1');
-  document.getElementById('pin-gate').style.display='none';
-  const isMobile=window.innerWidth<=700;document.getElementById('main-layout').style.display=isMobile?'block':'flex';
-  loadPage('dashboard');
-  loadProviderBalance();
-}
-function logout(){sessionStorage.removeItem(ADMIN_PIN_KEY);location.reload();}
-
-// ─── Navigation ───
-function showPage(page){
-  if(_currentPage !== page) _prevPage = _currentPage;
-  _currentPage=page;
-  document.querySelectorAll('.nav-item').forEach(n=>{
-    n.classList.toggle('active', n.getAttribute('onclick')===`nav('${page}')`);
-  });
-  updateBackBtn(page);
-  loadPage(page);
-}
-function loadPage(page){
-  _currentPage=page;
-  updateBackBtn(page);
-  const el=document.getElementById('content-area');
-  el.innerHTML=`<div class="loading"><div class="spinner"></div><div>جاري التحميل...</div></div>`;
-  ({dashboard:renderDashboard,users:renderUsers,orders:renderOrders,
-    payments:renderPayments,tickets:renderTickets,services:renderServices,
-    settings:renderSettings}[page]||renderDashboard)();
-}
-
-// ─── API ───
-async function apiGet(path){
-  const r=await fetch(`${API}${path}`,{headers:{'X-Admin-Pin':sessionStorage.getItem(ADMIN_PIN_KEY)||''}});
-  return r.json();
-}
-async function apiPost(path,body){
-  const r=await fetch(`${API}${path}`,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Pin':sessionStorage.getItem(ADMIN_PIN_KEY)||''},body:JSON.stringify(body)});
-  return r.json();
-}
-
-// ─── Toast ───
-function toast(msg,type='info'){
-  const t=document.getElementById('toast');
-  t.textContent=msg;
-  t.style.borderColor=type==='success'?'rgba(0,200,83,.4)':type==='error'?'rgba(255,23,68,.4)':'rgba(240,160,0,.4)';
-  t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2800);
-}
-
-// ─── Modal ───
-function openModal(title,bodyHtml,footerHtml=''){
-  document.getElementById('modal-title').textContent=title;
-  document.getElementById('modal-body').innerHTML=bodyHtml;
-  const mf=document.getElementById('modal-footer');
-  if(footerHtml){mf.innerHTML=footerHtml;mf.style.display='flex';}
-  else mf.style.display='none';
-  document.getElementById('modal').classList.add('show');
-}
-function closeModal(){document.getElementById('modal').classList.remove('show');}
-
-// ─── Provider Balance ───
-async function loadProviderBalance(){
-  try{
-    const d=await apiGet('/admin/providers/balances');
-    const el=document.getElementById('provider-bal');
-    const sub=document.getElementById('provider-bal-sub');
-    if(d.ok&&d.balances&&d.balances.length>0){
-      const b=d.balances[0];
-      el.textContent=`$${parseFloat(b.balance||0).toFixed(2)}`;
-      if(sub) sub.textContent=b.currency||'USD';
-    } else {
-      el.textContent='—';
-    }
-  }catch(e){document.getElementById('provider-bal').textContent='—';}
-}
-
-// ════════════════════════════════════════════
-// DASHBOARD
-// ════════════════════════════════════════════
-async function renderDashboard(){
-  const el=document.getElementById('content-area');
-  let stats={};
-  try{const d=await apiGet('/admin/stats');if(d.ok)stats=d.stats||{};}catch(e){}
-
-  let ordersHtml='';
-  try{
-    const d=await apiGet('/admin/orders?limit=8');
-    if(d.ok&&d.orders){
-      ordersHtml=d.orders.map(o=>`
-        <tr>
-          <td>#${o.id}</td>
-          <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(o.service_name||'خدمة')}</td>
-          <td style="font-size:11px;color:var(--text2);max-width:100px;overflow:hidden;text-overflow:ellipsis;">${esc(o.user_email||'—')}</td>
-          <td style="color:var(--gold);font-weight:700;">$${parseFloat(o.price||0).toFixed(2)}</td>
-          <td>${statusBadge(o.status)}</td>
-          <td><button class="btn btn-outline" style="padding:4px 8px;font-size:11px;" onclick="viewOrder(${o.id})">تفاصيل</button></td>
-        </tr>`).join('');
-    }
-  }catch(e){}
-
-  el.innerHTML=`
-  <div class="page-header">
-    <div><div class="page-title">📊 لوحة التحكم</div><div class="page-subtitle">نظرة عامة على النظام</div></div>
-    <div class="header-actions">
-      <button class="btn btn-outline" onclick="loadPage('dashboard')">🔄 تحديث</button>
-      <button class="btn btn-primary" onclick="showPage('services')">🔁 مزامنة الخدمات</button>
-    </div>
-  </div>
-  <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-icon">👥</div>
-      <div class="stat-label">إجمالي المستخدمين</div>
-      <div class="stat-value gold">${fmtNum(stats.total_users||0)}</div>
-      <div class="stat-sub">مسجلون في النظام</div>
-    </div>
-    <div class="stat-card green">
-      <div class="stat-icon">🛒</div>
-      <div class="stat-label">الطلبات اليوم</div>
-      <div class="stat-value green">${fmtNum(stats.orders_today||0)}</div>
-      <div class="stat-sub">طلب جديد</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon">💰</div>
-      <div class="stat-label">إجمالي الإيرادات</div>
-      <div class="stat-value gold">$${parseFloat(stats.total_revenue||0).toFixed(2)}</div>
-      <div class="stat-sub">منذ البداية</div>
-    </div>
-    <div class="stat-card orange">
-      <div class="stat-icon">📦</div>
-      <div class="stat-label">طلبات نشطة</div>
-      <div class="stat-value" style="color:var(--warning);">${fmtNum(stats.active_orders||0)}</div>
-      <div class="stat-sub">قيد التنفيذ</div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">🛒 آخر الطلبات</div>
-      <button class="btn btn-outline" style="padding:5px 12px;font-size:11px;" onclick="showPage('orders')">عرض الكل</button>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>ID</th><th>الخدمة</th><th>المستخدم</th><th>المبلغ</th><th>الحالة</th><th>إجراء</th></tr></thead>
-        <tbody>${ordersHtml||'<tr><td colspan="6" style="text-align:center;color:var(--text2);padding:24px;">لا توجد طلبات</td></tr>'}</tbody>
-      </table>
-    </div>
-  </div>`;
-}
-
-// ════════════════════════════════════════════
-// USERS — مع شحن رصيد
-// ════════════════════════════════════════════
-async function renderUsers(search=''){
-  const el=document.getElementById('content-area');
-  let rows='';
-  try{
-    const d=await apiGet(`/admin/users?search=${encodeURIComponent(search)}&limit=100`);
-    if(d.ok&&d.users){
-      rows=d.users.map(u=>`
-        <tr>
-          <td>
-            <div class="user-cell">
-              <div class="user-avatar">${(u.username||u.email||'?')[0].toUpperCase()}</div>
-              <div>
-                <div style="font-size:13px;font-weight:700;">${esc(u.username||'—')}</div>
-                <div style="font-size:10px;color:var(--text2);">${esc(u.email||'—')}</div>
-              </div>
-            </div>
-          </td>
-          <td style="font-size:11px;color:var(--text2);direction:ltr;">${esc(u.uid||`WF-${String(u.id).padStart(5,'0')}`)}</td>
-          <td style="color:var(--gold);font-weight:700;">$${parseFloat(u.balance||0).toFixed(2)}</td>
-          <td style="font-size:12px;">${fmtNum(u.orders_count||0)}</td>
-          <td>${u.is_banned?'<span class="badge badge-danger">محظور</span>':'<span class="badge badge-success">نشط</span>'}</td>
-          <td>
-            <button class="btn btn-primary" style="padding:4px 8px;font-size:11px;margin-left:3px;" onclick="promptCharge(${u.id},'${esc(u.username||u.email||'')}',${parseFloat(u.balance||0).toFixed(2)})">💰 شحن</button>
-            <button class="btn btn-outline" style="padding:4px 8px;font-size:11px;" onclick="viewUser(${u.id})">تفاصيل</button>
-          </td>
-        </tr>`).join('');
-    }
-  }catch(e){}
-
-  el.innerHTML=`
-  <div class="page-header">
-    <div><div class="page-title">👥 المستخدمون</div><div class="page-subtitle">إدارة حسابات المستخدمين وشحن الرصيد</div></div>
-    <button class="btn btn-primary" onclick="promptCharge(null,'',0)">💰 شحن رصيد</button>
-  </div>
-  <div class="search-row">
-    <input class="search-inp" placeholder="🔍 بحث بالاسم أو البريد أو المعرف..." id="user-search-inp" value="${esc(search)}" oninput="renderUsers(this.value)"/>
-  </div>
-  <div class="card">
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>المستخدم</th><th>المعرف</th><th>الرصيد</th><th>الطلبات</th><th>الحالة</th><th>إجراء</th></tr></thead>
-        <tbody>${rows||'<tr><td colspan="6" style="text-align:center;color:var(--text2);padding:24px;">لا يوجد مستخدمون</td></tr>'}</tbody>
-      </table>
-    </div>
-  </div>`;
-}
-
-// شحن رصيد — popup مباشر
-function promptCharge(uid, name, currentBal){
-  openModal(`💰 شحن رصيد${name?' — '+name:''}`,`
-    <div style="margin-bottom:14px;">
-      ${uid?`<div style="background:var(--card2);border-radius:10px;padding:12px;margin-bottom:14px;display:flex;justify-content:space-between;font-size:13px;">
-        <span style="color:var(--text2);">الرصيد الحالي</span>
-        <span style="color:var(--gold);font-weight:700;">${parseFloat(currentBal||0).toFixed(0)} د.ع</span>
-      </div>`:''}
-      ${!uid?`<div class="form-grp" style="margin-bottom:12px;">
-        <label>معرف المستخدم أو البريد</label>
-        <input class="form-ctrl" id="charge-uid-input" placeholder="ID أو email"/>
-      </div>`:''}
-      <div class="form-row cols-2">
-        <div class="form-grp">
-          <label>العملية</label>
-          <select class="form-ctrl" id="charge-op" onchange="updateChargePreview(${parseFloat(currentBal||0)})">
-            <option value="add">➕ إضافة رصيد</option>
-            <option value="subtract">➖ خصم رصيد</option>
-            <option value="set">🔄 تعيين رصيد</option>
-          </select>
-        </div>
-        <div class="form-grp">
-          <label>المبلغ (د.ع)</label>
-          <input class="form-ctrl" id="charge-amount" type="number" step="1" min="0" placeholder="0" oninput="updateChargePreview(${parseFloat(currentBal||0)})"/>
-        </div>
-      </div>
-      <div class="form-grp" style="margin-top:10px;">
-        <label>ملاحظة (اختياري)</label>
-        <input class="form-ctrl" id="charge-note" placeholder="سبب الشحن / المعاملة..."/>
-      </div>
-      <div id="charge-preview" style="margin-top:12px;background:var(--card2);border-radius:10px;padding:12px;font-size:13px;display:none;">
-        <div style="display:flex;justify-content:space-between;">
-          <span style="color:var(--text2);">الرصيد بعد العملية</span>
-          <span id="charge-preview-val" style="color:var(--success);font-weight:800;">0 د.ع</span>
-        </div>
-      </div>
-    </div>`,
-    `<button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
-     <button class="btn btn-primary" onclick="doCharge(${uid||'null'})">💰 تنفيذ</button>`
-  );
-}
-
-function updateChargePreview(currentBal){
-  const op=document.getElementById('charge-op')?.value;
-  const amt=parseFloat(document.getElementById('charge-amount')?.value||0);
-  const prev=document.getElementById('charge-preview');
-  const val=document.getElementById('charge-preview-val');
-  if(!prev||!val)return;
-  let result=currentBal;
-  if(op==='add') result=currentBal+amt;
-  else if(op==='subtract') result=Math.max(0,currentBal-amt);
-  else if(op==='set') result=amt;
-  prev.style.display='block';
-  val.textContent=`${Math.round(result)} د.ع`;
-  val.style.color=result>=currentBal?'var(--success)':'var(--warning)';
-}
-
-async function doCharge(uid){
-  let targetUid=uid;
-  if(!targetUid){
-    const inp=document.getElementById('charge-uid-input')?.value?.trim();
-    if(!inp){toast('أدخل معرف المستخدم','error');return;}
-    // Try to find by email or uid string
-    try{
-      const d=await apiGet(`/admin/users?search=${encodeURIComponent(inp)}&limit=1`);
-      if(d.ok&&d.users&&d.users.length>0) targetUid=d.users[0].id;
-      else{toast('المستخدم غير موجود','error');return;}
-    }catch(e){toast('خطأ في البحث','error');return;}
+  // فتح BroadcastChannel
+  if (typeof BroadcastChannel !== 'undefined') {
+    _bc = new BroadcastChannel('wf_admin_panel');
   }
-  const op=document.getElementById('charge-op')?.value||'add';
-  const amount=parseFloat(document.getElementById('charge-amount')?.value||0);
-  const note=document.getElementById('charge-note')?.value||'';
-  if(isNaN(amount)||amount<0){toast('أدخل مبلغاً صحيحاً','error');return;}
-  const d=await apiPost(`/admin/users/${targetUid}/balance`,{amount,operation:op,note}).catch(()=>({error:'network'}));
-  if(d.ok){toast('✅ تم شحن الرصيد بنجاح','success');closeModal();renderUsers();}
-  else toast(d.error||'خطأ في الشحن','error');
-}
+});
 
-async function viewUser(uid){
-  const d=await apiGet(`/admin/users/${uid}`);
-  if(!d.ok){toast('خطأ','error');return;}
-  const u=d.user;
-  openModal(`👤 ${esc(u.username||u.email)}`,`
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;margin-bottom:14px;">
-      <div><div style="color:var(--text2);font-size:10px;margin-bottom:2px;">البريد الإلكتروني</div><div style="font-size:12px;">${esc(u.email||'—')}</div></div>
-      <div><div style="color:var(--text2);font-size:10px;margin-bottom:2px;">الرصيد الحالي</div><div style="color:var(--gold);font-weight:800;font-size:16px;">$${parseFloat(u.balance||0).toFixed(2)}</div></div>
-      <div><div style="color:var(--text2);font-size:10px;margin-bottom:2px;">إجمالي الشحن</div><div>$${parseFloat(u.total_charged||0).toFixed(2)}</div></div>
-      <div><div style="color:var(--text2);font-size:10px;margin-bottom:2px;">إجمالي الإنفاق</div><div>$${parseFloat(u.total_spent||0).toFixed(2)}</div></div>
-      <div><div style="color:var(--text2);font-size:10px;margin-bottom:2px;">عدد الطلبات</div><div>${u.orders_count||0}</div></div>
-      <div><div style="color:var(--text2);font-size:10px;margin-bottom:2px;">تاريخ التسجيل</div><div style="font-size:11px;">${fmtDate(u.joined_at)}</div></div>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-primary" style="flex:1;" onclick="closeModal();promptCharge(${u.id},'${esc(u.username||'')}',${parseFloat(u.balance||0)})">💰 شحن رصيد</button>
-      <button class="btn ${u.is_banned?'btn-success':'btn-danger'}" style="flex:1;" onclick="toggleBan(${u.id},${u.is_banned?1:0})">${u.is_banned?'✅ رفع الحظر':'🚫 حظر'}</button>
-    </div>`,''
-  );
-}
+// ── تسجيل الدخول ──────────────────────────────────────────────
+async function doLogin() {
+  const key = document.getElementById('lp-key').value.trim();
+  if (!key) return;
 
-async function toggleBan(uid,isBanned){
-  const d=await apiPost(`/admin/users/${uid}/${isBanned?'unban':'ban'}`,{});
-  if(d.ok){toast(isBanned?'✅ رُفع الحظر':'🚫 تم حظر المستخدم',isBanned?'success':'error');closeModal();renderUsers();}
-  else toast(d.error||'خطأ','error');
-}
+  const btn = document.querySelector('.btn-login');
+  btn.textContent = '⏳ جاري التحقق...';
+  btn.disabled = true;
 
-// ════════════════════════════════════════════
-// ORDERS
-// ════════════════════════════════════════════
-async function renderOrders(filter='all'){
-  const el=document.getElementById('content-area');
-  let rows='';
-  try{
-    const sp=filter==='all'?'':filter;
-    const d=await apiGet(`/admin/orders?status=${sp}&limit=100`);
-    if(d.ok&&d.orders){
-      rows=d.orders.map(o=>`
-        <tr>
-          <td>#${o.id}</td>
-          <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(o.service_name||'خدمة')}</td>
-          <td style="font-size:10px;color:var(--text2);">${esc((o.user_email||'').split('@')[0]||'—')}</td>
-          <td>${fmtNum(o.quantity||0)}</td>
-          <td style="color:var(--gold);font-weight:700;">$${parseFloat(o.price||0).toFixed(2)}</td>
-          <td>${statusBadge(o.status)}</td>
-          <td><button class="btn btn-outline" style="padding:4px 8px;font-size:11px;" onclick="viewOrder(${o.id})">تفاصيل</button></td>
-        </tr>`).join('');
-    }
-  }catch(e){}
+  try {
+    const res = await fetch(_serverUrl + '/admin/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ admin_key: key })
+    });
+    const data = await res.json();
 
-  const filters=['all','pending','active','completed','cancelled','partial'];
-  const fLabels={all:'الكل',pending:'انتظار',active:'نشيط',completed:'مكتمل',cancelled:'ملغي',partial:'جزئي'};
-  el.innerHTML=`
-  <div class="page-header">
-    <div><div class="page-title">🛒 الطلبات</div></div>
-    <button class="btn btn-primary" onclick="triggerSync()">🔄 تحديث الحالات</button>
-  </div>
-  <div class="filter-pills">${filters.map(f=>`<div class="pill${f===filter?' active':''}" onclick="renderOrders('${f}')">${fLabels[f]}</div>`).join('')}</div>
-  <div class="card">
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>ID</th><th>الخدمة</th><th>المستخدم</th><th>الكمية</th><th>المبلغ</th><th>الحالة</th><th>إجراء</th></tr></thead>
-        <tbody>${rows||'<tr><td colspan="7" style="text-align:center;color:var(--text2);padding:24px;">لا توجد طلبات</td></tr>'}</tbody>
-      </table>
-    </div>
-  </div>`;
-}
-
-async function viewOrder(oid){
-  const d=await apiGet(`/admin/orders/${oid}`);
-  if(!d.ok||!d.order){toast('خطأ','error');return;}
-  const o=d.order;
-  const pct=o.quantity>0?Math.round(((o.quantity-(o.remains||o.quantity))/o.quantity)*100):0;
-  openModal(`🛒 طلب #${o.id}`,`
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;margin-bottom:14px;">
-      <div><div style="color:var(--text2);font-size:10px;">الخدمة</div><div>${esc(o.service_name||'—')}</div></div>
-      <div><div style="color:var(--text2);font-size:10px;">الحالة</div>${statusBadge(o.status)}</div>
-      <div><div style="color:var(--text2);font-size:10px;">الكمية</div><div>${fmtNum(o.quantity)}</div></div>
-      <div><div style="color:var(--text2);font-size:10px;">المتبقي</div><div>${fmtNum(o.remains||0)}</div></div>
-      <div><div style="color:var(--text2);font-size:10px;">المبلغ</div><div style="color:var(--gold);">$${parseFloat(o.price||0).toFixed(3)}</div></div>
-      <div><div style="color:var(--text2);font-size:10px;">معرف المزود</div><div style="font-size:10px;direction:ltr;">${o.provider_order_id||'—'}</div></div>
-    </div>
-    <div style="font-size:10px;color:var(--text2);margin-bottom:3px;">الرابط</div>
-    <div style="font-size:11px;word-break:break-all;color:var(--accent);direction:ltr;margin-bottom:14px;">${esc(o.link||'—')}</div>
-    <div>
-      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px;"><span style="color:var(--text2);">التقدم</span><span>${pct}%</span></div>
-      <div style="background:var(--border);border-radius:4px;height:6px;"><div style="background:var(--gold);height:100%;width:${pct}%;border-radius:4px;"></div></div>
-    </div>`,
-    o.status==='pending'?`<button class="btn btn-outline" onclick="closeModal()">إغلاق</button><button class="btn btn-danger" onclick="adminCancelOrder(${o.id})">❌ إلغاء</button>`:`<button class="btn btn-outline" onclick="closeModal()">إغلاق</button>`
-  );
-}
-
-async function adminCancelOrder(oid){
-  if(!confirm('إلغاء هذا الطلب واسترداد الرصيد؟'))return;
-  const d=await apiPost(`/orders/${oid}/cancel`,{});
-  if(d.ok){toast('✅ تم إلغاء الطلب','success');closeModal();renderOrders();}
-  else toast(d.error||'خطأ','error');
-}
-
-async function triggerSync(){
-  toast('⏳ جاري مزامنة حالات الطلبات...','info');
-  try{
-    const d=await apiGet('/cron/sync');
-    toast(d.ok?'✅ تمت المزامنة':'⚠️ فشل الاتصال',d.ok?'success':'error');
-  }catch(e){toast('❌ خطأ في الاتصال','error');}
-}
-
-// ════════════════════════════════════════════
-// PAYMENTS
-// ════════════════════════════════════════════
-async function renderPayments(filter='pending'){
-  const el=document.getElementById('content-area');
-  let rows='';
-  try{
-    const d=await apiGet(`/admin/payments?status=${filter}&limit=100`);
-    if(d.ok&&d.payments){
-      rows=d.payments.map(p=>`
-        <tr>
-          <td>#${p.id}</td>
-          <td style="font-size:11px;">${esc(p.user_email||'—')}</td>
-          <td style="color:var(--gold);font-weight:700;">$${parseFloat(p.amount||0).toFixed(2)}</td>
-          <td style="font-size:11px;">${esc(p.method||'—')}</td>
-          <td>${statusBadge(p.status)}</td>
-          <td style="font-size:11px;color:var(--text2);">${fmtDate(p.created_at)}</td>
-          <td>${p.status==='pending'?`
-            <button class="btn btn-success" style="padding:4px 8px;font-size:11px;" onclick="approvePayment(${p.id})">✅ قبول</button>
-            <button class="btn btn-danger" style="padding:4px 8px;font-size:11px;margin-right:3px;" onclick="rejectPayment(${p.id})">❌ رفض</button>
-          `:'<span style="font-size:10px;color:var(--muted);">تمت</span>'}</td>
-        </tr>`).join('');
-    }
-  }catch(e){}
-
-  el.innerHTML=`
-  <div class="page-header"><div><div class="page-title">💳 طلبات الشحن</div></div></div>
-  <div class="filter-pills">${['pending','approved','rejected'].map(f=>`<div class="pill${f===filter?' active':''}" onclick="renderPayments('${f}')">${{pending:'قيد الانتظار',approved:'مقبول',rejected:'مرفوض'}[f]}</div>`).join('')}</div>
-  <div class="card">
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>ID</th><th>المستخدم</th><th>المبلغ</th><th>الطريقة</th><th>الحالة</th><th>التاريخ</th><th>إجراء</th></tr></thead>
-        <tbody>${rows||'<tr><td colspan="7" style="text-align:center;color:var(--text2);padding:24px;">لا توجد طلبات</td></tr>'}</tbody>
-      </table>
-    </div>
-  </div>`;
-}
-
-async function approvePayment(pid){
-  const d=await apiPost(`/admin/payments/${pid}/approve`,{});
-  if(d.ok){toast('✅ تم قبول طلب الشحن','success');renderPayments();}
-  else toast(d.error||'خطأ','error');
-}
-async function rejectPayment(pid){
-  const d=await apiPost(`/admin/payments/${pid}/reject`,{});
-  if(d.ok){toast('🚫 تم رفض الطلب','error');renderPayments();}
-  else toast(d.error||'خطأ','error');
-}
-
-// ════════════════════════════════════════════
-// TICKETS
-// ════════════════════════════════════════════
-async function renderTickets(){
-  const el=document.getElementById('content-area');
-  let rows='';
-  try{
-    const d=await apiGet('/admin/tickets?limit=100');
-    if(d.ok&&d.tickets){
-      rows=d.tickets.map(t=>`
-        <tr>
-          <td>#${t.id}</td>
-          <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(t.subject||'—')}</td>
-          <td style="font-size:11px;">${esc(t.user_email||'—')}</td>
-          <td>${ticketStatusBadge(t.status)}</td>
-          <td style="font-size:11px;color:var(--text2);">${fmtDate(t.created_at)}</td>
-          <td><button class="btn btn-outline" style="padding:4px 8px;font-size:11px;" onclick="viewTicket(${t.id})">فتح</button></td>
-        </tr>`).join('');
-    }
-  }catch(e){}
-
-  el.innerHTML=`
-  <div class="page-header"><div><div class="page-title">🎫 تذاكر الدعم</div></div></div>
-  <div class="card">
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>ID</th><th>الموضوع</th><th>المستخدم</th><th>الحالة</th><th>التاريخ</th><th>إجراء</th></tr></thead>
-        <tbody>${rows||'<tr><td colspan="6" style="text-align:center;color:var(--text2);padding:24px;">لا توجد تذاكر</td></tr>'}</tbody>
-      </table>
-    </div>
-  </div>`;
-}
-
-async function viewTicket(tid){
-  const d=await apiGet(`/admin/tickets/${tid}`);
-  if(!d.ok){toast('خطأ','error');return;}
-  const t=d.ticket;
-  const msgs=(t.messages||[]).map(m=>{
-    const isAdmin=m.is_admin||m.sender_type==='admin'||m.sender_type==='support';
-    return `<div style="margin-bottom:10px;display:flex;flex-direction:column;align-items:${isAdmin?'flex-start':'flex-end'};">
-      <div style="max-width:85%;background:${isAdmin?'var(--card2)':'#1a3a5c'};border-radius:${isAdmin?'12px 12px 12px 0':'12px 12px 0 12px'};padding:10px 12px;font-size:12px;">${esc(m.message)}</div>
-      <div style="font-size:10px;color:var(--muted);margin-top:2px;">${isAdmin?'الدعم · ':''} ${fmtDate(m.created_at)}</div>
-    </div>`;
-  }).join('');
-  openModal(`🎫 تذكرة #${t.id}`,`
-    <div style="max-height:280px;overflow-y:auto;margin-bottom:12px;padding-left:4px;">${msgs||'<div style="text-align:center;color:var(--text2);padding:20px;">لا رسائل</div>'}</div>
-    <input class="form-ctrl" id="ticket-reply" placeholder="اكتب ردك هنا..."/>`,
-    `<button class="btn btn-outline" onclick="closeModal()">إغلاق</button>
-     <button class="btn btn-success" onclick="replyTicket(${t.id},true)">✅ رد وإغلاق</button>
-     <button class="btn btn-primary" onclick="replyTicket(${t.id},false)">إرسال</button>`
-  );
-}
-
-async function replyTicket(tid,close){
-  const msg=document.getElementById('ticket-reply')?.value?.trim();
-  if(!msg&&!close){toast('اكتب رسالة','error');return;}
-  const d=await apiPost(`/admin/tickets/${tid}/reply`,{message:msg||'تم الحل',close});
-  if(d.ok){toast(close?'✅ تم إغلاق التذكرة':'✅ تم إرسال الرد',close?'success':'success');if(close){closeModal();renderTickets();}else viewTicket(tid);}
-  else toast(d.error||'خطأ','error');
-}
-
-// ════════════════════════════════════════════
-// SERVICES — مع صفحة المزامنة
-// ════════════════════════════════════════════
-async function renderServices(){
-  const el=document.getElementById('content-area');
-  // Load both local services and provider preview
-  let localSvcs=[];
-  try{const d=await apiGet('/services?lang=ar');if(d.ok&&d.services)localSvcs=d.services;}catch(e){}
-
-  el.innerHTML=`
-  <div class="page-header">
-    <div><div class="page-title">⚙️ الخدمات والمزامنة</div><div class="page-subtitle">إدارة الخدمات ومزامنة الأسعار مع دارك فولو</div></div>
-    <button class="btn btn-primary" onclick="previewSync()">🔁 معاينة المزامنة</button>
-  </div>
-
-  <!-- Sync Preview Panel -->
-  <div class="card" id="sync-panel" style="display:none;">
-    <div class="card-header">
-      <div class="card-title">🔁 معاينة التغييرات من دارك فولو</div>
-      <div style="display:flex;gap:8px;">
-        <button class="btn btn-success" style="padding:5px 12px;font-size:12px;" onclick="confirmSync()">✅ تطبيق المزامنة</button>
-        <button class="btn btn-outline" style="padding:5px 12px;font-size:12px;" onclick="document.getElementById('sync-panel').style.display='none'">إلغاء</button>
-      </div>
-    </div>
-    <div class="card-body" id="sync-preview-body">
-      <div class="loading"><div class="spinner"></div><div>جاري جلب الخدمات من دارك فولو...</div></div>
-    </div>
-  </div>
-
-  <!-- Markup Settings Inline -->
-  <div class="card">
-    <div class="card-header"><div class="card-title">💹 هامش الربح على أسعار دارك فولو</div></div>
-    <div class="card-body">
-      <div class="form-row cols-2">
-        <div class="form-grp">
-          <label>نوع الزيادة</label>
-          <select class="form-ctrl" id="quick-markup-type" onchange="updateMarkupPreview()">
-            <option value="percent">نسبة مئوية %</option>
-            <option value="fixed">مبلغ ثابت $</option>
-          </select>
-        </div>
-        <div class="form-grp">
-          <label>القيمة</label>
-          <input class="form-ctrl" id="quick-markup-value" type="number" step="0.01" min="0" placeholder="مثال: 20 أو 0.5" oninput="updateMarkupPreview()"/>
-        </div>
-      </div>
-      <div id="markup-preview-box" class="markup-preview" style="display:none;">
-        <div class="markup-preview-row"><span style="color:var(--text2);">سعر دارك فولو مثال</span><span id="mp-orig">$1.000</span></div>
-        <div class="markup-preview-row"><span style="color:var(--text2);">الزيادة</span><span id="mp-add" style="color:var(--success);">+$0.000</span></div>
-        <div class="markup-preview-row"><span>سعرك النهائي</span><span id="mp-final">$1.000</span></div>
-      </div>
-      <button class="btn btn-primary" style="margin-top:12px;width:100%;" onclick="saveMarkup()">💾 حفظ هامش الربح</button>
-    </div>
-  </div>
-
-  <!-- Current Services -->
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">📋 الخدمات الحالية (${localSvcs.length})</div>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>ID</th><th>الخدمة</th><th>سعر المزود</th><th>سعرك</th><th>الكمية Min-Max</th></tr></thead>
-        <tbody>${localSvcs.length?localSvcs.slice(0,200).map(s=>`
-          <tr>
-            <td style="font-size:11px;color:var(--text2);">${s.id}</td>
-            <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">${esc(s.name_ar||s.name||'—')}</td>
-            <td style="font-size:11px;color:var(--text2);">$${parseFloat(s.original_rate||s.provider_price||0).toFixed(3)}</td>
-            <td style="color:var(--gold);font-weight:700;">$${parseFloat(s.rate||0).toFixed(3)}</td>
-            <td style="font-size:11px;color:var(--text2);">${fmtNum(s.min||0)} – ${fmtNum(s.max||0)}</td>
-          </tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--text2);padding:24px;">لا توجد خدمات — اضغط معاينة المزامنة</td></tr>'}
-        </tbody>
-      </table>
-    </div>
-  </div>`;
-
-  // Load saved markup values
-  try{
-    const d=await apiGet('/admin/settings');
-    if(d.ok&&d.settings){
-      const t=d.settings.global_markup_type||'percent';
-      const v=d.settings.global_markup_value||0;
-      const sel=document.getElementById('quick-markup-type');
-      if(sel)sel.value=t;
-      const inp=document.getElementById('quick-markup-value');
-      if(inp)inp.value=v;
-      updateMarkupPreview();
-    }
-  }catch(e){}
-}
-
-function updateMarkupPreview(){
-  const type=document.getElementById('quick-markup-type')?.value||'percent';
-  const val=parseFloat(document.getElementById('quick-markup-value')?.value||0);
-  const box=document.getElementById('markup-preview-box');
-  if(!box)return;
-  const orig=1.000;
-  let add=0;
-  if(type==='percent') add=orig*(val/100);
-  else add=val;
-  const final=orig+add;
-  document.getElementById('mp-orig').textContent=`$${orig.toFixed(3)}`;
-  document.getElementById('mp-add').textContent=`+$${add.toFixed(3)}`;
-  document.getElementById('mp-final').textContent=`$${final.toFixed(3)}`;
-  box.style.display='block';
-}
-
-async function saveMarkup(){
-  const type=document.getElementById('quick-markup-type')?.value;
-  const val=document.getElementById('quick-markup-value')?.value;
-  const d=await apiPost('/admin/settings/bulk',{global_markup_type:type,global_markup_value:val}).catch(()=>({error:'network'}));
-  if(d.ok){
-    toast('✅ تم حفظ هامش الربح','success');
-    // Trigger re-price
-    apiPost('/admin/services/reprice',{markup_type:type,markup_value:parseFloat(val)}).catch(()=>{});
-  }else toast(d.error||'خطأ','error');
-}
-
-let _syncPreviewData=null;
-async function previewSync(){
-  document.getElementById('sync-panel').style.display='block';
-  document.getElementById('sync-preview-body').innerHTML='<div class="loading"><div class="spinner"></div><div>جاري جلب الخدمات من دارك فولو...</div></div>';
-  document.getElementById('sync-panel').scrollIntoView({behavior:'smooth'});
-  try{
-    // Get provider services list
-    const d=await apiGet('/admin/providers/1/services');
-    if(!d.services||!d.services.length){
-      document.getElementById('sync-preview-body').innerHTML='<div style="text-align:center;color:var(--text2);padding:24px;">لا توجد خدمات من المزود أو فشل الاتصال</div>';
+    if (!data.ok) {
+      document.getElementById('login-err').style.display = 'block';
+      btn.textContent = 'دخول 🚀';
+      btn.disabled = false;
       return;
     }
-    // Get local services to compare
-    const local=await apiGet('/services?lang=ar');
-    const localIds=new Set((local.services||[]).map(s=>String(s.provider_service_id)));
-    const provSvcs=d.services;
-    _syncPreviewData=provSvcs;
+  } catch(e) {
+    // إذا فشل الاتصال، اقبل المفتاح مؤقتاً (offline mode)
+    console.warn('[Panel] لا اتصال بالسيرفر — وضع غير متصل');
+  }
 
-    const newSvcs=provSvcs.filter(s=>!localIds.has(String(s.service||s.id)));
-    const updateSvcs=provSvcs.filter(s=>localIds.has(String(s.service||s.id)));
+  _adminKey = key;
+  sessionStorage.setItem('wf_panel_key', key);
+  btn.textContent = 'دخول 🚀';
+  btn.disabled = false;
+  showDashboard();
+}
 
-    let html=`
-      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
-        <span class="badge badge-success">🆕 جديدة: ${newSvcs.length}</span>
-        <span class="badge badge-info">🔄 تحديث: ${updateSvcs.length}</span>
-        <span class="badge badge-muted">📊 إجمالي: ${provSvcs.length}</span>
-      </div>`;
+// ── إخفاء login وإظهار Dashboard ──────────────────────────────
+function showDashboard() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
 
-    if(newSvcs.length>0){
-      html+=`<div style="font-size:12px;font-weight:700;color:var(--success);margin-bottom:8px;">🆕 خدمات جديدة (${newSvcs.length})</div>`;
-      html+=newSvcs.slice(0,30).map(s=>`
-        <div class="sync-service-row">
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.name||'—')}</div>
-            <div style="font-size:10px;color:var(--text2);">ID: ${s.service||s.id} | ${s.type||'—'}</div>
-          </div>
-          <div style="text-align:left;margin-right:8px;">
-            <div style="color:var(--gold);font-weight:700;font-size:12px;">$${parseFloat(s.rate||0).toFixed(3)}/1000</div>
-            <div style="font-size:10px;color:var(--text2);">${fmtNum(s.min||0)}–${fmtNum(s.max||0)}</div>
-          </div>
-          <span class="sync-badge-new">جديد</span>
-        </div>`).join('');
-      if(newSvcs.length>30) html+=`<div style="text-align:center;font-size:11px;color:var(--text2);padding:8px;">... و${newSvcs.length-30} خدمة أخرى</div>`;
-    }
+  // تحميل البيانات الأولية
+  fetchDFBalance();
+  loadUsersStats();
+  loadCurrentMarkup();
 
-    if(updateSvcs.length>0){
-      html+=`<div style="font-size:12px;font-weight:700;color:var(--gold);margin:12px 0 8px;">🔄 تحديث الأسعار (${updateSvcs.length})</div>`;
-      html+=updateSvcs.slice(0,15).map(s=>`
-        <div class="sync-service-row">
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.name||'—')}</div>
-          </div>
-          <div style="color:var(--gold);font-size:12px;font-weight:700;">$${parseFloat(s.rate||0).toFixed(3)}</div>
-          <span class="sync-badge-update" style="margin-right:8px;">تحديث</span>
-        </div>`).join('');
-    }
+  // تحديث حالة البوت
+  document.getElementById('bot-url-display').textContent = _serverUrl;
 
-    document.getElementById('sync-preview-body').innerHTML=html;
-  }catch(e){
-    document.getElementById('sync-preview-body').innerHTML=`<div style="text-align:center;color:var(--danger);padding:24px;">❌ فشل الاتصال بالمزود<br><span style="font-size:11px;color:var(--text2);">تأكد من إعدادات API دارك فولو</span></div>`;
+  // إرسال جلسة الأدمن للبوت المفتوح
+  _pushCmd({ action: 'admin_login', key: _adminKey });
+  localStorage.setItem('wf_panel_admin_active', '1');
+}
+
+// ── تسجيل الخروج ──────────────────────────────────────────────
+function doLogout() {
+  if (!confirm('تأكيد تسجيل الخروج؟')) return;
+  _adminKey = '';
+  sessionStorage.removeItem('wf_panel_key');
+  localStorage.removeItem('wf_panel_admin_active');
+  _pushCmd({ action: 'admin_logout' });
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('lp-key').value = '';
+}
+
+// ── إرسال أمر للبوت ───────────────────────────────────────────
+function _pushCmd(cmd) {
+  // BroadcastChannel (نفس المتصفح — سريع)
+  if (_bc) { try { _bc.postMessage(cmd); } catch(_) {} }
+  // localStorage event (تابات مختلفة)
+  try {
+    localStorage.setItem('wf_panel_cmd', JSON.stringify(cmd));
+    // مسح فوراً حتى يُطلق event مجدداً في المرة القادمة
+    setTimeout(() => localStorage.removeItem('wf_panel_cmd'), 500);
+  } catch(_) {}
+}
+
+function pushToBot(action) {
+  _pushCmd({ action });
+  showAlert('bot-alert', '✅ تم إرسال الأمر للبوت', 'success');
+  showAlert('quick-alert', '✅ تم إرسال أمر ' + action + ' للبوت', 'success');
+}
+
+// ── تبويبات ───────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    const tabs = ['overview','balance','users','topup','settings'];
+    b.classList.toggle('active', tabs[i] === name);
+  });
+  document.querySelectorAll('.tab-pane').forEach(p => {
+    p.classList.toggle('active', p.id === 'tab-' + name);
+  });
+
+  // تحميل بيانات المستخدمين عند الانتقال لتبويبهم
+  if (name === 'users') loadUsers();
+}
+
+// ── جلب رصيد دارك فولو ────────────────────────────────────────
+async function fetchDFBalance() {
+  const els = [
+    document.getElementById('df-balance-val'),
+    document.getElementById('stat-df-balance')
+  ];
+  els.forEach(e => { if(e) e.textContent = '⏳'; });
+
+  try {
+    const res = await fetch(_serverUrl + '/admin/darkfollow-balance', {
+      headers: { 'X-Admin-Key': _adminKey }
+    });
+    const data = await res.json();
+    const val = typeof data.balance !== 'undefined'
+      ? parseFloat(data.balance).toFixed(2) + ' $'
+      : '⚠️ ' + (data.error || 'تعذر الجلب');
+    els.forEach(e => { if(e) e.textContent = val; });
+  } catch(e) {
+    els.forEach(el => { if(el) el.textContent = '⚠️ تحقق من الاتصال'; });
   }
 }
 
-async function confirmSync(){
-  toast('⏳ جاري تطبيق المزامنة...','info');
-  try{
-    const d=await apiGet('/cron/sync');
-    if(d.ok){
-      toast('✅ تمت المزامنة بنجاح','success');
-      document.getElementById('sync-panel').style.display='none';
-      renderServices();
-    }else toast('⚠️ فشلت المزامنة','error');
-  }catch(e){toast('❌ خطأ في الاتصال','error');}
+// ── جلب هامش الربح الحالي ─────────────────────────────────────
+async function loadCurrentMarkup() {
+  try {
+    const res = await fetch(_serverUrl + '/admin/markup', {
+      headers: { 'X-Admin-Key': _adminKey }
+    });
+    const data = await res.json();
+    const val = parseFloat(data.markup ?? 1);
+    document.getElementById('markup-current-val').textContent = '$' + val.toFixed(2);
+    document.getElementById('markup-input').value = val.toFixed(2);
+    document.getElementById('stat-markup').textContent = '$' + val.toFixed(2);
+  } catch(e) {
+    document.getElementById('markup-current-val').textContent = '⚠️ تعذر الجلب';
+  }
 }
 
-// ════════════════════════════════════════════
-// SETTINGS — مع رابط السيرفر ورصيد الموقع
-// ════════════════════════════════════════════
-async function renderSettings(){
-  const el=document.getElementById('content-area');
-  let settings={};
-  try{const d=await apiGet('/admin/settings');if(d.ok)settings=d.settings||{};}catch(e){}
+// ── حفظ هامش الربح ────────────────────────────────────────────
+async function saveMarkup() {
+  const val = parseFloat(document.getElementById('markup-input').value);
+  if (isNaN(val) || val < 0) {
+    showAlert('markup-alert', '❌ أدخل قيمة صحيحة (≥ 0)', 'error'); return;
+  }
 
-  // Site balance = sum of all users balances
-  let siteBalance='—';
-  try{
-    const d=await apiGet('/admin/stats');
-    if(d.ok&&d.stats) siteBalance=`$${parseFloat(d.stats.total_user_balance||0).toFixed(2)}`;
-  }catch(e){}
+  showAlert('markup-alert', '⏳ جاري الحفظ...', 'info');
 
-  el.innerHTML=`
-  <div class="page-header">
-    <div><div class="page-title">🔧 الإعدادات</div></div>
-    <button class="btn btn-primary" onclick="saveSettings()">💾 حفظ الكل</button>
-  </div>
+  try {
+    const res = await fetch(_serverUrl + '/admin/markup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': _adminKey },
+      body: JSON.stringify({ markup: val })
+    });
+    if (!res.ok) throw new Error('server error');
+  } catch(e) {
+    showAlert('markup-alert', '⚠️ تعذر الحفظ في السيرفر — تم الإرسال للبوت فقط', 'error');
+  }
 
-  <!-- Site & Provider Balance -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-    <div class="stat-card">
-      <div class="stat-icon">🌐</div>
-      <div class="stat-label">رصيد الموقع (مجموع أرصدة العملاء)</div>
-      <div class="stat-value gold" id="site-balance-display">${siteBalance}</div>
-      <div class="stat-sub">مجموع ما في محافظ المستخدمين</div>
-    </div>
-    <div class="stat-card green">
-      <div class="stat-icon">🤖</div>
-      <div class="stat-label">رصيد دارك فولو</div>
-      <div class="stat-value green" id="prov-balance-settings">جاري...</div>
-      <div class="stat-sub">رصيدك عند المزود</div>
-      <button class="btn btn-outline" style="padding:4px 10px;font-size:11px;margin-top:8px;" onclick="refreshProvBalance()">🔄 تحديث</button>
-    </div>
-  </div>
+  // إرسال للبوت مباشرة
+  _pushCmd({ action: 'set_markup', markup: val });
 
-  <!-- Server URL -->
-  <div class="card">
-    <div class="card-header"><div class="card-title">🔗 رابط السيرفر (Railway)</div></div>
-    <div class="card-body">
-      <div class="server-card">
-        <div class="server-card-title">🤖 الرابط المرتبط حالياً</div>
-        <div class="server-url-display" id="current-server-url">${settings.webapp_url||window.location.origin}</div>
-      </div>
-      <div class="form-grp">
-        <label>رابط السيرفر / تطبيق الويب</label>
-        <input class="form-ctrl" id="s-webapp-url" value="${esc(settings.webapp_url||window.location.origin)}" placeholder="https://your-app.railway.app" dir="ltr"/>
-      </div>
-      <button class="btn btn-primary" style="margin-top:10px;width:100%;" onclick="saveServerUrl()">💾 حفظ الرابط</button>
-    </div>
-  </div>
-
-  <!-- API Provider -->
-  <div class="card">
-    <div class="card-header"><div class="card-title">🌐 إعدادات دارك فولو API</div></div>
-    <div class="card-body">
-      <div class="form-row">
-        <div class="form-grp">
-          <label>رابط API المزود</label>
-          <input class="form-ctrl" id="s-api-url" value="${esc(settings.provider_api_url||'')}" placeholder="https://darkfollow.com/api/v2" dir="ltr"/>
-        </div>
-        <div class="form-grp">
-          <label>مفتاح API</label>
-          <input class="form-ctrl" id="s-api-key" value="${esc(settings.provider_api_key||'')}" placeholder="API Key..." dir="ltr" type="password"/>
-        </div>
-      </div>
-      <button class="btn btn-blue" style="margin-top:10px;width:100%;" onclick="testProviderConnection()">🔌 فحص الاتصال بدارك فولو</button>
-      <div id="conn-result" style="margin-top:8px;font-size:12px;text-align:center;display:none;"></div>
-    </div>
-  </div>
-
-  <!-- Telegram -->
-  <div class="card">
-    <div class="card-header"><div class="card-title">📱 إعدادات تيليجرام</div></div>
-    <div class="card-body">
-      <div class="form-row cols-2">
-        <div class="form-grp">
-          <label>معرف قناة الإشعارات</label>
-          <input class="form-ctrl" id="s-chat-id" value="${esc(settings.telegram_chat_id||'')}" placeholder="-100..." dir="ltr"/>
-        </div>
-        <div class="form-grp">
-          <label>رمز الدخول لوحة التحكم</label>
-          <input class="form-ctrl" id="s-admin-pin" type="password" value="" placeholder="تغيير الرمز الحالي..."/>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Payment -->
-  <div class="card">
-    <div class="card-header"><div class="card-title">💳 إعدادات الدفع</div></div>
-    <div class="card-body">
-      <div class="form-row">
-        <div class="form-grp">
-          <label>عنوان USDT (TRC20)</label>
-          <input class="form-ctrl" id="s-usdt" value="${esc(settings.usdt_address||'')}" placeholder="TRC20 address..." dir="ltr"/>
-        </div>
-        <div class="form-grp">
-          <label>تعليمات الدفع للعملاء</label>
-          <textarea class="form-ctrl" id="s-pay-note" rows="3">${esc(settings.payment_note||'')}</textarea>
-        </div>
-      </div>
-    </div>
-  </div>`;
-
-  // Load provider balance in settings
-  refreshProvBalance();
+  document.getElementById('markup-current-val').textContent = '$' + val.toFixed(2);
+  document.getElementById('stat-markup').textContent = '$' + val.toFixed(2);
+  showAlert('markup-alert', '✅ تم حفظ هامش الربح: $' + val.toFixed(2), 'success');
 }
 
-async function refreshProvBalance(){
-  const el=document.getElementById('prov-balance-settings');
-  if(!el)return;
-  el.textContent='جاري...';
-  try{
-    const d=await apiGet('/admin/providers/balances');
-    if(d.ok&&d.balances&&d.balances.length>0){
-      const b=d.balances[0];
-      el.textContent=`$${parseFloat(b.balance||0).toFixed(2)}`;
-      // Also update sidebar
-      document.getElementById('provider-bal').textContent=`$${parseFloat(b.balance||0).toFixed(2)}`;
-    }else el.textContent='—';
-  }catch(e){el.textContent='—';}
+// ── تحميل المستخدمين من السيرفر ───────────────────────────────
+async function loadUsers() {
+  const tbody = document.getElementById('users-tbody');
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;"><span class="spinner"></span> جاري التحميل...</td></tr>';
+
+  try {
+    const res = await fetch(_serverUrl + '/admin/users', {
+      headers: { 'X-Admin-Key': _adminKey }
+    });
+    const data = await res.json();
+    const users = data.users || data || [];
+
+    if (!Array.isArray(users) || users.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;">لا يوجد مستخدمون بعد</td></tr>';
+      return;
+    }
+
+    _usersCache = {};
+    users.forEach(u => { if (u.uid) _usersCache[u.uid] = u; });
+
+    renderUsersTable(users);
+    loadUsersStats(users);
+
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#ff6677;padding:30px;">⚠️ تعذر تحميل المستخدمين من السيرفر</td></tr>';
+  }
 }
 
-async function saveServerUrl(){
-  const url=document.getElementById('s-webapp-url')?.value?.trim();
-  const d=await apiPost('/admin/settings/bulk',{webapp_url:url}).catch(()=>({error:'network'}));
-  if(d.ok){
-    toast('✅ تم حفظ الرابط','success');
-    document.getElementById('current-server-url').textContent=url;
-  }else toast(d.error||'خطأ','error');
+function loadUsersStats(users) {
+  users = users || Object.values(_usersCache);
+  document.getElementById('stat-users').textContent = users.length;
+  const totalBal = users.reduce((s,u) => s + (u.balance||0), 0);
+  document.getElementById('stat-total-bal').textContent = totalBal.toFixed(0);
 }
 
-async function testProviderConnection(){
-  const url=document.getElementById('s-api-url')?.value?.trim();
-  const key=document.getElementById('s-api-key')?.value?.trim();
-  const res=document.getElementById('conn-result');
-  if(!url||!key){toast('أدخل رابط API والمفتاح','error');return;}
-  res.style.display='block';
-  res.innerHTML='<span style="color:var(--text2);">⏳ جاري الفحص...</span>';
-  // Save first then test
-  await apiPost('/admin/settings/bulk',{provider_api_url:url,provider_api_key:key}).catch(()=>{});
-  try{
-    const d=await apiGet('/admin/providers/balances');
-    if(d.ok&&d.balances&&d.balances.length>0){
-      res.innerHTML=`<span style="color:var(--success);">✅ متصل — الرصيد: $${parseFloat(d.balances[0].balance||0).toFixed(2)}</span>`;
-    }else res.innerHTML='<span style="color:var(--warning);">⚠️ تم الحفظ لكن لم يتم التحقق من الرصيد</span>';
-  }catch(e){res.innerHTML='<span style="color:var(--danger);">❌ فشل الاتصال — تأكد من الرابط والمفتاح</span>';}
+function renderUsersTable(users) {
+  const tbody = document.getElementById('users-tbody');
+  if (!users || users.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;">لا يوجد مستخدمون</td></tr>';
+    return;
+  }
+  tbody.innerHTML = users.map(u => `
+    <tr>
+      <td class="uid-cell">${esc(u.uid)}</td>
+      <td style="font-size:12px;">${esc(u.email||'—')}</td>
+      <td><span class="balance-badge">${(u.balance||0).toFixed(2)}</span></td>
+      <td style="color:var(--muted);font-size:12px;">${(u.totalCharged||0).toFixed(2)}</td>
+      <td style="color:#ff6677;font-size:12px;">${(u.totalSpent||0).toFixed(2)}</td>
+      <td style="color:var(--muted);font-size:12px;">${u.orders||0}</td>
+      <td>
+        <button class="inline-btn ib-charge" onclick="quickCharge('${esc(u.uid)}')">+ شحن</button>
+        <button class="inline-btn ib-deduct" onclick="quickDeduct('${esc(u.uid)}')">− خصم</button>
+      </td>
+    </tr>
+  `).join('');
 }
 
-async function saveSettings(){
-  const body={
-    webapp_url:document.getElementById('s-webapp-url')?.value,
-    provider_api_url:document.getElementById('s-api-url')?.value,
-    telegram_chat_id:document.getElementById('s-chat-id')?.value,
-    usdt_address:document.getElementById('s-usdt')?.value,
-    payment_note:document.getElementById('s-pay-note')?.value,
-  };
-  const pin=document.getElementById('s-admin-pin')?.value;
-  if(pin&&pin.length>=4) body.admin_pin=pin;
-  const d=await apiPost('/admin/settings/bulk',body).catch(()=>({error:'network'}));
-  if(d.ok) toast('✅ تم حفظ جميع الإعدادات','success');
-  else toast(d.error||'خطأ','error');
+function filterUsersTable() {
+  const q = (document.getElementById('users-search').value || '').toLowerCase();
+  const users = Object.values(_usersCache).filter(u =>
+    !q || u.uid.toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q)
+  );
+  renderUsersTable(users);
 }
 
-// ─── Helpers ───
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function fmtNum(n){return Number(n||0).toLocaleString('ar-EG');}
-function fmtDate(dt){
-  if(!dt)return '—';
-  try{const d=new Date(dt);return d.toLocaleDateString('ar',{month:'short',day:'numeric'});}
-  catch{return String(dt).substring(0,10);}
-}
-function statusBadge(s){
-  const m={pending:'badge-warning انتظار',active:'badge-info نشيط',completed:'badge-success مكتمل',cancelled:'badge-danger ملغي',partial:'badge-warning جزئي'};
-  const[cls,lbl]=(m[s]||`badge-muted ${s||'—'}`).split(' ');
-  return `<span class="badge ${cls}">${lbl||s}</span>`;
-}
-function ticketStatusBadge(s){
-  const m={open:'badge-warning مفتوح',answered:'badge-info مجاب',closed:'badge-muted مغلق'};
-  const[cls,lbl]=(m[s]||`badge-muted ${s}`).split(' ');
-  return `<span class="badge ${cls}">${lbl||s}</span>`;
+// ── شحن/خصم سريع من جدول المستخدمين ──────────────────────────
+async function quickCharge(uid) {
+  const amount = parseFloat(prompt('مبلغ الشحن (د.ع):'));
+  if (isNaN(amount) || amount <= 0) return;
+  await _modifyBalance(uid, amount, 'charge');
 }
 
-// ─── Init ───
-window.onload=()=>{
-  if(sessionStorage.getItem(ADMIN_PIN_KEY)==='1'){enterAdmin();}
-};
+async function quickDeduct(uid) {
+  const amount = parseFloat(prompt('مبلغ الخصم (د.ع):'));
+  if (isNaN(amount) || amount <= 0) return;
+  await _modifyBalance(uid, -amount, 'deduct');
+}
+
+async function _modifyBalance(uid, amount, type) {
+  try {
+    const res = await fetch(_serverUrl + '/user/balance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': _adminKey },
+      body: JSON.stringify({ uid, amount })
+    });
+    if (!res.ok) throw new Error('server error');
+  } catch(e) {}
+
+  // إرسال أمر مباشر للبوت
+  _pushCmd({ action: 'topup_user', uid, amount });
+
+  if (_usersCache[uid]) {
+    _usersCache[uid].balance = Math.max(0, (_usersCache[uid].balance||0) + amount);
+    if (amount > 0) _usersCache[uid].totalCharged = (_usersCache[uid].totalCharged||0) + amount;
+  }
+
+  renderUsersTable(Object.values(_usersCache));
+  showAlert('users-alert', (type==='charge'?'✅ تم شحن ':'✅ تم خصم ') + Math.abs(amount).toFixed(2) + ' د.ع', 'success');
+}
+
+// ── البحث عن مستخدم في تعبئة الرصيد ──────────────────────────
+async function searchTopupUser() {
+  const uid = (document.getElementById('topup-uid').value || '').trim();
+  if (!uid) return;
+
+  _topupFoundUid = null;
+  document.getElementById('topup-user-card').style.display = 'none';
+  document.getElementById('topup-not-found').style.display = 'none';
+
+  try {
+    const res = await fetch(_serverUrl + '/user/find?uid=' + encodeURIComponent(uid), {
+      headers: { 'X-Admin-Key': _adminKey }
+    });
+    const data = await res.json();
+
+    if (data && data.uid) {
+      _topupFoundUid = data.uid;
+      document.getElementById('topup-found-email').textContent   = data.email || data.uid;
+      document.getElementById('topup-found-balance').textContent = (data.balance||0).toFixed(2) + ' د.ع';
+      document.getElementById('topup-user-card').style.display   = 'block';
+    } else {
+      document.getElementById('topup-not-found').style.display = 'block';
+    }
+  } catch(e) {
+    document.getElementById('topup-not-found').style.display = 'block';
+  }
+}
+
+async function executeTopup() {
+  if (!_topupFoundUid) { showAlert('topup-alert','❌ اختر مستخدماً أولاً','error'); return; }
+  const amount = parseFloat(document.getElementById('topup-amount').value);
+  if (!amount || amount <= 0) { showAlert('topup-alert','❌ أدخل مبلغاً صحيحاً','error'); return; }
+
+  showAlert('topup-alert','⏳ جاري الإرسال...','info');
+
+  try {
+    await fetch(_serverUrl + '/user/balance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': _adminKey },
+      body: JSON.stringify({ uid: _topupFoundUid, amount })
+    });
+  } catch(e) {}
+
+  _pushCmd({ action: 'topup_user', uid: _topupFoundUid, amount });
+
+  const newBal = parseFloat((document.getElementById('topup-found-balance').textContent||'0')) + amount;
+  document.getElementById('topup-found-balance').textContent = newBal.toFixed(2) + ' د.ع';
+  document.getElementById('topup-amount').value = '';
+  showAlert('topup-alert', `✅ تمت تعبئة ${amount.toFixed(2)} د.ع بنجاح`, 'success');
+}
+
+// ── ربط جلسة الأدمن بالبوت ────────────────────────────────────
+function connectBotSession() {
+  _pushCmd({ action: 'admin_login', key: _adminKey });
+  localStorage.setItem('wf_panel_admin_active', '1');
+  showAlert('bot-alert', '✅ تم إرسال جلسة الأدمن للبوت — افتح البوت ليتطبق', 'success');
+}
+
+// ── حفظ رابط السيرفر ──────────────────────────────────────────
+function saveServerUrl() {
+  const url = (document.getElementById('server-url-input').value || '').trim();
+  if (!url.startsWith('http')) {
+    showAlert('url-alert','❌ رابط غير صحيح','error'); return;
+  }
+  _serverUrl = url;
+  localStorage.setItem('wf_panel_server', url);
+  document.getElementById('bot-url-display').textContent = url;
+  showAlert('url-alert','✅ تم حفظ الرابط','success');
+  pingServer();
+}
+
+// ── فحص الاتصال ───────────────────────────────────────────────
+async function pingServer() {
+  document.getElementById('conn-status').textContent = 'جاري الفحص...';
+  try {
+    const res = await fetch(_serverUrl + '/health', { signal: AbortSignal.timeout(5000) });
+    document.getElementById('conn-status').textContent = res.ok ? 'متصل ✅' : 'خطأ في السيرفر';
+  } catch(e) {
+    document.getElementById('conn-status').textContent = 'غير متصل ⚠️';
+  }
+}
+
+// ── مسح الكاش ─────────────────────────────────────────────────
+function clearAllCache() {
+  if (!confirm('هل أنت متأكد؟ سيتم مسح بيانات الكاش المحلي للوحة فقط.')) return;
+  const key = sessionStorage.getItem('wf_panel_key');
+  localStorage.removeItem('wf_panel_server');
+  localStorage.removeItem('wf_panel_cmd');
+  sessionStorage.clear();
+  if (key) sessionStorage.setItem('wf_panel_key', key);
+  alert('✅ تم مسح الكاش');
+}
+
+// ── إحصائيات عند التشغيل ──────────────────────────────────────
+function loadUsersStats(users) {
+  if (!users) users = Object.values(_usersCache);
+  document.getElementById('stat-users').textContent = users.length;
+  const tb = users.reduce((s,u) => s+(u.balance||0),0);
+  document.getElementById('stat-total-bal').textContent = tb.toFixed(0);
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function esc(str) {
+  return String(str||'')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function showAlert(id, msg, type) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'alert ' + type;
+  el.style.display = 'block';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.display='none'; }, 4000);
+}
 </script>
 </body>
 </html>
