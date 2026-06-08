@@ -1790,6 +1790,90 @@ def admin_reprice_services():
         db.commit()
     return jsonify({"ok": True, "updated": updated})
 
+
+# ─────────────────────────────────────────────
+# ADMIN — مزامنة الخدمات (لوحة التحكم)
+# ─────────────────────────────────────────────
+
+@app.route("/admin/sync-prices", methods=["POST"])
+@require_admin
+def admin_sync_prices():
+    """يجيب أحدث أسعار من دارك فولو ويحدث final_price مع الربح"""
+    with get_db() as db:
+        providers = db.execute("SELECT * FROM providers WHERE is_active=1").fetchall()
+    if not providers:
+        return jsonify({"error": "لا يوجد provider مفعل"}), 404
+    total_updated = 0
+    errors = []
+    for p in providers:
+        try:
+            api_url = p["api_url"]
+            api_key = p["api_key"]
+            if "darkfollow" in api_url.lower():
+                base_url = api_url.rstrip("/").split("?")[0]
+                url = f"{base_url}?action=services&key={api_key}"
+                resp = requests.get(url, timeout=20)
+            else:
+                resp = requests.post(api_url, data={"key": api_key, "action": "services"}, timeout=20)
+            remote_list = resp.json()
+            if not isinstance(remote_list, list):
+                errors.append(f"Provider #{p['id']}: استجابة غير صالحة")
+                continue
+            provider_svcs = {str(s.get("service", s.get("id", ""))): s for s in remote_list}
+            with get_db() as db:
+                svcs = db.execute("SELECT * FROM services WHERE provider_id=?", (p["id"],)).fetchall()
+                updated = 0
+                for svc in svcs:
+                    ps = provider_svcs.get(str(svc["provider_service_id"]))
+                    if ps:
+                        new_price = float(ps.get("rate", ps.get("price", svc["provider_price"])))
+                        new_final = calc_price(new_price, svc["markup_type"], svc["markup_value"])
+                        db.execute(
+                            "UPDATE services SET provider_price=?, final_price=?, updated_at=datetime('now') WHERE id=?",
+                            (new_price, new_final, svc["id"])
+                        )
+                        updated += 1
+                db.commit()
+                total_updated += updated
+        except Exception as e:
+            errors.append(f"Provider #{p['id']}: {str(e)}")
+    return jsonify({"ok": True, "updated": total_updated, "errors": errors})
+
+
+@app.route("/admin/sync-catalog", methods=["POST"])
+@require_admin
+def admin_sync_catalog():
+    """يجلب كل خدمات دارك فولو ويضيف الجديدة بقاعدة البيانات"""
+    import threading
+    threading.Thread(target=_sync_provider_catalog, daemon=True).start()
+    # انتظر ثانية وارجع نتيجة أولية
+    import time; time.sleep(2)
+    with get_db() as db:
+        total = db.execute("SELECT COUNT(*) as c FROM services").fetchone()["c"]
+        linked = db.execute("SELECT COUNT(*) as c FROM services WHERE provider_service_id IS NOT NULL AND provider_service_id != ''").fetchone()["c"]
+    return jsonify({"ok": True, "message": "بدأت المزامنة في الخلفية", "updated": linked, "added": total})
+
+
+@app.route("/admin/services-status", methods=["GET"])
+@require_admin
+def admin_services_status():
+    """إحصائيات الخدمات"""
+    with get_db() as db:
+        total   = db.execute("SELECT COUNT(*) as c FROM services").fetchone()["c"]
+        active  = db.execute("SELECT COUNT(*) as c FROM services WHERE is_active=1").fetchone()["c"]
+        linked  = db.execute("SELECT COUNT(*) as c FROM services WHERE provider_service_id IS NOT NULL AND provider_service_id != ''").fetchone()["c"]
+        unlinked = total - linked
+        last_sync_row = db.execute("SELECT MAX(updated_at) as t FROM services WHERE provider_service_id IS NOT NULL").fetchone()
+        last_sync = last_sync_row["t"] if last_sync_row else None
+    return jsonify({
+        "ok": True,
+        "total": total,
+        "active": active,
+        "linked": linked,
+        "unlinked": unlinked,
+        "last_sync": last_sync
+    })
+
 # ─────────────────────────────────────────────
 # ADMIN — Payments
 # ─────────────────────────────────────────────
