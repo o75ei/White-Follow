@@ -2494,13 +2494,17 @@ def admin_user_find_compat():
             """SELECT uid, email, username, telegram_id, balance,
                       total_charged, total_spent, orders_count,
                       is_banned, joined_at
-               FROM users WHERE uid=? OR email=? OR telegram_id=?
+               FROM users WHERE uid=? OR email=? OR telegram_id=? OR username=?
                LIMIT 1""",
-            (uid, uid, uid)
+            (uid, uid, uid, uid)
         ).fetchone()
     if not user:
         return jsonify({}), 404
-    return jsonify(dict(user))
+    u = dict(user)
+    # تأكد إن uid موجود — fallback للـ username لو uid فارغ
+    if not u.get('uid') and u.get('username'):
+        u['uid'] = u['username']
+    return jsonify(u)
 
 
 # ─────────────────────────────────────────────
