@@ -2842,53 +2842,69 @@ def cron_sync():
 # Startup
 # ─────────────────────────────────────────────
 def _startup():
+    # ── DB init (non-fatal: app must start even if DB is temporarily unreachable) ──
     try:
         init_db()
         log.info("[startup] Database initialized OK")
     except Exception as e:
-        log.error(f"[startup] DB init failed (will retry on next request): {e}")
+        log.error(f"[startup] DB init failed — will retry lazily: {e}")
+
+    # ── Telegram commands ──
     if TELEGRAM_BOT_TOKEN:
-        threading.Thread(target=lambda: tg("setMyCommands", {"commands": [
-            {"command": "start", "description": "فتح التطبيق"},
-            {"command": "balance", "description": "عرض رصيدي"},
-            {"command": "orders", "description": "آخر 5 طلبات"},
-            {"command": "support", "description": "الدعم الفني"}
-        ]}), daemon=True).start()
+        try:
+            threading.Thread(target=lambda: tg("setMyCommands", {"commands": [
+                {"command": "start",   "description": "فتح التطبيق"},
+                {"command": "balance", "description": "عرض رصيدي"},
+                {"command": "orders",  "description": "آخر 5 طلبات"},
+                {"command": "support", "description": "الدعم الفني"}
+            ]}), daemon=True).start()
+        except Exception as e:
+            log.error(f"[startup] TG setMyCommands failed: {e}")
+
+    # ── Background cron ──
     threading.Thread(target=_cron_loop, daemon=True).start()
-    # Auto-register Dark Follow provider from env vars
+
+    # ── Auto-register Dark Follow provider ──
     if DARKFOLLOW_API_KEY:
-        # Strip query params — store only base URL
-        clean_url = DARKFOLLOW_API_URL.rstrip("/").split("?")[0]
-        with get_db() as db:
-            existing = db.execute(
-                "SELECT id FROM providers WHERE api_url=%s", (clean_url,)
-            ).fetchone()
-            if not existing:
-                # Also check old URL with query params in case of migration
-                existing = db.execute(
-                    "SELECT id FROM providers WHERE api_url LIKE %s", (f"{clean_url}%",)
-                ).fetchone()
-            if not existing:
-                db.execute(
-                    "INSERT INTO providers (name, api_url, api_key, is_active) VALUES (%s,%s,%s,1)",
-                    ("Dark Follow", clean_url, DARKFOLLOW_API_KEY)
-                )
-                db.commit()
-                log.info("✅ Dark Follow provider auto-registered")
-            else:
-                # Update API key and clean URL in case it changed
-                db.execute(
-                    "UPDATE providers SET api_key=%s, api_url=%s WHERE id=%s",
-                    (DARKFOLLOW_API_KEY, clean_url, existing["id"])
-                )
-                db.commit()
-                log.info(f"✅ Dark Follow provider updated (id={existing['id']})")
-    # Initial sync on boot
+        def _register_provider():
+            try:
+                clean_url = DARKFOLLOW_API_URL.rstrip("/").split("?")[0]
+                with get_db() as db:
+                    existing = db.execute(
+                        "SELECT id FROM providers WHERE api_url=%s", (clean_url,)
+                    ).fetchone()
+                    if not existing:
+                        existing = db.execute(
+                            "SELECT id FROM providers WHERE api_url LIKE %s", (f"{clean_url}%",)
+                        ).fetchone()
+                    if not existing:
+                        db.execute(
+                            "INSERT INTO providers (name, api_url, api_key, is_active) VALUES (%s,%s,%s,1)",
+                            ("Dark Follow", clean_url, DARKFOLLOW_API_KEY)
+                        )
+                        db.commit()
+                        log.info("✅ Dark Follow provider auto-registered")
+                    else:
+                        db.execute(
+                            "UPDATE providers SET api_key=%s, api_url=%s WHERE id=%s",
+                            (DARKFOLLOW_API_KEY, clean_url, existing["id"])
+                        )
+                        db.commit()
+                        log.info(f"✅ Dark Follow provider updated (id={existing['id']})")
+            except Exception as e:
+                log.error(f"[startup] provider registration failed: {e}")
+        threading.Thread(target=_register_provider, daemon=True).start()
+
+    # ── Initial sync (background, non-blocking) ──
     threading.Thread(target=_sync_provider_balance, daemon=True).start()
     threading.Thread(target=_sync_provider_catalog, daemon=True).start()
+
     log.info("✅ SMM Panel started")
 
-_startup()
+try:
+    _startup()
+except Exception as e:
+    log.error(f"[startup] fatal error (app still running): {e}")
 
 # ─────────────────────────────────────────────
 # Gunicorn config hint (add to gunicorn.conf.py):
