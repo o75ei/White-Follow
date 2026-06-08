@@ -801,10 +801,11 @@ async function doLogin() {
   btn.disabled = true;
 
   try {
-    const res = await fetch(_serverUrl + '/admin/verify', {
+    const res = await fetch(_serverUrl + '/admin/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ admin_key: key })
+      credentials: 'include',
+      body: JSON.stringify({ pin: key })
     });
     const data = await res.json();
 
@@ -814,13 +815,15 @@ async function doLogin() {
       btn.disabled = false;
       return;
     }
+    _adminKey = data.token;
+    sessionStorage.setItem('wf_panel_key', data.token);
   } catch(e) {
-    // إذا فشل الاتصال، اقبل المفتاح مؤقتاً (offline mode)
-    console.warn('[Panel] لا اتصال بالسيرفر — وضع غير متصل');
+    console.warn('[Panel] لا اتصال بالسيرفر');
+    document.getElementById('login-err').style.display = 'block';
+    btn.textContent = 'دخول 🚀';
+    btn.disabled = false;
+    return;
   }
-
-  _adminKey = key;
-  sessionStorage.setItem('wf_panel_key', key);
   btn.textContent = 'دخول 🚀';
   btn.disabled = false;
   showDashboard();
@@ -898,7 +901,7 @@ async function fetchDFBalance() {
 
   try {
     const res = await fetch(_serverUrl + '/admin/darkfollow-balance', {
-      headers: { 'X-Admin-Key': _adminKey }
+      headers: { 'X-Admin-Token': _adminKey }
     });
     const data = await res.json();
     const val = typeof data.balance !== 'undefined'
@@ -914,7 +917,7 @@ async function fetchDFBalance() {
 async function loadCurrentMarkup() {
   try {
     const res = await fetch(_serverUrl + '/admin/markup', {
-      headers: { 'X-Admin-Key': _adminKey }
+      headers: { 'X-Admin-Token': _adminKey }
     });
     const data = await res.json();
     const val = parseFloat(data.markup ?? 1);
@@ -938,7 +941,7 @@ async function saveMarkup() {
   try {
     const res = await fetch(_serverUrl + '/admin/markup', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': _adminKey },
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': _adminKey },
       body: JSON.stringify({ markup: val })
     });
     if (!res.ok) throw new Error('server error');
@@ -961,7 +964,7 @@ async function loadUsers() {
 
   try {
     const res = await fetch(_serverUrl + '/admin/users', {
-      headers: { 'X-Admin-Key': _adminKey }
+      headers: { 'X-Admin-Token': _adminKey }
     });
     const data = await res.json();
     const users = data.users || data || [];
@@ -1036,7 +1039,7 @@ async function _modifyBalance(uid, amount, type) {
   try {
     const res = await fetch(_serverUrl + '/user/balance', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': _adminKey },
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': _adminKey },
       body: JSON.stringify({ uid, amount })
     });
     if (!res.ok) throw new Error('server error');
@@ -1065,7 +1068,7 @@ async function searchTopupUser() {
 
   try {
     const res = await fetch(_serverUrl + '/user/find?uid=' + encodeURIComponent(uid), {
-      headers: { 'X-Admin-Key': _adminKey }
+      headers: { 'X-Admin-Token': _adminKey }
     });
     const data = await res.json();
 
@@ -1092,7 +1095,7 @@ async function executeTopup() {
   try {
     await fetch(_serverUrl + '/user/balance', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': _adminKey },
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': _adminKey },
       body: JSON.stringify({ uid: _topupFoundUid, amount })
     });
   } catch(e) {}
