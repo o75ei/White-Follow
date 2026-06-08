@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<meta name="theme-color" content="#f5f7fa"/>
+<meta name="theme-color" content="#0a0a0a"/>
 <title>White Follow | وايت فولو</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -11,9 +11,9 @@
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 :root{
-  --bg:#f5f7fa;--card:#ffffff;--card2:#f0f2f5;--border:#e1e4e8;--border2:#d0d7de;
-  --text:#1a1f2e;--text2:#57606a;--accent:#0969da;--success:#1a7f37;
-  --warning:#d1242f;--danger:#da3633;--gold:#d08000;--muted:#8c959f;
+  --bg:#0a0a0a;--card:#141414;--card2:#1a1a1a;--border:#2a2a2a;--border2:#333333;
+  --text:#ffffff;--text2:#8c8c8c;--accent:#f0a000;--success:#00c853;
+  --warning:#ff9100;--danger:#ff1744;--gold:#f0a000;--muted:#666666;
   --font:'Cairo','Tajawal',sans-serif;
 }
 html,body{height:100%;overflow:hidden;}
@@ -27,9 +27,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 #auth-screen.hidden{opacity:0;visibility:hidden;pointer-events:none;}
 .auth-wrap{width:100%;max-width:380px;}
 .auth-logo{text-align:center;margin-bottom:24px;}
-.auth-logo-img{width:72px;height:72px;border-radius:16px;background:linear-gradient(135deg,#e8f0fe,#d2e4fc);border:1px solid var(--border2);display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:32px;}
-.auth-logo h1{font-size:22px;font-weight:800;color:var(--text);}
-.auth-logo h1 span{color:var(--accent);}
+.auth-logo-img{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#2a1a00,#1a1000);border:2px solid var(--gold);display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:36px;box-shadow:0 0 20px rgba(240,160,0,0.3);}
+.auth-logo h1{font-size:22px;font-weight:800;color:var(--gold);}
+.auth-logo h1 span{color:var(--text2);}
 .auth-logo p{font-size:12px;color:var(--text2);margin-top:4px;}
 .auth-card{background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:24px;}
 .auth-tabs{display:flex;margin-bottom:20px;gap:8px;}
@@ -46,7 +46,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 .btn-auth{width:100%;padding:14px;border:none;border-radius:10px;background:var(--gold);color:#000;font-size:14px;font-weight:800;cursor:pointer;font-family:var(--font);transition:opacity .2s;margin-top:4px;}
 .btn-auth:hover{opacity:.9;}
 .btn-auth:disabled{opacity:.5;cursor:not-allowed;}
-.auth-err{display:none;margin-top:10px;padding:10px 12px;background:rgba(218,54,51,0.1);border:1px solid rgba(218,54,51,0.3);border-radius:8px;font-size:12px;color:#ff8080;text-align:center;}
+.auth-err{display:none;margin-top:10px;padding:10px 12px;background:rgba(255,23,68,0.1);border:1px solid rgba(255,23,68,0.3);border-radius:8px;font-size:12px;color:#ff6b6b;text-align:center;}
 .auth-err.show{display:block;}
 .auth-link{text-align:center;margin-top:12px;font-size:12px;color:var(--text2);cursor:pointer;}
 .auth-link span{color:var(--accent);}
@@ -57,15 +57,20 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14
 .otp-header{text-align:center;margin-bottom:16px;}
 .otp-header .otp-icon{font-size:40px;margin-bottom:8px;}
 .otp-header p{font-size:12px;color:var(--text2);}
-.otp-header .otp-email{color:var(--accent);font-size:13px;margin-top:4px;}
-#otp-code{text-align:center;font-size:24px;letter-spacing:8px;font-weight:700;}
+.otp-header .otp-email{color:var(--gold);font-size:13px;margin-top:4px;font-weight:700;}
 .countdown-text{font-size:11px;color:var(--text2);text-align:center;margin-top:6px;}
+/* OTP Boxes */
+.otp-boxes{display:flex;gap:8px;justify-content:center;margin:16px 0;direction:ltr;}
+.otp-box{width:44px;height:52px;border-radius:10px;border:2px solid var(--border2);background:var(--card2);color:var(--text);font-size:22px;font-weight:800;text-align:center;font-family:var(--font);outline:none;transition:border-color .2s,box-shadow .2s;caret-color:var(--gold);}
+.otp-box:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,160,0,0.15);}
+.otp-box.otp-error{border-color:var(--danger);animation:shake .3s ease;}
+@keyframes shake{0%,100%{transform:translateX(0);}20%,60%{transform:translateX(-4px);}40%,80%{transform:translateX(4px);}}
 
 /* Strength bar */
 .strength-wrap{margin-top:6px;}
 .strength-bar{height:4px;border-radius:2px;background:var(--border2);overflow:hidden;}
 .strength-fill{height:100%;border-radius:2px;transition:width .3s,background .3s;width:0%;}
-.strength-weak .strength-fill{background:#da3633;width:33%;}
+.strength-weak .strength-fill{background:var(--danger);width:33%;}
 .strength-medium .strength-fill{background:#f0883e;width:66%;}
 .strength-strong .strength-fill{background:#238636;width:100%;}
 .strength-label{font-size:10px;margin-top:3px;color:var(--text2);}
@@ -320,7 +325,7 @@ mark,.mark-highlight{background:#f0a000;color:#000;padding:1px 3px;border-radius
 
 /* ── WARNINGS BOX ── */
 .warnings-box{border:1px solid rgba(218,54,51,.4);background:rgba(218,54,51,.08);border-radius:10px;padding:12px 14px;margin-bottom:14px;}
-.warnings-title{font-size:12px;font-weight:700;color:#da3633;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.warnings-title{font-size:12px;font-weight:700;color:var(--danger);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
 .warnings-list{font-size:12px;color:#f0883e;line-height:1.8;padding-right:4px;}
 .warnings-list li{list-style:none;padding:2px 0;}
 
@@ -396,11 +401,16 @@ mark,.mark-highlight{background:#f0a000;color:#000;padding:1px 3px;border-radius
           <p>تم إرسال رمز التحقق إلى</p>
           <div class="otp-email" id="otp-email-display"></div>
         </div>
-        <div class="field-grp">
-          <label class="field-lbl">رمز التحقق (6 أرقام)</label>
-          <input type="text" id="otp-code" class="field-inp" placeholder="000000" maxlength="6" dir="ltr"/>
+        <div class="otp-boxes" id="otp-boxes">
+          <input class="otp-box" maxlength="1" type="tel" pattern="[0-9]" inputmode="numeric" dir="ltr"/>
+          <input class="otp-box" maxlength="1" type="tel" pattern="[0-9]" inputmode="numeric" dir="ltr"/>
+          <input class="otp-box" maxlength="1" type="tel" pattern="[0-9]" inputmode="numeric" dir="ltr"/>
+          <input class="otp-box" maxlength="1" type="tel" pattern="[0-9]" inputmode="numeric" dir="ltr"/>
+          <input class="otp-box" maxlength="1" type="tel" pattern="[0-9]" inputmode="numeric" dir="ltr"/>
+          <input class="otp-box" maxlength="1" type="tel" pattern="[0-9]" inputmode="numeric" dir="ltr"/>
         </div>
-        <button class="btn-auth" onclick="doVerifyOTP()">✅ تأكيد الحساب</button>
+        <input type="hidden" id="otp-code"/>
+        <button class="btn-auth" onclick="doVerifyOTP()" id="btn-otp-verify">✅ تأكيد الحساب</button>
         <div class="auth-err" id="otp-err"></div>
         <div class="auth-link" id="resend-link" onclick="doResendOTP()">لم يصلك الرمز؟ <span>إعادة الإرسال</span></div>
         <div class="countdown-text" id="otp-countdown" style="display:none"></div>
@@ -510,20 +520,29 @@ mark,.mark-highlight{background:#f0a000;color:#000;padding:1px 3px;border-radius
             </div>
           </div>
           <!-- LIVE TOTAL — updates with qty like darkfollow -->
-          <div id="live-price-bar" style="display:none;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px;">
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <span style="font-size:13px;color:var(--text2)">مقدار</span>
-              <span style="font-size:15px;font-weight:700;color:var(--text)" id="live-qty-display">0</span>
+          <div id="live-price-bar" style="display:none;background:linear-gradient(135deg,#1a1a1a,#0a0a0a);border:1px solid var(--gold);border-radius:16px;padding:20px;margin-bottom:16px;">
+            <div style="font-size:12px;color:var(--text2);margin-bottom:12px;text-align:center;letter-spacing:0.5px;">💰 ملخص الطلب</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+              <span style="font-size:14px;color:var(--text2)">الكمية</span>
+              <span style="font-size:14px;font-weight:700;color:var(--text)" id="live-qty-display">0</span>
             </div>
-            <div style="height:1px;background:var(--border);margin:10px 0"></div>
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <span style="font-size:13px;color:var(--text2)">سعر</span>
-              <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-size:13px;color:var(--text2);text-decoration:line-through" id="live-price-old" style="display:none"></span>
-                <span style="font-size:22px;font-weight:800;color:var(--gold)" id="live-price-total">$0.000</span>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+              <span style="font-size:14px;color:var(--text2)">السعر/1000</span>
+              <span style="font-size:14px;font-weight:600;color:var(--text)" id="live-rate-display">$0.000</span>
+            </div>
+            <div style="height:1px;background:var(--border2);margin:12px 0;"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <span style="font-size:14px;color:var(--text2)">المجموع</span>
+              <div style="text-align:left;display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+                <span id="live-price-old" style="color:#666;font-size:13px;text-decoration:line-through;display:none;"></span>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span id="live-savings" style="color:var(--success);font-size:12px;display:none;"></span>
+                  <span style="font-size:28px;font-weight:800;color:var(--gold)" id="live-price-total">$0.000</span>
+                </div>
               </div>
             </div>
           </div>
+          <div id="balance-preview" style="text-align:center;font-size:12px;color:var(--text2);margin-bottom:12px;display:none;"></div>
           <!-- Info grid -->
           <div class="svc-info-grid">
             <div class="svc-info-item"><div class="svc-info-label">الحد الأدنى</div><div class="svc-info-value" id="svcd-min">—</div></div>
@@ -1019,6 +1038,10 @@ function switchTab(tab){
     const f=document.getElementById(`form-${t}`);if(f)f.style.display=t===tab?'block':'none';
     const tb=document.getElementById(`tab-${t}`);if(tb)tb.classList.toggle('active',t===tab);
   });
+  if(tab==='otp'){
+    // Small delay to ensure DOM visible before init
+    setTimeout(()=>{initOTPBoxes();const b=document.querySelector('.otp-box');if(b)b.focus();},50);
+  }
 }
 function togglePw(id,btn){
   const inp=document.getElementById(id);if(!inp)return;
@@ -1026,7 +1049,48 @@ function togglePw(id,btn){
   btn.textContent=inp.type==='password'?'👁️':'🙈';
 }
 
-// OTP countdown timer
+function initOTPBoxes(){
+  const boxes=document.querySelectorAll('.otp-box');
+  boxes.forEach((box,i)=>{
+    box.addEventListener('input',e=>{
+      const val=box.value.replace(/\D/g,'');
+      box.value=val.slice(-1);
+      // Update hidden input
+      const code=[...boxes].map(b=>b.value).join('');
+      document.getElementById('otp-code').value=code;
+      // Auto-focus next
+      if(val&&i<boxes.length-1)boxes[i+1].focus();
+      // Auto-submit on complete
+      if(code.length===6)doVerifyOTP();
+    });
+    box.addEventListener('keydown',e=>{
+      if(e.key==='Backspace'&&!box.value&&i>0)boxes[i-1].focus();
+      if(e.key==='ArrowLeft'&&i>0)boxes[i-1].focus();
+      if(e.key==='ArrowRight'&&i<boxes.length-1)boxes[i+1].focus();
+    });
+    box.addEventListener('paste',e=>{
+      e.preventDefault();
+      const pasted=(e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'');
+      [...pasted.slice(0,6)].forEach((ch,j)=>{if(boxes[j])boxes[j].value=ch;});
+      const code=[...boxes].map(b=>b.value).join('');
+      document.getElementById('otp-code').value=code;
+      if(code.length===6)doVerifyOTP();
+      else if(boxes[Math.min(pasted.length,5)])boxes[Math.min(pasted.length,5)].focus();
+    });
+    box.addEventListener('focus',()=>box.select());
+  });
+}
+function shakeOTPBoxes(){
+  const boxes=document.querySelectorAll('.otp-box');
+  boxes.forEach(b=>{b.classList.add('otp-error');setTimeout(()=>b.classList.remove('otp-error'),400);});
+}
+function clearOTPBoxes(){
+  const boxes=document.querySelectorAll('.otp-box');
+  boxes.forEach(b=>b.value='');
+  document.getElementById('otp-code').value='';
+  if(boxes[0])boxes[0].focus();
+}
+
 function startResendTimer(){
   const link=document.getElementById('resend-link');
   const cdown=document.getElementById('otp-countdown');
@@ -1113,14 +1177,16 @@ async function doVerifyOTP(){
   const code=document.getElementById('otp-code').value.trim();
   const errEl=document.getElementById('otp-err');
   errEl.classList.remove('show');
-  if(code.length!==6){errEl.textContent='أدخل الرمز المكون من 6 أرقام';errEl.classList.add('show');return;}
+  if(code.length!==6){
+    errEl.textContent='أدخل الرمز المكون من 6 أرقام';errEl.classList.add('show');
+    shakeOTPBoxes();return;
+  }
   const users=getUsers();
   const localUser=Object.values(users).find(u=>u.email===_pendingEmail);
   if(localUser){
-    // Check expiry (10 minutes)
     if(Date.now()-localUser.codeTime>10*60*1000){
       errEl.textContent='رمز التحقق منتهي الصلاحية، اطلب رمزاً جديداً';
-      errEl.classList.add('show');return;
+      errEl.classList.add('show');shakeOTPBoxes();return;
     }
     if(localUser.code===code){
       localUser.verified=true;localUser.code=null;
@@ -1129,11 +1195,14 @@ async function doVerifyOTP(){
       _user={id:localUser.uid,username:localUser.username,email:localUser.email,uid:localUser.uid,balance:0};
       localStorage.setItem(TOKEN_KEY,_token);
       toast('✅ تم تأكيد حسابك','success');showApp();return;
-    }else{errEl.textContent='رمز خاطئ';errEl.classList.add('show');return;}
+    }else{
+      errEl.textContent='رمز خاطئ';errEl.classList.add('show');
+      shakeOTPBoxes();clearOTPBoxes();return;
+    }
   }
   const d=await fetch(`${API}/auth/verify-email`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:_pendingEmail,code})}).then(r=>r.json()).catch(()=>({error:'network'}));
   if(d.ok){_token=d.token;_user=d.user;localStorage.setItem(TOKEN_KEY,_token);toast('✅ تم تأكيد حسابك','success');showApp();}
-  else{errEl.textContent=d.error||'رمز خاطئ';errEl.classList.add('show');}
+  else{errEl.textContent=d.error||'رمز خاطئ';errEl.classList.add('show');shakeOTPBoxes();clearOTPBoxes();}
 }
 
 async function doResendOTP(){
@@ -1697,36 +1766,62 @@ function calcTotal(){
   const rate=parseFloat(_currentSvc.rate)||0;
   const origRate=parseFloat(_currentSvc.original_rate)||0;
   const total=(qty/1000)*rate;
-  const totalOld=origRate>0?((qty/1000)*origRate):0;
+  const totalOld=origRate>0&&origRate>rate?((qty/1000)*origRate):0;
+  const savings=totalOld>0?totalOld-total:0;
 
-  // Update live qty display
-  document.getElementById('live-qty-display').textContent=(qty||0).toLocaleString();
+  // Qty display
+  document.getElementById('live-qty-display').textContent=(qty||0).toLocaleString('ar-EG');
 
-  // Live price total (the big gold number like darkfollow)
+  // Rate per 1000
+  const rateEl=document.getElementById('live-rate-display');
+  if(rateEl) rateEl.textContent=`$${rate.toFixed(3)}`;
+
+  // Big gold total
   document.getElementById('live-price-total').textContent=`$${total.toFixed(3)}`;
 
-  // Strikethrough old price if discount
+  // Strikethrough old price
   const livePriceOld=document.getElementById('live-price-old');
-  if(origRate>0&&origRate>rate&&totalOld>0){
+  const liveSavings=document.getElementById('live-savings');
+  if(totalOld>0){
     livePriceOld.textContent=`$${totalOld.toFixed(3)}`;
     livePriceOld.style.display='inline';
+    if(liveSavings){liveSavings.textContent=`وفر $${savings.toFixed(3)}`;liveSavings.style.display='inline';}
   } else {
     livePriceOld.style.display='none';
+    if(liveSavings) liveSavings.style.display='none';
   }
 
-  // Show live bar
-  document.getElementById('live-price-bar').style.display=qty>0?'block':'none';
+  // Show/hide bar
+  const bar=document.getElementById('live-price-bar');
+  bar.style.display=qty>0?'block':'none';
 
-  // Also keep total-card in sync (hidden but used for balance check)
+  // Balance preview
+  const balPrev=document.getElementById('balance-preview');
+  if(balPrev){
+    const userBal=parseFloat(_user?.balance||0);
+    if(qty>0&&userBal>=0){
+      const afterOrder=Math.max(0,userBal-total);
+      balPrev.textContent=`رصيدك: $${userBal.toFixed(2)} | بعد الطلب: $${afterOrder.toFixed(2)}`;
+      balPrev.style.display='block';
+    } else {
+      balPrev.style.display='none';
+    }
+  }
+
+  // Keep total-card in sync (hidden, replaced by live-price-bar)
   const tcv=document.getElementById('total-value');
   if(tcv) tcv.textContent=`$${total.toFixed(3)}`;
   const tc=document.getElementById('total-card');
-  if(tc) tc.style.display='none'; // hidden, replaced by live-price-bar
+  if(tc) tc.style.display='none';
 }
 function adjustQty(delta){
   const inp=document.getElementById('svcd-qty');
-  const curr=parseInt(inp.value)||0;const min=parseInt(inp.min)||1;const max=parseInt(inp.max)||1000000;
-  const step=Math.max(1,Math.floor((max-min)/100));
+  const curr=parseInt(inp.value)||0;
+  const min=parseInt(inp.min)||1;
+  const max=parseInt(inp.max)||1000000;
+  // Smart step: small qty = step 1-10, large qty = step 100
+  const range=max-min;
+  const step=range>10000?100:range>1000?10:1;
   inp.value=Math.min(max,Math.max(min,curr+delta*step));
   document.querySelectorAll('.qty-preset-btn').forEach(b=>b.classList.remove('active'));
   calcTotal();
