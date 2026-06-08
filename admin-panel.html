@@ -1014,7 +1014,11 @@ async function loadUsers() {
     }
 
     _usersCache = {};
-    users.forEach(u => { if (u.uid) _usersCache[u.uid] = u; });
+    users.forEach(u => {
+      if (!u.uid && u.username && u.username.startsWith('WF-')) u.uid = u.username;
+      if (!u.uid) u.uid = String(u.id);
+      _usersCache[u.uid] = u;
+    });
 
     renderUsersTable(users);
     loadUsersStats(users);
