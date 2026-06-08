@@ -8,6 +8,8 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <meta name="build-version" content="20260608-1" />
+  <!-- Telegram WebApp SDK — لازم يكون أول شيء يتحمّل -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <meta name="deploy-timestamp" content="1749254400" />
   <script>
     // [FIX-3] Cache Busting: force reload if cached version differs
@@ -3697,6 +3699,39 @@ function migrateOldUsers() {
 
 // ── تهيئة عند التحميل ────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async function() {
+  // ── تسجيل دخول تلقائي من Telegram WebApp ──────────────────────
+  const tgApp = window.Telegram?.WebApp;
+  if (tgApp && tgApp.initData && !localStorage.getItem('wf_logged_in')) {
+    try {
+      tgApp.ready(); // أخبر تيليجرام إن الصفحة جاهزة
+      const res = await fetch(SERVER_URL + '/auth/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initData: tgApp.initData })
+      });
+      const data = await res.json();
+      if (data.ok && data.token && data.user) {
+        // احفظ بيانات الجلسة
+        localStorage.setItem('wf_logged_in',   '1');
+        localStorage.setItem('wf_user_id',     data.user.uid || String(data.user.id));
+        localStorage.setItem('wf_api_token',   data.token);
+        localStorage.setItem('wf_identifier',  data.user.email || data.user.username || '');
+        // احفظ في registry
+        const reg = getUsersRegistry ? getUsersRegistry() : {};
+        const uid = data.user.uid || String(data.user.id);
+        reg[uid] = Object.assign(reg[uid] || {}, {
+          balance: data.user.balance || 0,
+          email: data.user.email || '',
+          username: data.user.username || ''
+        });
+        if (typeof saveUsersRegistry === 'function') saveUsersRegistry(reg);
+      }
+    } catch(e) {
+      console.warn('[TG Auth]', e);
+    }
+  }
+  // ───────────────────────────────────────────────────────────────
+
   // ترحيل الحسابات القديمة أولاً
   migrateOldUsers();
 
