@@ -1550,7 +1550,15 @@ def admin_users():
                 "SELECT * FROM users ORDER BY joined_at DESC LIMIT ? OFFSET ?", (limit, offset)
             ).fetchall()
             total = db.execute("SELECT COUNT(*) as c FROM users").fetchone()["c"]
-    return jsonify({"ok": True, "users": [dict(u) for u in users], "total": total, "page": page})
+    result = []
+    for u in users:
+        d = dict(u)
+        if not d.get('uid') and d.get('username') and str(d['username']).startswith('WF-'):
+            d['uid'] = d['username']
+        elif not d.get('uid'):
+            d['uid'] = str(d['id'])
+        result.append(d)
+    return jsonify({"ok": True, "users": result, "total": total, "page": page})
 
 @app.route("/admin/users/<int:uid>/balance", methods=["POST"])
 @require_admin
