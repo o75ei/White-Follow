@@ -603,6 +603,12 @@ def webhook():
                 """, (tg_id, user.get("username", name)))
                 db.execute("UPDATE users SET last_seen=NOW() WHERE telegram_id=%s", (tg_id,))
                 db.commit()
+                # Generate uid if missing (new user inserted above won't have uid)
+                u_row = db.execute("SELECT id, uid FROM users WHERE telegram_id=%s", (tg_id,)).fetchone()
+                if u_row and not u_row.get("uid"):
+                    new_uid = f"WF-{u_row['id']:06d}"
+                    db.execute("UPDATE users SET uid=%s WHERE id=%s", (new_uid, u_row["id"]))
+                    db.commit()
         except Exception as e:
             log.error(f"[webhook] DB error (non-fatal): {e}")
 
@@ -695,6 +701,81 @@ def _send_verification_email(to_email, code, username):
     except Exception as e:
         log.error("[EMAIL] send failed: %s", e)
         return False
+
+@app.route("/auth/telegram", methods=["POST"])
+def auth_telegram():
+    """
+    مصادقة مستخدم Telegram WebApp عبر initData.
+    Frontend يرسل: { initData: "..." }
+    """
+    import urllib.parse
+    data = request.get_json(silent=True) or {}
+    init_data_raw = data.get("initData", "").strip()
+
+    if not init_data_raw:
+        return jsonify({"error": "initData مطلوب"}), 400
+
+    # ── التحقق من صحة initData ──
+    parsed = dict(urllib.parse.parse_qsl(init_data_raw, keep_blank_values=True))
+    received_hash = parsed.pop("hash", "")
+    # بناء data-check-string
+    data_check_string = "\n".join(
+        f"{k}={v}" for k, v in sorted(parsed.items())
+    )
+    secret_key = hmac.new(b"WebAppData", TELEGRAM_BOT_TOKEN.encode(), hashlib.sha256).digest()
+    expected_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+
+    if TELEGRAM_BOT_TOKEN and received_hash != expected_hash:
+        return jsonify({"error": "بيانات تيليجرام غير صالحة"}), 401
+
+    # ── استخراج بيانات المستخدم ──
+    try:
+        tg_user = json.loads(parsed.get("user", "{}"))
+    except Exception:
+        return jsonify({"error": "بيانات المستخدم غير صالحة"}), 400
+
+    tg_id    = str(tg_user.get("id", ""))
+    username = tg_user.get("username") or tg_user.get("first_name") or f"user_{tg_id}"
+
+    if not tg_id:
+        return jsonify({"error": "لم يتم التعرف على المستخدم"}), 400
+
+    # ── إنشاء أو جلب المستخدم ──
+    with get_db() as db:
+        db.execute("""
+            INSERT INTO users (telegram_id, username)
+            VALUES (%s, %s)
+            ON CONFLICT (telegram_id) DO NOTHING
+        """, (tg_id, username))
+        db.execute("UPDATE users SET last_seen=NOW() WHERE telegram_id=%s", (tg_id,))
+        db.commit()
+
+        user = db.execute("SELECT * FROM users WHERE telegram_id=%s", (tg_id,)).fetchone()
+        if not user:
+            return jsonify({"error": "خطأ في إنشاء الحساب"}), 500
+
+        # توليد uid إذا كان ناقصاً
+        if not user.get("uid"):
+            new_uid = f"WF-{user['id']:06d}"
+            db.execute("UPDATE users SET uid=%s WHERE id=%s", (new_uid, user["id"]))
+            db.commit()
+            user = db.execute("SELECT * FROM users WHERE id=%s", (user["id"],)).fetchone()
+
+    user = dict(user)
+    if user.get("is_banned"):
+        return jsonify({"error": "الحساب محظور"}), 403
+
+    token = _create_user_token(user["id"])
+    uid   = user.get("uid") or f"WF-{user['id']:06d}"
+    return jsonify({
+        "ok": True, "token": token,
+        "user": {
+            "id": user["id"], "uid": uid,
+            "email": user.get("email", ""),
+            "username": user.get("username", ""),
+            "balance": user.get("balance", 0)
+        }
+    })
 
 @app.route("/auth/register", methods=["POST"])
 def auth_register():
