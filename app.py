@@ -2114,6 +2114,123 @@ def admin_settings_bulk():
     return jsonify({"ok": True})
 
 # ─────────────────────────────────────────────
+# ADMIN PANEL — Missing Routes (compat layer)
+# ─────────────────────────────────────────────
+
+@app.route("/admin/darkfollow-balance", methods=["GET"])
+@require_admin
+def admin_darkfollow_balance():
+    """رصيد DarkFollow — تُستخدم من لوحة التحكم"""
+    api_key = DARKFOLLOW_API_KEY
+    api_url = DARKFOLLOW_API_URL
+    if not api_key:
+        # محاولة جلبه من قاعدة البيانات
+        with get_db() as db:
+            prov = db.execute(
+                "SELECT api_key, api_url FROM providers WHERE api_url LIKE '%darkfollow%' LIMIT 1"
+            ).fetchone()
+            if prov:
+                api_key = prov["api_key"]
+                api_url = prov["api_url"] or api_url
+    if not api_key:
+        return jsonify({"error": "DARKFOLLOW_API_KEY غير مضبوط"}), 400
+    try:
+        res = requests.post(api_url, data={"key": api_key, "action": "balance"}, timeout=10)
+        data = res.json()
+        balance = data.get("balance", "0")
+        currency = data.get("currency", "USD")
+        return jsonify({"balance": float(balance), "currency": currency})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+
+@app.route("/admin/markup", methods=["GET"])
+@require_admin
+def admin_get_markup():
+    """جلب هامش الربح العام — تُستخدم من لوحة التحكم"""
+    markup_type  = get_setting("global_markup_type", "percent")
+    markup_value = float(get_setting("global_markup_value", "0"))
+    return jsonify({"markup_type": markup_type, "markup_value": markup_value})
+
+
+@app.route("/admin/markup", methods=["POST"])
+@require_admin
+def admin_set_markup():
+    """حفظ هامش الربح العام — تُستخدم من لوحة التحكم"""
+    data = request.get_json(silent=True) or {}
+    markup_type  = data.get("markup_type", "percent")
+    markup_value = float(data.get("markup_value", 0))
+    if markup_type not in ("percent", "fixed"):
+        return jsonify({"error": "markup_type يجب أن يكون percent أو fixed"}), 400
+    set_setting("global_markup_type",  markup_type)
+    set_setting("global_markup_value", str(markup_value))
+    # تطبيق الهامش على جميع الخدمات
+    with get_db() as db:
+        svcs = db.execute("SELECT id, provider_price FROM services").fetchall()
+        for svc in svcs:
+            new_price = calc_price(svc["provider_price"], markup_type, markup_value)
+            db.execute(
+                "UPDATE services SET markup_type=?, markup_value=?, final_price=? WHERE id=?",
+                (markup_type, markup_value, new_price, svc["id"])
+            )
+        db.commit()
+    log.info(f"[admin] global markup updated: {markup_type} {markup_value}")
+    return jsonify({"ok": True, "markup_type": markup_type, "markup_value": markup_value})
+
+
+@app.route("/user/balance", methods=["POST"])
+@require_admin
+def admin_user_balance_compat():
+    """شحن/خصم رصيد مستخدم بالـ uid — compat للوحة التحكم
+    Body: { uid: str, amount: float }
+    amount موجب = شحن، سالب = خصم
+    """
+    data   = request.get_json(silent=True) or {}
+    uid    = str(data.get("uid", "")).strip()
+    amount = float(data.get("amount", 0))
+    if not uid:
+        return jsonify({"error": "uid مطلوب"}), 400
+    with get_db() as db:
+        user = db.execute("SELECT id, balance FROM users WHERE uid=?", (uid,)).fetchone()
+        if not user:
+            return jsonify({"error": "المستخدم غير موجود"}), 404
+        current = float(user["balance"] or 0)
+        if amount >= 0:
+            new_bal = current + amount
+            db.execute(
+                "UPDATE users SET balance=?, total_charged=total_charged+? WHERE id=?",
+                (new_bal, amount, user["id"])
+            )
+        else:
+            new_bal = max(0, current + amount)
+            db.execute("UPDATE users SET balance=? WHERE id=?", (new_bal, user["id"]))
+        db.commit()
+    log.info(f"[admin] user balance updated uid={uid} amount={amount} new={new_bal}")
+    return jsonify({"ok": True, "balance": new_bal})
+
+
+@app.route("/user/find", methods=["GET"])
+@require_admin
+def admin_user_find_compat():
+    """البحث عن مستخدم بالـ uid — compat للوحة التحكم"""
+    uid = request.args.get("uid", "").strip()
+    if not uid:
+        return jsonify({"error": "uid مطلوب"}), 400
+    with get_db() as db:
+        user = db.execute(
+            """SELECT uid, email, username, telegram_id, balance,
+                      total_charged, total_spent, orders_count,
+                      is_banned, joined_at
+               FROM users WHERE uid=? OR email=? OR telegram_id=?
+               LIMIT 1""",
+            (uid, uid, uid)
+        ).fetchone()
+    if not user:
+        return jsonify({}), 404
+    return jsonify(dict(user))
+
+
+# ─────────────────────────────────────────────
 # Cron Job: Sync Orders
 # ─────────────────────────────────────────────
 def _cron_sync_orders():
