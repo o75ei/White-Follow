@@ -592,26 +592,7 @@ def webhook():
     if not chat_id:
         return "ok"
 
-    # Auto-register user (non-fatal)
-    if tg_id:
-        try:
-            with get_db() as db:
-                db.execute("""
-                    INSERT INTO users (telegram_id, username)
-                    VALUES (%s, %s)
-                    ON CONFLICT (telegram_id) DO NOTHING
-                """, (tg_id, user.get("username", name)))
-                db.execute("UPDATE users SET last_seen=NOW() WHERE telegram_id=%s", (tg_id,))
-                db.commit()
-                # Generate uid if missing (new user inserted above won't have uid)
-                u_row = db.execute("SELECT id, uid FROM users WHERE telegram_id=%s", (tg_id,)).fetchone()
-                if u_row and not u_row.get("uid"):
-                    new_uid = f"WF-{u_row['id']:06d}"
-                    db.execute("UPDATE users SET uid=%s WHERE id=%s", (new_uid, u_row["id"]))
-                    db.commit()
-        except Exception as e:
-            log.error(f"[webhook] DB error (non-fatal): {e}")
-
+    # ── رد /start فوراً بدون انتظار قاعدة البيانات ──
     if text.startswith("/start"):
         tg("sendMessage", {
             "chat_id": chat_id,
@@ -624,7 +605,43 @@ def webhook():
                 ]
             }
         })
-    elif text.startswith("/balance"):
+        # سجّل المستخدم في الخلفية بدون ما يعطّل الرد
+        def _register():
+            try:
+                with get_db() as db:
+                    db.execute("""
+                        INSERT INTO users (telegram_id, username)
+                        VALUES (%s, %s)
+                        ON CONFLICT (telegram_id) DO NOTHING
+                    """, (tg_id, user.get("username", name)))
+                    db.execute("UPDATE users SET last_seen=NOW() WHERE telegram_id=%s", (tg_id,))
+                    db.commit()
+                    u_row = db.execute("SELECT id, uid FROM users WHERE telegram_id=%s", (tg_id,)).fetchone()
+                    if u_row and not u_row.get("uid"):
+                        new_uid = f"WF-{u_row['id']:06d}"
+                        db.execute("UPDATE users SET uid=%s WHERE id=%s", (new_uid, u_row["id"]))
+                        db.commit()
+            except Exception as e:
+                log.error(f"[webhook] DB error (non-fatal): {e}")
+        if tg_id:
+            threading.Thread(target=_register, daemon=True).start()
+        return "ok"
+
+    # Auto-register user (non-fatal) للأوامر الأخرى
+    if tg_id:
+        try:
+            with get_db() as db:
+                db.execute("""
+                    INSERT INTO users (telegram_id, username)
+                    VALUES (%s, %s)
+                    ON CONFLICT (telegram_id) DO NOTHING
+                """, (tg_id, user.get("username", name)))
+                db.execute("UPDATE users SET last_seen=NOW() WHERE telegram_id=%s", (tg_id,))
+                db.commit()
+        except Exception as e:
+            log.error(f"[webhook] DB error (non-fatal): {e}")
+
+    if text.startswith("/balance"):
         with get_db() as db:
             user_data = db.execute(
                 "SELECT balance FROM users WHERE telegram_id=%s", (tg_id,)
