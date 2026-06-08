@@ -592,16 +592,19 @@ def webhook():
     if not chat_id:
         return "ok"
 
-    # Auto-register user
+    # Auto-register user (non-fatal)
     if tg_id:
-        with get_db() as db:
-            db.execute("""
-                INSERT INTO users (telegram_id, username)
-                VALUES (%s, %s)
-                ON CONFLICT (telegram_id) DO NOTHING
-            """, (tg_id, user.get("username", name)))
-            db.execute("UPDATE users SET last_seen=NOW() WHERE telegram_id=%s", (tg_id,))
-            db.commit()
+        try:
+            with get_db() as db:
+                db.execute("""
+                    INSERT INTO users (telegram_id, username)
+                    VALUES (%s, %s)
+                    ON CONFLICT (telegram_id) DO NOTHING
+                """, (tg_id, user.get("username", name)))
+                db.execute("UPDATE users SET last_seen=NOW() WHERE telegram_id=%s", (tg_id,))
+                db.commit()
+        except Exception as e:
+            log.error(f"[webhook] DB error (non-fatal): {e}")
 
     if text.startswith("/start"):
         tg("sendMessage", {
