@@ -564,6 +564,7 @@
       <button class="tab-btn" onclick="switchTab('balance')">💰 الرصيد والأسعار</button>
       <button class="tab-btn" onclick="switchTab('users')">👥 المستخدمون</button>
       <button class="tab-btn" onclick="switchTab('topup')">💳 تعبئة رصيد</button>
+      <button class="tab-btn" onclick="switchTab('services')">🔄 الخدمات</button>
       <button class="tab-btn" onclick="switchTab('settings')">⚙️ الإعدادات</button>
     </div>
 
@@ -715,6 +716,45 @@
     </div>
 
     <!-- ═══ تبويب: الإعدادات ═══ -->
+
+    <!-- ═══ تبويب: الخدمات ═══ -->
+    <div class="tab-pane" id="tab-services">
+
+      <p class="section-title">مزامنة الخدمات مع دارك فولو</p>
+
+      <div class="panel-card">
+        <h3>🔄 مزامنة الأسعار التلقائية</h3>
+        <p class="desc">يجيب أحدث أسعار خدماتك من دارك فولو ويحدث قاعدة البيانات مع تطبيق هامش ربحك</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+          <button class="btn btn-gold" onclick="syncPrices()">🔄 مزامنة الأسعار الآن</button>
+          <button class="btn btn-green" onclick="syncCatalog()">📦 مزامنة الخدمات الكاملة</button>
+        </div>
+        <div class="alert" id="sync-alert" style="margin-top:12px;"></div>
+      </div>
+
+      <div class="panel-card">
+        <h3>📋 حالة الخدمات المربوطة</h3>
+        <p class="desc">عدد الخدمات الموجودة بقاعدة البيانات مع رابطها بدارك فولو</p>
+        <button class="btn btn-gold" onclick="loadServicesStatus()" style="margin-top:8px;">🔍 فحص الحالة</button>
+        <div id="services-status" style="margin-top:14px;"></div>
+      </div>
+
+      <div class="panel-card">
+        <h3>💸 هامش الربح على الخدمات</h3>
+        <p class="desc">تعديل هامش الربح العام — يُطبق على جميع الخدمات عند المزامنة القادمة</p>
+        <div class="input-row" style="margin-top:10px;">
+          <select class="p-input" id="svc-markup-type" style="max-width:130px;">
+            <option value="percent">نسبة %</option>
+            <option value="fixed">مبلغ ثابت</option>
+          </select>
+          <input class="p-input" id="svc-markup-value" type="number" min="0" step="0.1" placeholder="0" style="max-width:120px;" />
+          <button class="btn btn-gold" onclick="saveGlobalMarkup()">💾 حفظ</button>
+        </div>
+        <div class="alert" id="markup-svc-alert" style="margin-top:10px;"></div>
+      </div>
+
+    </div>
+
     <div class="tab-pane" id="tab-settings">
 
       <p class="section-title">إعدادات اللوحة</p>
@@ -1175,6 +1215,117 @@ function showAlert(id, msg, type) {
   clearTimeout(el._t);
   el._t = setTimeout(() => { el.style.display='none'; }, 4000);
 }
+// ══════════════════════════════════════════════════════════
+//  الخدمات — مزامنة مع دارك فولو
+// ══════════════════════════════════════════════════════════
+
+async function syncPrices() {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '⏳ جاري المزامنة...';
+  showAlert('sync-alert', 'جاري مزامنة الأسعار من دارك فولو...', 'info');
+  try {
+    const res = await fetch(_serverUrl + '/admin/sync-prices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': _adminKey },
+      body: JSON.stringify({ provider_id: null })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showAlert('sync-alert', `✅ تم تحديث ${data.updated} خدمة بنجاح`, 'success');
+    } else {
+      showAlert('sync-alert', '⚠️ ' + (data.error || 'فشلت المزامنة'), 'error');
+    }
+  } catch(e) {
+    showAlert('sync-alert', '❌ خطأ: ' + e.message, 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = '🔄 مزامنة الأسعار الآن';
+}
+
+async function syncCatalog() {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '⏳ جاري الجلب...';
+  showAlert('sync-alert', 'جاري جلب قائمة الخدمات الكاملة من دارك فولو — قد يأخذ ثوانٍ...', 'info');
+  try {
+    const res = await fetch(_serverUrl + '/admin/sync-catalog', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': _adminKey },
+      body: JSON.stringify({})
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showAlert('sync-alert', `✅ تمت المزامنة: ${data.updated || 0} خدمة محدثة، ${data.added || 0} خدمة جديدة`, 'success');
+    } else {
+      showAlert('sync-alert', '⚠️ ' + (data.error || 'فشلت مزامنة الكاتالوج'), 'error');
+    }
+  } catch(e) {
+    showAlert('sync-alert', '❌ خطأ: ' + e.message, 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = '📦 مزامنة الخدمات الكاملة';
+}
+
+async function loadServicesStatus() {
+  const container = document.getElementById('services-status');
+  container.innerHTML = '<p style="color:#aaa;">⏳ جاري الفحص...</p>';
+  try {
+    const res = await fetch(_serverUrl + '/admin/services-status', {
+      headers: { 'X-Admin-Token': _adminKey }
+    });
+    const data = await res.json();
+    if (data.ok) {
+      container.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div style="background:rgba(0,200,100,0.1);border:1px solid rgba(0,200,100,0.3);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:24px;font-weight:800;color:#00c864;">${data.total}</div>
+            <div style="font-size:12px;color:#aaa;">إجمالي الخدمات</div>
+          </div>
+          <div style="background:rgba(0,160,255,0.1);border:1px solid rgba(0,160,255,0.3);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:24px;font-weight:800;color:#00a0ff;">${data.linked}</div>
+            <div style="font-size:12px;color:#aaa;">مربوطة بدارك فولو</div>
+          </div>
+          <div style="background:rgba(218,165,32,0.1);border:1px solid rgba(218,165,32,0.3);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:24px;font-weight:800;color:#DAA520;">${data.active}</div>
+            <div style="font-size:12px;color:#aaa;">خدمات مفعلة</div>
+          </div>
+          <div style="background:rgba(255,50,50,0.1);border:1px solid rgba(255,50,50,0.3);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:24px;font-weight:800;color:#ff3232;">${data.unlinked}</div>
+            <div style="font-size:12px;color:#aaa;">بدون ربط</div>
+          </div>
+        </div>
+        ${data.last_sync ? `<p style="color:#888;font-size:12px;margin-top:10px;">آخر مزامنة: ${data.last_sync}</p>` : ''}
+      `;
+    } else {
+      container.innerHTML = '<p style="color:#f55;">⚠️ ' + (data.error || 'تعذر الجلب') + '</p>';
+    }
+  } catch(e) {
+    container.innerHTML = '<p style="color:#f55;">❌ ' + e.message + '</p>';
+  }
+}
+
+async function saveGlobalMarkup() {
+  const type  = document.getElementById('svc-markup-type').value;
+  const value = parseFloat(document.getElementById('svc-markup-value').value) || 0;
+  showAlert('markup-svc-alert', 'جاري الحفظ...', 'info');
+  try {
+    const res = await fetch(_serverUrl + '/admin/markup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': _adminKey },
+      body: JSON.stringify({ markup_type: type, markup_value: value })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showAlert('markup-svc-alert', `✅ تم الحفظ — هامش الربح: ${type === 'percent' ? value + '%' : '+' + value + ' ثابت'}`, 'success');
+    } else {
+      showAlert('markup-svc-alert', '⚠️ ' + (data.error || 'فشل الحفظ'), 'error');
+    }
+  } catch(e) {
+    showAlert('markup-svc-alert', '❌ ' + e.message, 'error');
+  }
+}
+
 </script>
 </body>
 </html>
