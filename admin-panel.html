@@ -804,7 +804,6 @@ async function doLogin() {
     const res = await fetch(_serverUrl + '/admin/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({ pin: key })
     });
     const data = await res.json();
@@ -818,12 +817,12 @@ async function doLogin() {
     _adminKey = data.token;
     sessionStorage.setItem('wf_panel_key', data.token);
   } catch(e) {
-    console.warn('[Panel] لا اتصال بالسيرفر');
     document.getElementById('login-err').style.display = 'block';
     btn.textContent = 'دخول 🚀';
     btn.disabled = false;
     return;
   }
+
   btn.textContent = 'دخول 🚀';
   btn.disabled = false;
   showDashboard();
@@ -920,7 +919,7 @@ async function loadCurrentMarkup() {
       headers: { 'X-Admin-Token': _adminKey }
     });
     const data = await res.json();
-    const val = parseFloat(data.markup ?? 1);
+    const val = parseFloat(data.markup_value ?? 0);
     document.getElementById('markup-current-val').textContent = '$' + val.toFixed(2);
     document.getElementById('markup-input').value = val.toFixed(2);
     document.getElementById('stat-markup').textContent = '$' + val.toFixed(2);
@@ -942,7 +941,7 @@ async function saveMarkup() {
     const res = await fetch(_serverUrl + '/admin/markup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Admin-Token': _adminKey },
-      body: JSON.stringify({ markup: val })
+      body: JSON.stringify({ markup_type: 'fixed', markup_value: val })
     });
     if (!res.ok) throw new Error('server error');
   } catch(e) {
