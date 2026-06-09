@@ -1248,7 +1248,7 @@ function clearAllCache() {
 function loadUsersStats(users) {
   if (!users) users = Object.values(_usersCache);
   document.getElementById('stat-users').textContent = users.length;
-  const tb = users.reduce((s,u) => s+(u.balance||0),0);
+  const tb = users.reduce((s,u) => s+parseFloat(u.balance||0),0);
   document.getElementById('stat-total-bal').textContent = tb.toFixed(0);
 }
 
