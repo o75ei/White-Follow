@@ -1291,7 +1291,23 @@ def services_list():
             "image": d["image"] or "",
         }
 
-    # بناء قائمة الأقسام مرتّبة مع خدماتها
+    # تحديد المجموعة الرئيسية لكل قسم حسب sort_order
+    def _get_group(sort_order, name_ar, name_en):
+        so = sort_order or 0
+        n  = (name_ar or name_en or "").lower()
+        if so < 20 or any(k in n for k in ["دارك","وايت","انستا","فيسبوك","تليجرام","تجار","مميز","نجوم","هداي","عيد"]):
+            return "white"
+        if 20 <= so < 40 or "بطاقة" in n or "بطاقات" in n or any(k in n for k in ["valorant","steam","roblox","nintendo","blizzard","fortnite","playstation","itunes","netflix","crunchyroll","ريوت","امزون","ريزر","ليج"]):
+            return "cards"
+        if 40 <= so < 50 or any(k in n for k in ["oxide","pubg","genshin","delta","cod","ludo","ببجي","دلتا","كولف","لودو","جينشين","ارينا","أوكسايد"]):
+            return "games"
+        if 50 <= so < 60 or any(k in n for k in ["نايترو","nitro","xbox","premium","اشتراك","playstation plus","العاب ستيم"]):
+            return "subscriptions"
+        if 60 <= so < 80 or any(k in n for k in ["العراق","السعودية","الاردن","لبنان","مصر","البحرين","شحن رصيد"]):
+            return "topup"
+        return "other"
+
+    # بناء قائمة الأقسام مرتّبة مع خدماتها وتصنيفها
     categories_list = []
     for c in cats:
         cat = dict(c)
@@ -1301,6 +1317,7 @@ def services_list():
             if sv["category_id"] == cat["id"]
         ]
         if cat_svcs:
+            group = _get_group(cat["sort_order"], cat["name_ar"], cat["name_en"])
             categories_list.append({
                 "id": cat["id"],
                 "name": cat["name_ar"] if lang == "ar" else (cat["name_en"] or cat["name_ar"]),
@@ -1309,6 +1326,7 @@ def services_list():
                 "icon": cat["icon"] or "📦",
                 "image": cat.get("image_url") or "",
                 "sort_order": cat["sort_order"],
+                "group": group,
                 "services": cat_svcs,
             })
 
