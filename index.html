@@ -3049,10 +3049,11 @@ document.querySelectorAll('.form-section').forEach(form => {
 });
 
 // ── تليجرام وايت — فتح صفحة الخدمة ─────────────────────
-function openTeleService(label, value, rate) {
+function openTeleService(label, value, rate, svcId) {
   document.getElementById('tele-service-title').textContent = label.split('(')[0].trim().substring(0,20);
   document.getElementById('tele-service-name-display').textContent = label;
-  document.getElementById('tele-service-value').value = value;
+  // استخدم service ID الحقيقي من دارك فولو إن وُجد، وإلا استخدم الـ key
+  document.getElementById('tele-service-value').value = svcId || value;
   document.getElementById('tele-service-rate').value = rate;
   document.getElementById('tele-svc-link').value = '';
   document.getElementById('tele-svc-qty').value = 1000;
@@ -3119,10 +3120,11 @@ if (teleOrderBtn) {
   });
 }
 
-function openInstaService(label, value, rate) {
+function openInstaService(label, value, rate, svcId) {
   document.getElementById('insta-service-title').textContent = label.split('|')[0].trim();
   document.getElementById('insta-service-name-display').textContent = label;
-  document.getElementById('insta-service-value').value = value;
+  // استخدم service ID الحقيقي من دارك فولو إن وُجد، وإلا استخدم الـ key
+  document.getElementById('insta-service-value').value = svcId || value;
   document.getElementById('insta-service-rate').value = rate;
   document.getElementById('insta-svc-link').value = '';
   document.getElementById('insta-svc-qty').value = 1000;
@@ -5037,9 +5039,18 @@ function toggleTheme() {
         }
       }
 
-      // نحدث الـ onclick أيضاً بالسعر الجديد
+      // نحدث data-svc-id بالـ ID الحقيقي من دارك فولو
+      btn.setAttribute('data-svc-id', darkfollowId);
+
+      // نحدث الـ onclick بالسعر الجديد + نضيف svcId كـ parameter رابع
       const onclick = btn.getAttribute('onclick') || '';
-      const updated = onclick.replace(/'[\d.]+'\)$/, `'${newPrice}')`);
+      let updated = onclick.replace(/'[\d.]+'\)$/, `'${newPrice}')`);
+      // أضف svcId كـ parameter رابع إن لم يكن موجوداً بعد
+      if (updated.match(/openInstaService\('[^']*','[^']*','[^']*'\)$/)) {
+        updated = updated.replace(/\)$/, `,'${darkfollowId}')`);
+      } else if (updated.match(/openTeleService\('[^']*','[^']*','[^']*'\)$/)) {
+        updated = updated.replace(/\)$/, `,'${darkfollowId}')`);
+      }
       if (updated !== onclick) btn.setAttribute('onclick', updated);
     });
 
@@ -5343,11 +5354,20 @@ function _runInitMarkupLabel() {
 
   // الأقسام الثابتة الموجودة — نتجنب تكرارها (مطابقة جزئية بالاسم)
   const STATIC_NAMES = [
+    // انستا وتليجرام وايت
     'انستا | وايت','تليجرام | وايت',
+    // بطاقات
     'آيتونز','نينتندو','بليزارد','فورتنايت','بلايستيشن','فالورانت','ستيم','كرانشي','روبلكس',
+    'itunes','nintendo','blizzard','fortnite','playstation','valorant','steam','crunchyroll','roblox',
+    // ألعاب
     'اوكسايد','ببجي','جينشين','دلتا فورس','كولف ديوتي','يلا لودو',
+    'oxide','pubg','genshin','delta force','call of duty','yalla ludo',
+    // اشتراكات
     'نايترو','العاب ستيم','تليجرام بريميوم','كيم باس','بلايستيشن | psn','نتفلكس',
-    'العراق','السعودية','الاردن','لبنان','مصر','البحرين'
+    'nitro','discord','telegram premium','xbox','psn','netflix',
+    // شحن الهاتف
+    'العراق','السعودية','الاردن','لبنان','مصر','البحرين',
+    'iraq','saudi','jordan','lebanon','egypt','bahrain',
   ];
 
   function _isStaticDuplicate(name) {
