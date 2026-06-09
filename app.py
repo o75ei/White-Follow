@@ -54,7 +54,7 @@ EMAIL_VERIFY  = os.environ.get("EMAIL_VERIFY", "1")
 # ─────────────────────────────────────────────
 # Database — PostgreSQL (Supabase)
 # ─────────────────────────────────────────────
-DATABASE_URL = os.environ.get("DATABASE_URL", "")
+DATABASE_URL = os.environ.get("SUPABASE_DB_URL", os.environ.get("DATABASE_URL", ""))
 
 class _PGCursor:
     def __init__(self, cur):
@@ -113,9 +113,9 @@ class _PGConn:
         return False
 
 def get_db():
-    db_url = os.environ.get("DATABASE_URL", "")
+    db_url = os.environ.get("SUPABASE_DB_URL", os.environ.get("DATABASE_URL", ""))
     if not db_url:
-        raise Exception("DATABASE_URL غير موجود — تشغيل بدون قاعدة بيانات")
+        raise Exception("SUPABASE_DB_URL / DATABASE_URL غير موجود — تشغيل بدون قاعدة بيانات")
     conn = psycopg2.connect(
         db_url,
         connect_timeout=10,
