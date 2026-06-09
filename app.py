@@ -361,6 +361,38 @@ def init_db():
         except Exception:
             pass
 
+    # Migration: remove duplicate services (keep only the row with lowest id per provider+provider_service_id)
+    with get_db() as db:
+        try:
+            deleted = db.execute("""
+                DELETE FROM services
+                WHERE id NOT IN (
+                    SELECT MIN(id)
+                    FROM services
+                    WHERE provider_service_id IS NOT NULL AND provider_service_id != ''
+                    GROUP BY provider_id, provider_service_id
+                )
+                AND provider_service_id IS NOT NULL AND provider_service_id != ''
+            """).rowcount
+            if deleted:
+                db.commit()
+                log.info(f"[migration] Removed {deleted} duplicate service rows")
+        except Exception as e:
+            log.error(f"[migration] dedup services error: {e}")
+
+    # Migration: add UNIQUE index on (provider_id, provider_service_id) if not exists
+    with get_db() as db:
+        try:
+            db.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_services_provider_sid
+                ON services (provider_id, provider_service_id)
+                WHERE provider_service_id IS NOT NULL AND provider_service_id != ''
+            """)
+            db.commit()
+            log.info("[migration] UNIQUE index on services(provider_id, provider_service_id) ensured")
+        except Exception as e:
+            log.error(f"[migration] unique index error: {e}")
+
     log.info("✅ Database initialized")
 
 # ─────────────────────────────────────────────
@@ -2159,12 +2191,26 @@ def admin_import_services():
             try:
                 provider_price = float(s.get("rate", s.get("price", 0)))
                 final_price    = calc_price(provider_price, markup_type, markup_value)
-                db.execute("""
+                result = db.execute("""
                     INSERT INTO services
                     (provider_id, provider_service_id, category_id, name_ar, name_en,
                      min_qty, max_qty, provider_price, markup_type, markup_value,
                      final_price, type)
                     VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    ON CONFLICT (provider_id, provider_service_id)
+                    DO UPDATE SET
+                        category_id    = EXCLUDED.category_id,
+                        name_ar        = EXCLUDED.name_ar,
+                        name_en        = EXCLUDED.name_en,
+                        min_qty        = EXCLUDED.min_qty,
+                        max_qty        = EXCLUDED.max_qty,
+                        provider_price = EXCLUDED.provider_price,
+                        markup_type    = EXCLUDED.markup_type,
+                        markup_value   = EXCLUDED.markup_value,
+                        final_price    = EXCLUDED.final_price,
+                        type           = EXCLUDED.type,
+                        updated_at     = NOW()
+                    WHERE services.provider_service_id IS NOT NULL AND services.provider_service_id != ''
                 """, (
                     provider_id, str(s.get("service","")), category_id,
                     s.get("name",""), s.get("name",""),
