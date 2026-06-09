@@ -5356,11 +5356,12 @@ function _runInitMarkupLabel() {
   }
 
   /* ─── بناء HTML لزر قسم فرعي ─── */
-  function _buildCatBtn(cat, idx) {
+  function _buildCatBtn(cat, idx, parentPage) {
     const imgHtml = cat.image
       ? `<img src="${_esc(cat.image)}" style="width:38px;height:38px;object-fit:cover;border-radius:12px;" onerror="this.parentElement.innerHTML='${cat.icon||'📦'}'" />`
       : `<span style="font-size:22px;line-height:1;">${_esc(cat.icon||'📦')}</span>`;
-    return `<button class="menu-item" onclick="openDarkCatServices(${idx})" style="text-align:right;">
+    const pp = _esc(parentPage || 'white-services');
+    return `<button class="menu-item" onclick="openDarkCatServices(${idx},'${pp}')" style="text-align:right;">
       <span class="menu-item-icon" style="background:rgba(218,165,32,0.07);border-radius:12px;padding:4px;display:flex;align-items:center;justify-content:center;width:44px;height:44px;">${imgHtml}</span>
       <div class="menu-item-content">
         <span class="menu-item-text">${_esc(cat.name)}</span>
@@ -5386,6 +5387,15 @@ function _runInitMarkupLabel() {
       grouped[g].push({ cat, idx });
     });
 
+    // خريطة group → page id للرجوع الصحيح
+    const GROUP_PARENT_PAGE = {
+      white:         'white-services',
+      cards:         'cards',
+      games:         'games',
+      subscriptions: 'subscriptions',
+      topup:         'topup',
+    };
+
     let injected = 0;
     Object.entries(GROUP_CONTAINERS).forEach(([group, containerId]) => {
       const container = document.getElementById(containerId);
@@ -5401,8 +5411,9 @@ function _runInitMarkupLabel() {
       sep.textContent = '⚡ من دارك فولو';
       container.appendChild(sep);
 
+      const parentPage = GROUP_PARENT_PAGE[group] || 'white-services';
       newOnes.forEach(({ cat, idx }) => {
-        container.insertAdjacentHTML('beforeend', _buildCatBtn(cat, idx));
+        container.insertAdjacentHTML('beforeend', _buildCatBtn(cat, idx, parentPage));
         injected++;
       });
     });
@@ -5431,10 +5442,13 @@ function _runInitMarkupLabel() {
   }
 
   /* ─── فتح خدمات قسم معين ─── */
-  window.openDarkCatServices = function(catIdx) {
+  window.openDarkCatServices = function(catIdx, parentPage) {
     const cat = _darkCats[catIdx];
     if (!cat) return;
     document.getElementById('dark-cat-title').textContent = cat.name;
+    // تحديث زر الرجوع ديناميكياً
+    const backBtn = document.querySelector('#page-dark-cat-services .btn-back');
+    if (backBtn) backBtn.setAttribute('data-back', parentPage || 'white-services');
     const listEl = document.getElementById('dark-cat-services-list');
     const svcs = cat.services || [];
     if (!svcs.length) {
