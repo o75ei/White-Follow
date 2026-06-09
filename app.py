@@ -888,19 +888,26 @@ def auth_register():
             return jsonify({"error": "اسم المستخدم مأخوذ، اختر اسماً آخر"}), 409
 
     # ── التسجيل الفوري بدون التحقق من البريد الإلكتروني ──
-    # send_verification_email is intentionally DISABLED — users are auto-verified
-    # uid is a permanent unique alphanumeric string (Supabase-style UUID), never changes
+    # uid: نأخذه من الفرونت إذا أرسله، وإلا نولّده بـ hash من الإيميل
+    # الفرونت يولّد uid بـ SHA-256 من "email:provider" — نحترم نفس القيمة
+    import hashlib
     ph  = hash_password(password)
-    uid = secrets.token_urlsafe(16)   # e.g. "uE9N3k..." — unique, URL-safe, 22 chars
+    uid_from_client = (data.get("uid") or "").strip()
+    if uid_from_client and len(uid_from_client) >= 6:
+        uid = uid_from_client
+    else:
+        uid = "WF-" + hashlib.sha256(("email:" + email.lower()).encode()).hexdigest().upper()[:12]
 
     with get_db() as db:
         db.execute(
-            "INSERT INTO users (uid, email, username, password_hash) VALUES (%s, %s, %s, %s)",
+            """INSERT INTO users (uid, email, username, password_hash)
+               VALUES (%s, %s, %s, %s)
+               ON CONFLICT (email) DO UPDATE SET uid=EXCLUDED.uid""",
             (uid, email, username, ph)
         )
         db.commit()
-        user_row = db.execute("SELECT id FROM users WHERE uid=%s", (uid,)).fetchone()
-        user_id  = user_row["id"] if user_row else uid   # fallback to uid string if SERIAL unavailable
+        user_row = db.execute("SELECT id FROM users WHERE email=%s", (email,)).fetchone()
+        user_id  = user_row["id"] if user_row else uid
 
     notify_admin(f"👤 مستخدم جديد: {email} (uid={uid})")
     token = _create_user_token(uid)
