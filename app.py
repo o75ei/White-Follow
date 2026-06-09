@@ -1309,15 +1309,26 @@ def services_list():
             return "games"
         if so < 60:
             return "subscriptions"
-        if so < 100:
+        if so < 70:
             return "topup"
-        return "white"  # fallback: ضع في white بدل إخفائه
+        # [FIX] sort_order 70-79 = تليجرام مميز → white (مو topup)
+        # sort_order 0 أو > 99 = fallback → white
+        return "white"
 
-    # بناء قائمة الأقسام مرتّبة مع خدماتها وتصنيفها
-    # [FIX] دمج الأقسام المكررة بنفس sort_order أو نفس اسم القسم
-    # (التكرار يحدث لو دارك فولو غيّر اسم category وأصبح عند sort_order=0 متعدد)
-    seen_sort = {}    # sort_order → index in categories_list  (sort_order > 0 only)
-    seen_name = {}    # name_ar.lower() → index in categories_list
+    # بناء قائمة الأقسام — [FIX] دمج بـ sort_order AND اسم لمنع التكرار
+    # السبب: دارك فولو أحياناً يغير اسم category بين sync وآخر → records جديدة → تكرار
+    import re as _re_cat
+
+    def _norm_cat_name(s):
+        """توحيد الاسم: أزل | دارك/وايت، مسافات زائدة، lower"""
+        s = (s or "").lower().strip()
+        s = _re_cat.sub(r'\|\s*(دارك|dark|وايت|white)\s*$', '', s).strip()
+        s = _re_cat.sub(r'^\s*(دارك|dark|وايت|white)\s*\|', '', s).strip()
+        s = _re_cat.sub(r'\s+', ' ', s)
+        return s
+
+    seen_sort = {}    # sort_order → index (لأقسام بـ sort_order فريد > 0)
+    seen_name = {}    # normalized_name → index
     categories_list = []
     for c in cats:
         cat = dict(c)
@@ -1331,9 +1342,8 @@ def services_list():
         group = _get_group(cat["sort_order"], cat["name_ar"], cat["name_en"])
         cat_source = "white" if all(sv.get("source") == "white" for sv in cat_svcs) else "dark"
         so = cat["sort_order"]
-        name_key = (cat["name_ar"] or "").lower().strip()
+        name_key = _norm_cat_name(cat.get("name_ar") or cat.get("name_en") or "")
 
-        # [FIX] أولوية الدمج: أولاً بـ sort_order (لو > 0)، ثم بالاسم
         merge_idx = None
         if so > 0 and so in seen_sort:
             merge_idx = seen_sort[so]
@@ -1341,7 +1351,6 @@ def services_list():
             merge_idx = seen_name[name_key]
 
         if merge_idx is not None:
-            # دمج الخدمات في القسم الموجود بدل إضافة قسم جديد مكرر
             existing_ids = {sv["id"] for sv in categories_list[merge_idx]["services"]}
             for sv in cat_svcs:
                 if sv["id"] not in existing_ids:
@@ -3049,7 +3058,8 @@ def _sync_provider_catalog(provider_id=None):
                             for part in key_parts:
                                 if part.strip() and part.strip() in name_lower:
                                     return val[0], val[1], val[2]
-                        # Keyword fallback
+                        # Keyword fallback — [FIX] sort_order مبني على نوع الخدمة مو len(cat_map)*10
+                        # len(cat_map)*10 كان يعطي sort_order عشوائي يخلي الأقسام تروح مكان غلط
                         icon = "📦"
                         kw_map = {
                             "instagram":"📸","انستا":"📸","tiktok":"🎵","تيك توك":"🎵",
@@ -3068,40 +3078,50 @@ def _sync_provider_catalog(provider_id=None):
                             if kw in name_lower:
                                 icon = em
                                 break
-                        return icon, len(cat_map) * 10, cat_name
+                        # [FIX] تحديد sort_order بناءً على نوع الخدمة ليس على حجم cat_map
+                        cards_kw = ["بطاقات","card","itunes","nintendo","blizzard","fortnite","playstation","valorant","steam","roblox","riot","amazon","amzn","razer","league","crunchyroll","netflix","ايتونز","نينتيندو","ريزر","ليج","روبلوكس"]
+                        games_kw = ["pubg","ببجي","genshin","جينشين","oxide","أوكسايد","اوكسايد","arena","ارينا","delta","دلتا","call of duty","cod","ludo","لودو","موبايل"]
+                        subs_kw  = ["nitro","نايترو","xbox","ستيم games","discord","اشتراك","subscription","premium","مميز","psn","plus"]
+                        topup_kw = ["عراق","iraq","سعودية","saudi","اردن","jordan","لبنان","lebanon","مصر","egypt","بحرين","bahrain","kuwait","كويت","شحن رصيد","شحن هاتف"]
+                        so_fallback = 18  # default: white
+                        for kw in cards_kw:
+                            if kw in name_lower: so_fallback = 35; break
+                        for kw in games_kw:
+                            if kw in name_lower: so_fallback = 48; break
+                        for kw in subs_kw:
+                            if kw in name_lower: so_fallback = 58; break
+                        for kw in topup_kw:
+                            if kw in name_lower: so_fallback = 68; break
+                        return icon, so_fallback, cat_name
 
                     for svc in remote_svcs:
                         cat_name = str(svc.get("category", "General")).strip()
                         cat_key  = cat_name.lower()
 
-                        # Create category if missing — upsert on name_en to prevent duplicates
-                        # when DarkFollow changes category name casing/spacing between syncs
+                        # [FIX] إنشاء category فقط لو غير موجود — تحقق بـ name_en (case-insensitive)
+                        # هذا يمنع إنشاء قسم مكرر لو دارك فولو غير الحروف الكبيرة/الصغيرة
                         if cat_key not in cat_map:
                             icon, sort_order, ar_name = _get_cat_info(cat_name)
-                            # [FIX] Check by name_en first to avoid duplicate categories
+                            # تحقق بـ LOWER(name_en) أولاً — منع التكرار الأهم
                             existing_cat = db.execute(
-                                "SELECT id FROM categories WHERE LOWER(name_en)=%s LIMIT 1",
-                                (cat_key,)
+                                "SELECT id FROM categories WHERE LOWER(TRIM(name_en))=LOWER(TRIM(%s)) LIMIT 1",
+                                (cat_name,)
                             ).fetchone()
-                            if existing_cat:
-                                cat_map[cat_key] = existing_cat["id"]
-                                log.info(f"[catalog] Reused existing category: {cat_name} (id={existing_cat['id']})")
-                            else:
-                                # Also check by sort_order to prevent duplicate sort positions
-                                existing_so = db.execute(
-                                    "SELECT id FROM categories WHERE sort_order=%s AND sort_order > 0 LIMIT 1",
+                            if not existing_cat and sort_order > 0:
+                                # تحقق بـ sort_order — منع تكرار نفس الرقم
+                                existing_cat = db.execute(
+                                    "SELECT id FROM categories WHERE sort_order=%s LIMIT 1",
                                     (sort_order,)
                                 ).fetchone()
-                                if existing_so:
-                                    cat_map[cat_key] = existing_so["id"]
-                                    log.info(f"[catalog] Reused category by sort_order={sort_order}: {cat_name}")
-                                else:
-                                    cur = db.execute(
-                                        "INSERT INTO categories (name_ar, name_en, icon, sort_order, is_active) VALUES (%s,%s,%s,%s,1)",
-                                        (ar_name, cat_name, icon, sort_order)
-                                    )
-                                    cat_map[cat_key] = cur.lastrowid
-                                    log.info(f"[catalog] New category: {cat_name} → {ar_name}")
+                            if existing_cat:
+                                cat_map[cat_key] = existing_cat["id"]
+                            else:
+                                cur = db.execute(
+                                    "INSERT INTO categories (name_ar, name_en, icon, sort_order, is_active) VALUES (%s,%s,%s,%s,1)",
+                                    (ar_name, cat_name, icon, sort_order)
+                                )
+                                cat_map[cat_key] = cur.lastrowid
+                                log.info(f"[catalog] New category: {cat_name} → {ar_name} (sort={sort_order})")
 
                         cat_id = cat_map[cat_key]
                         provider_service_id = str(svc.get("service", ""))
