@@ -165,7 +165,8 @@ def init_db():
             sort_order   INTEGER DEFAULT 0,
             is_active    INTEGER DEFAULT 1,
             markup_type  TEXT    DEFAULT 'percent',
-            markup_value NUMERIC DEFAULT 0
+            markup_value NUMERIC DEFAULT 0,
+            group_code   TEXT    DEFAULT 'white'
         )""")
         # Services
         db.execute("""
@@ -393,7 +394,71 @@ def init_db():
         except Exception as e:
             log.error(f"[migration] unique index error: {e}")
 
+    # [FIX] Migration: hard-delete duplicate categories by name_ar (keep lowest id)
+    with get_db() as db:
+        try:
+            deleted = db.execute("""
+                DELETE FROM categories
+                WHERE id NOT IN (
+                    SELECT MIN(id) FROM categories
+                    WHERE name_ar IS NOT NULL AND TRIM(name_ar) != ''
+                    GROUP BY LOWER(TRIM(name_ar))
+                )
+                AND name_ar IS NOT NULL AND TRIM(name_ar) != ''
+            """).rowcount
+            if deleted:
+                db.commit()
+                log.info(f"[migration] Removed {deleted} duplicate categories by name_ar")
+        except Exception as e:
+            log.error(f"[migration] dedup categories name_ar error: {e}")
+
+    # [FIX] Migration: hard-delete duplicate categories by name_en (keep lowest id)
+    with get_db() as db:
+        try:
+            deleted = db.execute("""
+                DELETE FROM categories
+                WHERE id NOT IN (
+                    SELECT MIN(id) FROM categories
+                    WHERE name_en IS NOT NULL AND TRIM(name_en) != ''
+                    GROUP BY LOWER(TRIM(name_en))
+                )
+                AND name_en IS NOT NULL AND TRIM(name_en) != ''
+            """).rowcount
+            if deleted:
+                db.commit()
+                log.info(f"[migration] Removed {deleted} duplicate categories by name_en")
+        except Exception as e:
+            log.error(f"[migration] dedup categories name_en error: {e}")
+
+    # [FIX] Migration: add group_code column to categories if missing
+    with get_db() as db:
+        try:
+            db.execute("ALTER TABLE categories ADD COLUMN IF NOT EXISTS group_code TEXT DEFAULT 'white'")
+            db.commit()
+            log.info("[migration] group_code column ensured on categories")
+        except Exception as e:
+            log.error(f"[migration] group_code column error: {e}")
+
+    # [FIX] Migration: backfill group_code from sort_order for existing rows
+    with get_db() as db:
+        try:
+            db.execute("""
+                UPDATE categories SET group_code = CASE
+                    WHEN sort_order >= 20 AND sort_order < 40 THEN 'cards'
+                    WHEN sort_order >= 40 AND sort_order < 50 THEN 'games'
+                    WHEN sort_order >= 50 AND sort_order < 60 THEN 'subscriptions'
+                    WHEN sort_order >= 60 AND sort_order < 80 THEN 'topup'
+                    ELSE 'white'
+                END
+                WHERE group_code IS NULL OR group_code = 'white'
+            """)
+            db.commit()
+            log.info("[migration] Backfilled group_code on categories")
+        except Exception as e:
+            log.error(f"[migration] backfill group_code error: {e}")
+
     log.info("✅ Database initialized")
+
 
 # ─────────────────────────────────────────────
 # Helpers
@@ -455,18 +520,19 @@ _login_attempts = {}
 def require_admin(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = request.headers.get("X-Admin-Token", "") or request.cookies.get("admin_token", "")
+        token = (request.headers.get("X-Admin-Token") or request.cookies.get("admin_token") or "").strip()
         if not token:
-            return jsonify({"error": "unauthorized"}), 401
+            return jsonify({"ok": False, "error": "unauthorized", "code": "AUTH_MISSING"}), 401
         try:
             with get_db() as db:
                 row = db.execute(
                     "SELECT id FROM admin_sessions WHERE token=%s", (token,)
                 ).fetchone()
             if not row:
-                return jsonify({"error": "session expired"}), 401
-        except Exception:
-            pass  # DB error - still allow if token exists
+                return jsonify({"ok": False, "error": "session expired", "code": "AUTH_EXPIRED"}), 401
+        except Exception as e:
+            log.error(f"[auth] admin token verify failed: {e}")
+            return jsonify({"ok": False, "error": "auth service unavailable", "code": "AUTH_DB_ERROR"}), 503
         return f(*args, **kwargs)
     return decorated
 
@@ -474,10 +540,10 @@ def require_admin(f):
 def admin_login():
     data = request.get_json(silent=True) or {}
     pin = str(data.get("pin") or data.get("password") or "").strip()
-    correct_pin = "147258"  # Fixed PIN - change here to update
+    correct_pin = str(ADMIN_PIN or "147258").strip()
 
     if pin != correct_pin:
-        return jsonify({"error": "الرمز خاطئ"}), 403
+        return jsonify({"ok": False, "error": "الرمز خاطئ", "code": "AUTH_INVALID"}), 403
 
     token = secrets.token_hex(32)
     try:
@@ -1133,9 +1199,12 @@ def get_current_user():
 def require_user(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        token = (request.headers.get("X-User-Token") or request.cookies.get("user_token") or "").strip()
+        if not token:
+            return jsonify({"ok": False, "error": "يجب تسجيل الدخول", "code": "AUTH_MISSING"}), 401
         user = get_current_user()
         if not user:
-            return jsonify({"error": "يجب تسجيل الدخول"}), 401
+            return jsonify({"ok": False, "error": "يجب تسجيل الدخول", "code": "AUTH_EXPIRED"}), 401
         request.current_user = user
         return f(*args, **kwargs)
     return decorated
@@ -1276,7 +1345,19 @@ def services_public():
 
     resp = {"ok": True, "services": result_svcs, "data": result_svcs}
     if cats:
-        resp["categories"] = [dict(c) for c in cats]
+        # [FIX] dedup categories by LOWER(name_ar) before returning — keep lowest id, merge is not needed here
+        # since services reference category_id directly; just deduplicate the category list
+        seen_cat = {}
+        deduped_cats = []
+        for c in cats:
+            row = dict(c)
+            key = (row.get("name_ar") or "").lower().strip()
+            if key and key in seen_cat:
+                continue  # skip duplicate
+            if key:
+                seen_cat[key] = True
+            deduped_cats.append(row)
+        resp["categories"] = deduped_cats
     return jsonify(resp)
 
 # ─────────────────────────────────────────────
@@ -1370,7 +1451,7 @@ def services_list():
         ]
         if not cat_svcs:
             continue
-        group = _get_group(cat["sort_order"], cat["name_ar"], cat["name_en"])
+        group = cat.get("group_code") or _get_group(cat["sort_order"], cat["name_ar"], cat["name_en"])  # [FIX] prefer DB group_code
         cat_source = "white" if all(sv.get("source") == "white" for sv in cat_svcs) else "dark"
         so = cat["sort_order"]
         name_key = _norm_cat_name(cat.get("name_ar") or cat.get("name_en") or "")
@@ -1402,6 +1483,7 @@ def services_list():
                 "image": cat.get("image_url") or "",
                 "sort_order": so,
                 "group": group,
+                "group_code": group,  # [FIX] أرسل group_code صراحةً للفرونت
                 "source": cat_source,
                 "services": cat_svcs,
             })
@@ -1905,10 +1987,20 @@ def admin_users():
     result = []
     for u in users:
         d = dict(u)
-        if not d.get('uid') and d.get('username') and str(d['username']).startswith('WF-'):
-            d['uid'] = d['username']
-        elif not d.get('uid'):
-            d['uid'] = str(d['id'])
+        uid = str(d.get("uid") or "").strip()
+        if not uid and d.get("username") and str(d["username"]).startswith("WF-"):
+            uid = str(d["username"])
+        elif not uid and d.get("telegram_id"):
+            uid = f"TG-{d['telegram_id']}"
+        elif not uid:
+            uid = f"WF-{d['id']:06d}"
+        d["uid"] = uid
+        d["balance"] = float(d.get("balance") or 0)
+        d["total_charged"] = float(d.get("total_charged") or 0)
+        d["total_spent"] = float(d.get("total_spent") or 0)
+        d["orders_count"] = int(d.get("orders_count") or 0)
+        d["email"] = d.get("email") or ""
+        d["telegram_id"] = d.get("telegram_id") or ""
         result.append(d)
     return jsonify({"ok": True, "users": result, "total": total, "page": page})
 
@@ -2053,7 +2145,18 @@ def admin_fetch_provider_services(pid):
 def admin_categories():
     with get_db() as db:
         rows = db.execute("SELECT * FROM categories ORDER BY sort_order").fetchall()
-    return jsonify({"categories": [dict(r) for r in rows]})
+    # [FIX] dedup by LOWER(name_ar) — keep lowest id (already sorted by sort_order)
+    seen = {}
+    result = []
+    for r in rows:
+        row = dict(r)
+        key = (row.get("name_ar") or "").lower().strip()
+        if key and key in seen:
+            continue
+        if key:
+            seen[key] = True
+        result.append(row)
+    return jsonify({"categories": result})
 
 @app.route("/admin/categories", methods=["POST"])
 @require_admin
@@ -2315,14 +2418,25 @@ def admin_sync_prices():
 @require_admin
 def admin_sync_catalog():
     """يجلب كل خدمات دارك فولو ويضيف الجديدة بقاعدة البيانات"""
-    import threading
     threading.Thread(target=_sync_provider_catalog, daemon=True).start()
-    # انتظر ثانية وارجع نتيجة أولية
-    import time; time.sleep(2)
-    with get_db() as db:
-        total = db.execute("SELECT COUNT(*) as c FROM services").fetchone()["c"]
-        linked = db.execute("SELECT COUNT(*) as c FROM services WHERE provider_service_id IS NOT NULL AND provider_service_id != ''").fetchone()["c"]
+    time.sleep(2)
+    try:
+        with get_db() as db:
+            total = db.execute("SELECT COUNT(*) as c FROM services").fetchone()["c"]
+            linked = db.execute("SELECT COUNT(*) as c FROM services WHERE provider_service_id IS NOT NULL AND provider_service_id != ''").fetchone()["c"]
+    except Exception as e:
+        log.error(f"[admin] sync-catalog status error: {e}")
+        return jsonify({"ok": True, "message": "بدأت المزامنة في الخلفية", "updated": 0, "added": 0})
     return jsonify({"ok": True, "message": "بدأت المزامنة في الخلفية", "updated": linked, "added": total})
+
+
+@app.route("/admin/refresh-catalog", methods=["POST"])
+@require_admin
+def admin_refresh_catalog():
+    """مزامنة فورية: أرصدة المزودين + كاتالوج الخدمات"""
+    threading.Thread(target=_sync_provider_balance, daemon=True).start()
+    threading.Thread(target=_sync_provider_catalog, daemon=True).start()
+    return jsonify({"ok": True, "message": "بدأت مزامنة الأرصدة والكاتالوج فوراً"})
 
 
 @app.route("/admin/services-status", methods=["GET"])
@@ -3097,18 +3211,22 @@ def _sync_provider_catalog(provider_id=None):
                     }
 
                     def _get_cat_info(cat_name):
-                        """Find best matching category info from map"""
+                        """Find best matching category info from map — returns (icon, sort_order, ar_name, group_code)"""
                         name_lower = cat_name.lower().strip()
                         # Exact match first
                         for key, val in DARKFOLLOW_CAT_MAP.items():
                             if key.lower() == name_lower:
-                                return val[0], val[1], val[2]
+                                so = val[1]
+                                gc = ('cards' if 20<=so<40 else 'games' if 40<=so<50 else 'subscriptions' if 50<=so<60 else 'topup' if 60<=so<80 else 'white')
+                                return val[0], so, val[2], gc
                         # Partial match
                         for key, val in DARKFOLLOW_CAT_MAP.items():
                             key_parts = key.lower().split("|")
                             for part in key_parts:
                                 if part.strip() and part.strip() in name_lower:
-                                    return val[0], val[1], val[2]
+                                    so = val[1]
+                                    gc = ('cards' if 20<=so<40 else 'games' if 40<=so<50 else 'subscriptions' if 50<=so<60 else 'topup' if 60<=so<80 else 'white')
+                                    return val[0], so, val[2], gc
                         # Keyword fallback — [FIX] sort_order مبني على نوع الخدمة مو len(cat_map)*10
                         # len(cat_map)*10 كان يعطي sort_order عشوائي يخلي الأقسام تروح مكان غلط
                         icon = "📦"
@@ -3134,16 +3252,16 @@ def _sync_provider_catalog(provider_id=None):
                         games_kw = ["pubg","ببجي","genshin","جينشين","oxide","أوكسايد","اوكسايد","arena","ارينا","delta","دلتا","call of duty","cod","ludo","لودو","موبايل"]
                         subs_kw  = ["nitro","نايترو","xbox","ستيم games","discord","اشتراك","subscription","premium","مميز","psn","plus"]
                         topup_kw = ["عراق","iraq","سعودية","saudi","اردن","jordan","لبنان","lebanon","مصر","egypt","بحرين","bahrain","kuwait","كويت","شحن رصيد","شحن هاتف"]
-                        so_fallback = 18  # default: white
+                        so_fallback = 18; gc_fallback = "white"  # [FIX] حفظ group_code صراحةً
                         for kw in cards_kw:
-                            if kw in name_lower: so_fallback = 35; break
+                            if kw in name_lower: so_fallback = 35; gc_fallback = "cards"; break
                         for kw in games_kw:
-                            if kw in name_lower: so_fallback = 48; break
+                            if kw in name_lower: so_fallback = 48; gc_fallback = "games"; break
                         for kw in subs_kw:
-                            if kw in name_lower: so_fallback = 58; break
+                            if kw in name_lower: so_fallback = 58; gc_fallback = "subscriptions"; break
                         for kw in topup_kw:
-                            if kw in name_lower: so_fallback = 68; break
-                        return icon, so_fallback, cat_name
+                            if kw in name_lower: so_fallback = 68; gc_fallback = "topup"; break
+                        return icon, so_fallback, cat_name, gc_fallback  # [FIX] أضف group_code للـ return
 
                     import re as _re_sync
 
@@ -3156,32 +3274,44 @@ def _sync_provider_catalog(provider_id=None):
 
                     for svc in remote_svcs:
                         cat_name = str(svc.get("category", "General")).strip()
-                        cat_key  = _norm_sync_key(cat_name)   # [FIX] normalize مو مجرد lower()
+                        cat_key  = _norm_sync_key(cat_name)
 
-                        # [FIX] إنشاء category فقط لو غير موجود — تحقق بـ name_en (case-insensitive)
-                        # هذا يمنع إنشاء قسم مكرر لو دارك فولو غير الحروف الكبيرة/الصغيرة
                         if cat_key not in cat_map:
-                            icon, sort_order, ar_name = _get_cat_info(cat_name)
-                            # تحقق بـ LOWER(name_en) أولاً — منع التكرار الأهم
+                            icon, sort_order, ar_name, group_code = _get_cat_info(cat_name)  # [FIX] unpack 4 values
+                            # تحقق بـ LOWER(name_en) أولاً
                             existing_cat = db.execute(
                                 "SELECT id FROM categories WHERE LOWER(TRIM(name_en))=LOWER(TRIM(%s)) LIMIT 1",
                                 (cat_name,)
                             ).fetchone()
                             if not existing_cat and sort_order > 0:
-                                # تحقق بـ sort_order — منع تكرار نفس الرقم
                                 existing_cat = db.execute(
                                     "SELECT id FROM categories WHERE sort_order=%s LIMIT 1",
                                     (sort_order,)
                                 ).fetchone()
                             if existing_cat:
                                 cat_map[cat_key] = existing_cat["id"]
-                            else:
-                                cur = db.execute(
-                                    "INSERT INTO categories (name_ar, name_en, icon, sort_order, is_active) VALUES (%s,%s,%s,%s,1)",
-                                    (ar_name, cat_name, icon, sort_order)
+                                # [FIX] تحديث group_code على الصف الموجود
+                                db.execute(
+                                    "UPDATE categories SET group_code=%s WHERE id=%s AND (group_code IS NULL OR group_code='' OR group_code='white')",
+                                    (group_code, existing_cat["id"])
                                 )
-                                cat_map[cat_key] = cur.lastrowid
-                                log.info(f"[catalog] New category: {cat_name} → {ar_name} (sort={sort_order})")
+                            else:
+                                # [FIX] INSERT مع group_code + ON CONFLICT DO NOTHING
+                                db.execute(
+                                    "INSERT INTO categories (name_ar, name_en, icon, sort_order, is_active, group_code) VALUES (%s,%s,%s,%s,1,%s) ON CONFLICT DO NOTHING",
+                                    (ar_name, cat_name, icon, sort_order, group_code)
+                                )
+                                db.commit()
+                                inserted = db.execute(
+                                    "SELECT id FROM categories WHERE LOWER(TRIM(name_en))=LOWER(TRIM(%s)) LIMIT 1",
+                                    (cat_name,)
+                                ).fetchone()
+                                if inserted:
+                                    cat_map[cat_key] = inserted["id"]
+                                    log.info(f"[catalog] New category: {cat_name} → {ar_name} group={group_code}")
+                                else:
+                                    log.error(f"[catalog] Failed to insert/find category: {cat_name}")
+                                    continue
 
                         cat_id = cat_map[cat_key]
                         provider_service_id = str(svc.get("service", ""))
@@ -3248,6 +3378,11 @@ def _sync_provider_catalog(provider_id=None):
 
             except Exception as e:
                 log.error(f"[catalog] provider #{prov['id']} error: {e}")
+                try:
+                    with get_db() as db:
+                        db.rollback()
+                except Exception:
+                    pass
 
         ms = int((time.time() - start) * 1000)
         with get_db() as db:
