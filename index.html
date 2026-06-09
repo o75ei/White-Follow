@@ -10,6 +10,20 @@
   <meta name="build-version" content="20260608-1" />
   <!-- Telegram WebApp SDK — لازم يكون أول شيء يتحمّل -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script>
+    // ── فتح المتصفح الخارجي لو الصفحة اتفتحت داخل تيليجرام ──
+    (function() {
+      var tg = window.Telegram && window.Telegram.WebApp;
+      if (tg && tg.openLink) {
+        // نحن داخل Telegram WebView — افتح بالمتصفح الخارجي
+        tg.openLink(window.location.href, { try_instant_view: false });
+        // وقف تحميل الصفحة الحالية (اختياري — يمنع flash المحتوى)
+        document.addEventListener('DOMContentLoaded', function() {
+          document.body.style.display = 'none';
+        });
+      }
+    })();
+  </script>
   <meta name="deploy-timestamp" content="1749254400" />
   <script>
     // [FIX-3] Cache Busting: force reload if cached version differs
@@ -5407,8 +5421,8 @@ function _runInitMarkupLabel() {
       Array.from(parent.querySelectorAll('.menu-item')).forEach(btn => {
         if (container.contains(btn)) return; // تجاهل الديناميكيين
         const txt = (btn.querySelector('.menu-item-text') || btn).textContent || '';
-        // normalize: أزل كل شيء بعد | (مو بس وايت/دارك) + مسافات زائدة + lower
-        const norm = txt.replace(/\s*\|.*$/gi, '').replace(/\s+/g, ' ').trim().toLowerCase();
+        // normalize: أزل | وايت / | دارك وتحويل lower
+        const norm = txt.replace(/\|\s*(وايت|white|دارك|dark)/gi, '').trim().toLowerCase();
         if (norm) names.add(norm);
       });
       _staticNames[group] = names;
@@ -5436,8 +5450,8 @@ function _runInitMarkupLabel() {
       const injectedNames = new Set();
 
       items.forEach(({ cat, idx }) => {
-        // [FIX] normalize اسم القسم — أزل كل شيء بعد | (مو بس وايت/دارك) ليطابق الـ static
-        const normName = (cat.name || '').replace(/\s*\|.*$/gi, '').replace(/\s+/g, ' ').trim().toLowerCase();
+        // [FIX] normalize اسم القسم
+        const normName = (cat.name || '').replace(/\|\s*(وايت|white|دارك|dark)/gi, '').trim().toLowerCase();
 
         // تخطى لو موجود كـ static button
         if (normName && staticNames.has(normName)) return;
