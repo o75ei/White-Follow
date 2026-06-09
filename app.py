@@ -1352,10 +1352,9 @@ def services_list():
     import re as _re_cat
 
     def _norm_cat_name(s):
-        """توحيد الاسم: أزل | دارك/وايت، مسافات زائدة، lower"""
+        """توحيد الاسم: أزل كل شيء بعد |، مسافات زائدة، lower — يطابق منطق الفرونت"""
         s = (s or "").lower().strip()
-        s = _re_cat.sub(r'\|\s*(دارك|dark|وايت|white)\s*$', '', s).strip()
-        s = _re_cat.sub(r'^\s*(دارك|dark|وايت|white)\s*\|', '', s).strip()
+        s = _re_cat.sub(r'\s*\|.*$', '', s).strip()   # أزل | وكل ما بعده (iTunes, دارك, وايت ...)
         s = _re_cat.sub(r'\s+', ' ', s)
         return s
 
@@ -3025,11 +3024,17 @@ def _sync_provider_catalog(provider_id=None):
                     continue
 
                 # ── Build category map from remote services ──
-                cat_map = {}  # category_name → local category id
+                import re as _re_catmap
+                def _norm_catmap(s):
+                    s = (s or "").lower().strip()
+                    s = _re_catmap.sub(r'\s*\|.*$', '', s).strip()
+                    s = _re_catmap.sub(r'\s+', ' ', s)
+                    return s
+                cat_map = {}  # normalized_category_name → local category id
                 with get_db() as db:
                     existing_cats = db.execute("SELECT id, name_en FROM categories").fetchall()
                     for c in existing_cats:
-                        cat_map[c["name_en"].strip().lower()] = c["id"]
+                        cat_map[_norm_catmap(c["name_en"])] = c["id"]
 
                 # ── Process each remote service ──
                 remote_ids = set()
@@ -3140,9 +3145,18 @@ def _sync_provider_catalog(provider_id=None):
                             if kw in name_lower: so_fallback = 68; break
                         return icon, so_fallback, cat_name
 
+                    import re as _re_sync
+
+                    def _norm_sync_key(s):
+                        """نفس منطق الفرونت: أزل | وكل ما بعده، lower, strip"""
+                        s = (s or "").lower().strip()
+                        s = _re_sync.sub(r'\s*\|.*$', '', s).strip()
+                        s = _re_sync.sub(r'\s+', ' ', s)
+                        return s
+
                     for svc in remote_svcs:
                         cat_name = str(svc.get("category", "General")).strip()
-                        cat_key  = cat_name.lower()
+                        cat_key  = _norm_sync_key(cat_name)   # [FIX] normalize مو مجرد lower()
 
                         # [FIX] إنشاء category فقط لو غير موجود — تحقق بـ name_en (case-insensitive)
                         # هذا يمنع إنشاء قسم مكرر لو دارك فولو غير الحروف الكبيرة/الصغيرة
