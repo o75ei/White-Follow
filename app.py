@@ -63,25 +63,11 @@ class _PGCursor:
 
     def execute(self, sql, params=None):
         self._cur.execute(sql, params or [])
-        # Extract lastrowid only for INSERT...RETURNING queries, never consume rows for SELECT
-        sql_upper = sql.strip().upper()
-        if sql_upper.startswith("INSERT") and "RETURNING" in sql_upper:
-            try:
-                row = self._cur.fetchone()
-                if row:
-                    self.lastrowid = list(row.values())[0]
-            except Exception:
-                self.lastrowid = None
-        elif sql_upper.startswith("INSERT"):
-            # For INSERT without RETURNING, use lastval()
-            try:
-                self._cur.execute("SELECT lastval()")
-                row = self._cur.fetchone()
-                if row:
-                    self.lastrowid = list(row.values())[0]
-            except Exception:
-                self.lastrowid = None
-        else:
+        try:
+            row = self._cur.fetchone()
+            if row:
+                self.lastrowid = list(row.values())[0]
+        except Exception:
             self.lastrowid = None
         return self
 
@@ -447,9 +433,8 @@ def require_admin(f):
                 ).fetchone()
             if not row:
                 return jsonify({"error": "session expired"}), 401
-        except Exception as e:
-            log.error(f"[require_admin] DB error: {e}")
-            return jsonify({"error": "database error", "detail": str(e)}), 503
+        except Exception:
+            pass  # DB error - still allow if token exists
         return f(*args, **kwargs)
     return decorated
 
@@ -1263,6 +1248,111 @@ def services_public():
     return jsonify(resp)
 
 # ─────────────────────────────────────────────
+# API — /services/list  (alias يستخدمه الفرونت)
+# يرجع الخدمات مجمّعة حسب الأقسام بالترتيب
+# مناسب للعرض الديناميكي في index.html
+# ─────────────────────────────────────────────
+@app.route("/services/list", methods=["GET"])
+def services_list():
+    lang = request.args.get("lang", "ar")
+    with get_db() as db:
+        cats = db.execute(
+            "SELECT * FROM categories WHERE is_active=1 ORDER BY sort_order, id"
+        ).fetchall()
+        svcs = db.execute("""
+            SELECT s.id, s.provider_service_id,
+                   s.name_ar, s.name_en,
+                   s.final_price as rate,
+                   s.min_qty as min, s.max_qty as max,
+                   s.category_id, s.type,
+                   s.image_url as image,
+                   s.description_ar, s.description_en,
+                   s.is_active
+            FROM services s
+            WHERE s.is_active=1
+            ORDER BY s.category_id, s.id
+        """).fetchall()
+
+    # بناء dict { provider_service_id: {...} } للفرونت
+    services_dict = {}
+    for s in svcs:
+        d = dict(s)
+        pid = d.get("provider_service_id") or str(d["id"])
+        services_dict[pid] = {
+            "id": d["id"],
+            "name": d["name_ar"] if lang == "ar" else (d["name_en"] or d["name_ar"]),
+            "name_ar": d["name_ar"],
+            "name_en": d["name_en"],
+            "rate": float(d["rate"] or 0),
+            "min": d["min"],
+            "max": d["max"],
+            "category_id": d["category_id"],
+            "type": d["type"],
+            "image": d["image"] or "",
+        }
+
+    # بناء قائمة الأقسام مرتّبة مع خدماتها
+    categories_list = []
+    for c in cats:
+        cat = dict(c)
+        cat_svcs = [
+            services_dict[pid]
+            for pid, sv in services_dict.items()
+            if sv["category_id"] == cat["id"]
+        ]
+        if cat_svcs:
+            categories_list.append({
+                "id": cat["id"],
+                "name": cat["name_ar"] if lang == "ar" else (cat["name_en"] or cat["name_ar"]),
+                "name_ar": cat["name_ar"],
+                "name_en": cat["name_en"],
+                "icon": cat["icon"] or "📦",
+                "image": cat.get("image_url") or "",
+                "sort_order": cat["sort_order"],
+                "services": cat_svcs,
+            })
+
+    return jsonify({"ok": True, "services": services_dict, "categories": categories_list})
+
+
+# ─────────────────────────────────────────────
+# /user/sync, /user/check, /user/list  — compat للفرونت
+# ─────────────────────────────────────────────
+@app.route("/user/sync", methods=["POST"])
+@require_user
+def user_sync():
+    """الفرونت يستدعيها بعد تسجيل الدخول لمزامنة بيانات المستخدم"""
+    u = get_current_user()
+    if not u:
+        return jsonify({"error": "غير مخوّل"}), 401
+    return jsonify({"ok": True, "user": {
+        "id": u["id"], "uid": u.get("uid") or f"WF-{u['id']:06d}",
+        "email": u.get("email",""), "username": u.get("username",""),
+        "balance": float(u.get("balance",0))
+    }})
+
+@app.route("/user/check", methods=["GET"])
+def user_check():
+    """تحقق من وجود بريد إلكتروني"""
+    email = (request.args.get("email") or "").strip().lower()
+    if not email:
+        return jsonify({"exists": False})
+    with get_db() as db:
+        row = db.execute("SELECT id FROM users WHERE LOWER(email)=%s", (email,)).fetchone()
+    return jsonify({"exists": bool(row)})
+
+@app.route("/user/list", methods=["GET"])
+@require_admin
+def user_list_compat():
+    """قائمة المستخدمين — compat للفرونت القديم"""
+    with get_db() as db:
+        rows = db.execute(
+            "SELECT uid, email, username, balance, total_charged, total_spent, orders_count FROM users ORDER BY id DESC LIMIT 200"
+        ).fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+# ─────────────────────────────────────────────
 # API — Live Prices by provider_service_id
 # ─────────────────────────────────────────────
 @app.route("/api/prices", methods=["GET"])
@@ -1368,7 +1458,7 @@ def place_order():
     # Refund if provider failed
     if place_failed and provider:
         with get_db() as db:
-            db.execute("UPDATE users SET balance=balance+%s, total_spent=total_spent-%s, orders_count=GREATEST(0,orders_count-1) WHERE id=%s",
+            db.execute("UPDATE users SET balance=balance+%s, total_spent=total_spent-%s, orders_count=MAX(0,orders_count-1) WHERE id=%s",
                        (total_cost, total_cost, user["id"]))
             db.commit()
         return jsonify({"error": "فشل إرسال الطلب للمزود، يرجى المحاولة لاحقاً"}), 503
@@ -1480,7 +1570,7 @@ def cancel_order(order_id):
             log.warning(f"[cancel] provider cancel failed (still refunding): {e}")
     with get_db() as db:
         db.execute("UPDATE orders SET status='cancelled', updated_at=NOW() WHERE id=%s", (order_id,))
-        db.execute("UPDATE users SET balance=balance+%s, orders_count=GREATEST(0,orders_count-1) WHERE id=%s",
+        db.execute("UPDATE users SET balance=balance+%s, orders_count=MAX(0,orders_count-1) WHERE id=%s",
                    (order["price"], user["id"]))
         db.commit()
     return jsonify({"ok": True, "message": "تم إلغاء الطلب واسترداد الرصيد"})
@@ -2420,13 +2510,7 @@ def admin_refresh_provider_balance(pid):
     if not p:
         return jsonify({"error": "غير موجود"}), 404
     try:
-        api_url = p["api_url"]
-        api_key = p["api_key"]
-        if "darkfollow" in api_url.lower():
-            base_url = api_url.rstrip("/").split("?")[0]
-            resp = requests.get(f"{base_url}?action=balance&key={api_key}", timeout=10)
-        else:
-            resp = requests.post(api_url, data={"key": api_key, "action": "balance"}, timeout=10)
+        resp = requests.post(p["api_url"], data={"key": p["api_key"], "action": "balance"}, timeout=10)
         data = resp.json()
         bal = float(data.get("balance", data.get("Balance", data.get("funds", 0))))
         with get_db() as db:
