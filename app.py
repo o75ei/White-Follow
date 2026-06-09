@@ -63,11 +63,25 @@ class _PGCursor:
 
     def execute(self, sql, params=None):
         self._cur.execute(sql, params or [])
-        try:
-            row = self._cur.fetchone()
-            if row:
-                self.lastrowid = list(row.values())[0]
-        except Exception:
+        # Extract lastrowid only for INSERT...RETURNING queries, never consume rows for SELECT
+        sql_upper = sql.strip().upper()
+        if sql_upper.startswith("INSERT") and "RETURNING" in sql_upper:
+            try:
+                row = self._cur.fetchone()
+                if row:
+                    self.lastrowid = list(row.values())[0]
+            except Exception:
+                self.lastrowid = None
+        elif sql_upper.startswith("INSERT"):
+            # For INSERT without RETURNING, use lastval()
+            try:
+                self._cur.execute("SELECT lastval()")
+                row = self._cur.fetchone()
+                if row:
+                    self.lastrowid = list(row.values())[0]
+            except Exception:
+                self.lastrowid = None
+        else:
             self.lastrowid = None
         return self
 
@@ -433,8 +447,9 @@ def require_admin(f):
                 ).fetchone()
             if not row:
                 return jsonify({"error": "session expired"}), 401
-        except Exception:
-            pass  # DB error - still allow if token exists
+        except Exception as e:
+            log.error(f"[require_admin] DB error: {e}")
+            return jsonify({"error": "database error", "detail": str(e)}), 503
         return f(*args, **kwargs)
     return decorated
 
@@ -888,26 +903,19 @@ def auth_register():
             return jsonify({"error": "اسم المستخدم مأخوذ، اختر اسماً آخر"}), 409
 
     # ── التسجيل الفوري بدون التحقق من البريد الإلكتروني ──
-    # uid: نأخذه من الفرونت إذا أرسله، وإلا نولّده بـ hash من الإيميل
-    # الفرونت يولّد uid بـ SHA-256 من "email:provider" — نحترم نفس القيمة
-    import hashlib
+    # send_verification_email is intentionally DISABLED — users are auto-verified
+    # uid is a permanent unique alphanumeric string (Supabase-style UUID), never changes
     ph  = hash_password(password)
-    uid_from_client = (data.get("uid") or "").strip()
-    if uid_from_client and len(uid_from_client) >= 6:
-        uid = uid_from_client
-    else:
-        uid = "WF-" + hashlib.sha256(("email:" + email.lower()).encode()).hexdigest().upper()[:12]
+    uid = secrets.token_urlsafe(16)   # e.g. "uE9N3k..." — unique, URL-safe, 22 chars
 
     with get_db() as db:
         db.execute(
-            """INSERT INTO users (uid, email, username, password_hash)
-               VALUES (%s, %s, %s, %s)
-               ON CONFLICT (email) DO UPDATE SET uid=EXCLUDED.uid""",
+            "INSERT INTO users (uid, email, username, password_hash) VALUES (%s, %s, %s, %s)",
             (uid, email, username, ph)
         )
         db.commit()
-        user_row = db.execute("SELECT id FROM users WHERE email=%s", (email,)).fetchone()
-        user_id  = user_row["id"] if user_row else uid
+        user_row = db.execute("SELECT id FROM users WHERE uid=%s", (uid,)).fetchone()
+        user_id  = user_row["id"] if user_row else uid   # fallback to uid string if SERIAL unavailable
 
     notify_admin(f"👤 مستخدم جديد: {email} (uid={uid})")
     token = _create_user_token(uid)
@@ -1360,7 +1368,7 @@ def place_order():
     # Refund if provider failed
     if place_failed and provider:
         with get_db() as db:
-            db.execute("UPDATE users SET balance=balance+%s, total_spent=total_spent-%s, orders_count=MAX(0,orders_count-1) WHERE id=%s",
+            db.execute("UPDATE users SET balance=balance+%s, total_spent=total_spent-%s, orders_count=GREATEST(0,orders_count-1) WHERE id=%s",
                        (total_cost, total_cost, user["id"]))
             db.commit()
         return jsonify({"error": "فشل إرسال الطلب للمزود، يرجى المحاولة لاحقاً"}), 503
@@ -1472,7 +1480,7 @@ def cancel_order(order_id):
             log.warning(f"[cancel] provider cancel failed (still refunding): {e}")
     with get_db() as db:
         db.execute("UPDATE orders SET status='cancelled', updated_at=NOW() WHERE id=%s", (order_id,))
-        db.execute("UPDATE users SET balance=balance+%s, orders_count=MAX(0,orders_count-1) WHERE id=%s",
+        db.execute("UPDATE users SET balance=balance+%s, orders_count=GREATEST(0,orders_count-1) WHERE id=%s",
                    (order["price"], user["id"]))
         db.commit()
     return jsonify({"ok": True, "message": "تم إلغاء الطلب واسترداد الرصيد"})
@@ -1635,8 +1643,7 @@ def get_translations(lang):
 def public_settings():
     keys = ["site_name", "currency", "min_deposit", "maintenance_mode", "faq_ar", "faq_en", "tos_ar", "tos_en", "global_markup_type", "global_markup_value"]
     with get_db() as db:
-        placeholders = ','.join(['%s'] * len(keys))
-        rows = db.execute(f"SELECT key, value FROM settings WHERE key IN ({placeholders})", keys).fetchall()
+        rows = db.execute(f"SELECT key, value FROM settings WHERE key IN ({','.join('%s'*len(keys))})", keys).fetchall()
     return jsonify({r["key"]: r["value"] for r in rows})
 
 # ─────────────────────────────────────────────
@@ -2413,7 +2420,13 @@ def admin_refresh_provider_balance(pid):
     if not p:
         return jsonify({"error": "غير موجود"}), 404
     try:
-        resp = requests.post(p["api_url"], data={"key": p["api_key"], "action": "balance"}, timeout=10)
+        api_url = p["api_url"]
+        api_key = p["api_key"]
+        if "darkfollow" in api_url.lower():
+            base_url = api_url.rstrip("/").split("?")[0]
+            resp = requests.get(f"{base_url}?action=balance&key={api_key}", timeout=10)
+        else:
+            resp = requests.post(api_url, data={"key": api_key, "action": "balance"}, timeout=10)
         data = resp.json()
         bal = float(data.get("balance", data.get("Balance", data.get("funds", 0))))
         with get_db() as db:
