@@ -1260,7 +1260,7 @@ def services_list():
             "SELECT * FROM categories WHERE is_active=1 ORDER BY sort_order, id"
         ).fetchall()
         svcs = db.execute("""
-            SELECT s.id, s.provider_service_id,
+            SELECT s.id, s.provider_id, s.provider_service_id,
                    s.name_ar, s.name_en,
                    s.final_price as rate,
                    s.min_qty as min, s.max_qty as max,
@@ -1289,21 +1289,27 @@ def services_list():
             "category_id": d["category_id"],
             "type": d["type"],
             "image": d["image"] or "",
+            "source": "white" if not d.get("provider_id") else "dark",
         }
 
-    # تحديد المجموعة الرئيسية لكل قسم حسب sort_order
+    # تحديد المجموعة الرئيسية لكل قسم حسب sort_order فقط
+    # sort_order ranges (مطابق لـ DARKFOLLOW_CAT_MAP):
+    #   0-19   → white  (خدمات وايت الكتابية + دارك وايت)
+    #   20-39  → cards  (البطاقات)
+    #   40-49  → games  (شحن الألعاب)
+    #   50-59  → subscriptions (الاشتراكات)
+    #   60-79  → topup  (شحن رصيد الهاتف)
     def _get_group(sort_order, name_ar, name_en):
         so = sort_order or 0
-        n  = (name_ar or name_en or "").lower()
-        if so < 20 or any(k in n for k in ["دارك","وايت","انستا","فيسبوك","تليجرام","تجار","مميز","نجوم","هداي","عيد"]):
+        if so < 20:
             return "white"
-        if 20 <= so < 40 or "بطاقة" in n or "بطاقات" in n or any(k in n for k in ["valorant","steam","roblox","nintendo","blizzard","fortnite","playstation","itunes","netflix","crunchyroll","ريوت","امزون","ريزر","ليج"]):
+        if so < 40:
             return "cards"
-        if 40 <= so < 50 or any(k in n for k in ["oxide","pubg","genshin","delta","cod","ludo","ببجي","دلتا","كولف","لودو","جينشين","ارينا","أوكسايد"]):
+        if so < 50:
             return "games"
-        if 50 <= so < 60 or any(k in n for k in ["نايترو","nitro","xbox","premium","اشتراك","playstation plus","العاب ستيم"]):
+        if so < 60:
             return "subscriptions"
-        if 60 <= so < 80 or any(k in n for k in ["العراق","السعودية","الاردن","لبنان","مصر","البحرين","شحن رصيد"]):
+        if so < 80:
             return "topup"
         return "other"
 
@@ -1318,6 +1324,7 @@ def services_list():
         ]
         if cat_svcs:
             group = _get_group(cat["sort_order"], cat["name_ar"], cat["name_en"])
+            cat_source = "white" if all(sv.get("source") == "white" for sv in cat_svcs) else "dark"
             categories_list.append({
                 "id": cat["id"],
                 "name": cat["name_ar"] if lang == "ar" else (cat["name_en"] or cat["name_ar"]),
@@ -1327,6 +1334,7 @@ def services_list():
                 "image": cat.get("image_url") or "",
                 "sort_order": cat["sort_order"],
                 "group": group,
+                "source": cat_source,
                 "services": cat_svcs,
             })
 
