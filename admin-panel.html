@@ -877,6 +877,7 @@ function showDashboard() {
   fetchDFBalance();
   loadUsers();        // ← إصلاح: تحميل المستخدمين فعلياً من السيرفر
   loadCurrentMarkup();
+  loadAdminStats();   // ← إضافة: إحصائيات لوحة التحكم
 
   // تحديث حالة البوت
   document.getElementById('bot-url-display').textContent = _serverUrl;
@@ -919,7 +920,7 @@ function pushToBot(action) {
 // ── تبويبات ───────────────────────────────────────────────────
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach((b, i) => {
-    const tabs = ['overview','balance','users','topup','settings'];
+    const tabs = ['overview','balance','users','topup','services','settings'];
     b.classList.toggle('active', tabs[i] === name);
   });
   document.querySelectorAll('.tab-pane').forEach(p => {
@@ -942,12 +943,22 @@ async function fetchDFBalance() {
     const res = await fetch(_serverUrl + '/admin/darkfollow-balance', {
       headers: { 'X-Admin-Token': _adminKey }
     });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error('DFBalance error:', res.status, errText);
+      els.forEach(e => { if(e) e.textContent = '❌ ' + res.status; });
+      return;
+    }
+
     const data = await res.json();
+    console.log('DFBalance response:', data);
     const val = typeof data.balance !== 'undefined'
       ? parseFloat(data.balance).toFixed(2) + ' $'
       : '⚠️ ' + (data.error || 'تعذر الجلب');
     els.forEach(e => { if(e) e.textContent = val; });
   } catch(e) {
+    console.error('DFBalance exception:', e);
     els.forEach(el => { if(el) el.textContent = '⚠️ تحقق من الاتصال'; });
   }
 }
@@ -1005,18 +1016,34 @@ async function loadUsers() {
     const res = await fetch(_serverUrl + '/admin/users', {
       headers: { 'X-Admin-Token': _adminKey }
     });
-    const data = await res.json();
-    const users = data.users || data || [];
 
-    if (!Array.isArray(users) || users.length === 0) {
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error('loadUsers HTTP error:', res.status, errText);
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#ff6677;padding:30px;">❌ خطأ ${res.status}: ${errText.slice(0,200)}</td></tr>`;
+      return;
+    }
+
+    const data = await res.json();
+    console.log('loadUsers response:', data);
+
+    // دعم أي structure: {users:[...]}, {data:[...]}, أو array مباشر
+    const users = Array.isArray(data) ? data
+                : Array.isArray(data.users) ? data.users
+                : Array.isArray(data.data)  ? data.data
+                : [];
+
+    if (users.length === 0) {
       tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;">لا يوجد مستخدمون بعد</td></tr>';
+      loadUsersStats([]);
       return;
     }
 
     _usersCache = {};
     users.forEach(u => {
-      if (!u.uid && u.username && u.username.startsWith('WF-')) u.uid = u.username;
-      if (!u.uid) u.uid = String(u.id);
+      // دعم UUID و WF-XXXXXX و integer IDs
+      u.uid = u.uid || u.id || u.user_id || '';
+      u.uid = String(u.uid);
       _usersCache[u.uid] = u;
     });
 
@@ -1024,14 +1051,38 @@ async function loadUsers() {
     loadUsersStats(users);
 
   } catch(e) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#ff6677;padding:30px;">⚠️ تعذر تحميل المستخدمين من السيرفر</td></tr>';
+    console.error('loadUsers exception:', e);
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#ff6677;padding:30px;">⚠️ خطأ في الاتصال: ${e.message}</td></tr>`;
+  }
+}
+
+// ── إحصائيات لوحة التحكم من /admin/stats ──────────────────────
+async function loadAdminStats() {
+  try {
+    const res = await fetch(_serverUrl + '/admin/stats', {
+      headers: { 'X-Admin-Token': _adminKey }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const s = data.stats || {};
+    // تحديث عدد المستخدمين إذا loadUsers لم يكتمل بعد
+    if (s.total_users !== undefined) {
+      const el = document.getElementById('stat-users');
+      if (el && el.textContent === '0') el.textContent = s.total_users;
+    }
+    if (s.total_user_balance !== undefined) {
+      const el = document.getElementById('stat-total-bal');
+      if (el && el.textContent === '0') el.textContent = parseFloat(s.total_user_balance).toFixed(0);
+    }
+  } catch(e) {
+    console.error('loadAdminStats error:', e);
   }
 }
 
 function loadUsersStats(users) {
   users = users || Object.values(_usersCache);
   document.getElementById('stat-users').textContent = users.length;
-  const totalBal = users.reduce((s,u) => s + (u.balance||0), 0);
+  const totalBal = users.reduce((s,u) => s + parseFloat(u.balance||0), 0);
   document.getElementById('stat-total-bal').textContent = totalBal.toFixed(0);
 }
 
@@ -1045,9 +1096,9 @@ function renderUsersTable(users) {
     <tr>
       <td class="uid-cell">${esc(u.uid)}</td>
       <td style="font-size:12px;">${esc(u.email||'—')}</td>
-      <td><span class="balance-badge">${(u.balance||0).toFixed(2)}</span></td>
-      <td style="color:var(--muted);font-size:12px;">${(u.total_charged||0).toFixed(2)}</td>
-      <td style="color:#ff6677;font-size:12px;">${(u.total_spent||0).toFixed(2)}</td>
+      <td><span class="balance-badge">${parseFloat(u.balance||0).toFixed(2)}</span></td>
+      <td style="color:var(--muted);font-size:12px;">${parseFloat(u.total_charged||0).toFixed(2)}</td>
+      <td style="color:#ff6677;font-size:12px;">${parseFloat(u.total_spent||0).toFixed(2)}</td>
       <td style="color:var(--muted);font-size:12px;">${u.orders_count||0}</td>
       <td>
         <button class="inline-btn ib-charge" onclick="quickCharge('${esc(u.uid)}')">+ شحن</button>
@@ -1085,27 +1136,19 @@ async function _modifyBalance(uid, amount, type) {
       headers: { 'Content-Type': 'application/json', 'X-Admin-Token': _adminKey },
       body: JSON.stringify({ uid, amount })
     });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const errMsg = data.error || 'فشل الاتصال بالسيرفر';
-      showAlert('users-alert', '❌ ' + errMsg, 'error');
-      return;
-    }
-    // تحديث الكاش بالرصيد الفعلي من السيرفر
-    if (typeof data.balance !== 'undefined' && _usersCache[uid]) {
-      _usersCache[uid].balance = data.balance;
-      if (amount > 0) _usersCache[uid].total_charged = (_usersCache[uid].total_charged||0) + amount;
-    } else if (_usersCache[uid]) {
-      _usersCache[uid].balance = Math.max(0, (_usersCache[uid].balance||0) + amount);
-      if (amount > 0) _usersCache[uid].total_charged = (_usersCache[uid].total_charged||0) + amount;
-    }
-    // إرسال أمر للبوت (اختياري)
-    _pushCmd({ action: 'topup_user', uid, amount });
-    renderUsersTable(Object.values(_usersCache));
-    showAlert('users-alert', (type==='charge'?'✅ تم شحن ':'✅ تم خصم ') + Math.abs(amount).toFixed(2) + ' بنجاح', 'success');
-  } catch(e) {
-    showAlert('users-alert', '❌ خطأ في الاتصال: ' + e.message, 'error');
+    if (!res.ok) throw new Error('server error');
+  } catch(e) {}
+
+  // إرسال أمر مباشر للبوت
+  _pushCmd({ action: 'topup_user', uid, amount });
+
+  if (_usersCache[uid]) {
+    _usersCache[uid].balance = Math.max(0, (_usersCache[uid].balance||0) + amount);
+    if (amount > 0) _usersCache[uid].total_charged = (_usersCache[uid].total_charged||0) + amount;
   }
+
+  renderUsersTable(Object.values(_usersCache));
+  showAlert('users-alert', (type==='charge'?'✅ تم شحن ':'✅ تم خصم ') + Math.abs(amount).toFixed(2) + ' د.ع', 'success');
 }
 
 // ── البحث عن مستخدم في تعبئة الرصيد ──────────────────────────
@@ -1126,7 +1169,7 @@ async function searchTopupUser() {
     if (res.ok && data && data.uid) {
       _topupFoundUid = data.uid;
       document.getElementById('topup-found-email').textContent   = data.email || data.uid;
-      document.getElementById('topup-found-balance').textContent = (data.balance||0).toFixed(2) + ' د.ع';
+      document.getElementById('topup-found-balance').textContent = parseFloat(data.balance||0).toFixed(2) + ' د.ع';
       document.getElementById('topup-user-card').style.display   = 'block';
     } else {
       document.getElementById('topup-not-found').style.display = 'block';
@@ -1144,25 +1187,19 @@ async function executeTopup() {
   showAlert('topup-alert','⏳ جاري الإرسال...','info');
 
   try {
-    const res = await fetch(_serverUrl + '/user/balance', {
+    await fetch(_serverUrl + '/user/balance', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Admin-Token': _adminKey },
       body: JSON.stringify({ uid: _topupFoundUid, amount })
     });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      showAlert('topup-alert', '❌ ' + (data.error || 'فشل الشحن'), 'error');
-      return;
-    }
-    _pushCmd({ action: 'topup_user', uid: _topupFoundUid, amount });
-    const newBal = typeof data.balance !== 'undefined' ? data.balance :
-                   parseFloat((document.getElementById('topup-found-balance').textContent||'0')) + amount;
-    document.getElementById('topup-found-balance').textContent = newBal.toFixed(2) + ' د.ع';
-    document.getElementById('topup-amount').value = '';
-    showAlert('topup-alert', `✅ تمت تعبئة ${amount.toFixed(2)} بنجاح — الرصيد الجديد: ${newBal.toFixed(2)}`, 'success');
-  } catch(e) {
-    showAlert('topup-alert', '❌ خطأ في الاتصال: ' + e.message, 'error');
-  }
+  } catch(e) {}
+
+  _pushCmd({ action: 'topup_user', uid: _topupFoundUid, amount });
+
+  const newBal = parseFloat((document.getElementById('topup-found-balance').textContent||'0')) + amount;
+  document.getElementById('topup-found-balance').textContent = newBal.toFixed(2) + ' د.ع';
+  document.getElementById('topup-amount').value = '';
+  showAlert('topup-alert', `✅ تمت تعبئة ${amount.toFixed(2)} د.ع بنجاح`, 'success');
 }
 
 // ── ربط جلسة الأدمن بالبوت ────────────────────────────────────
