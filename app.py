@@ -1635,7 +1635,8 @@ def get_translations(lang):
 def public_settings():
     keys = ["site_name", "currency", "min_deposit", "maintenance_mode", "faq_ar", "faq_en", "tos_ar", "tos_en", "global_markup_type", "global_markup_value"]
     with get_db() as db:
-        rows = db.execute(f"SELECT key, value FROM settings WHERE key IN ({','.join('%s'*len(keys))})", keys).fetchall()
+        placeholders = ','.join(['%s'] * len(keys))
+        rows = db.execute(f"SELECT key, value FROM settings WHERE key IN ({placeholders})", keys).fetchall()
     return jsonify({r["key"]: r["value"] for r in rows})
 
 # ─────────────────────────────────────────────
