@@ -1217,6 +1217,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     <div class="page-content">
       <p class="section-label">الأقسام الرئيسية</p>
+      <button class="menu-item" data-nav="dark-services" id="btn-all-services"><span class="menu-item-icon">🌐</span><div class="menu-item-content"><span class="menu-item-text">جميع الخدمات</span><span class="menu-item-sub" id="all-services-sub">تحميل...</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-nav="white-services"><span class="menu-item-icon">🌟</span><div class="menu-item-content"><span class="menu-item-text">خدمات وايت</span><span class="menu-item-sub">متابعون، لايكات، مشاهدات</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-nav="cards"><span class="menu-item-icon">🎴</span><div class="menu-item-content"><span class="menu-item-text">البطائق</span><span class="menu-item-sub">بطاقات الهدايا والشحن كاملة</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-nav="games"><span class="menu-item-icon">🎮</span><div class="menu-item-content"><span class="menu-item-text">شحن الألعاب</span><span class="menu-item-sub">ببجي، كود، جينشين، دلتا فورس</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
@@ -1233,6 +1234,33 @@ document.addEventListener('DOMContentLoaded', function() {
       <button class="menu-item" data-nav="form-insta-white"><span class="menu-item-icon">📸</span><div class="menu-item-content"><span class="menu-item-text">خدمات انستا | وايت</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-nav="form-telegram-white"><span class="menu-item-icon">✈️</span><div class="menu-item-content"><span class="menu-item-text">خدمات تليجرام | وايت</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
     </div>
+  </section>
+
+  <!-- PAGE — كل خدمات دارك فولو (ديناميكي) -->
+  <section class="page slide-right" id="page-dark-services">
+    <header class="page-header">
+      <div class="subpage-top-bar">
+        <button class="btn-back" data-back="main"><svg viewBox="0 0 24 24" fill="none"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <div class="subpage-title-wrap"><h2 class="subpage-title">جميع الخدمات</h2><p class="subpage-sub" style="font-size:11px;color:var(--text-muted,#888);margin-top:2px;">مزامنة مع دارك فولو</p></div>
+      </div>
+    </header>
+    <div class="page-content" id="dark-categories-list">
+      <div style="text-align:center;padding:60px 20px;color:var(--text-muted,#888);">
+        <div class="spinner" style="width:36px;height:36px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--accent,#DAA520);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px;"></div>
+        <p style="font-size:13px;">جاري تحميل الخدمات...</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- PAGE — قائمة خدمات قسم واحد (ديناميكي) -->
+  <section class="page slide-right" id="page-dark-cat-services">
+    <header class="page-header">
+      <div class="subpage-top-bar">
+        <button class="btn-back" data-back="dark-services"><svg viewBox="0 0 24 24" fill="none"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <div class="subpage-title-wrap"><h2 class="subpage-title" id="dark-cat-title">الخدمات</h2></div>
+      </div>
+    </header>
+    <div class="page-content" id="dark-cat-services-list"></div>
   </section>
 
   <!-- PAGE 3 — قسم البطائق -->
@@ -3516,43 +3544,19 @@ async function registerStep1() {
   }
 }
 
-async function verifyRegCode() {
+function verifyRegCode() {
   const code = document.getElementById('verify-reg-code').value.trim();
   const saved = localStorage.getItem('wf_reg_code');
   if (!code) { showToast('أدخل رمز التحقق', 'error'); return; }
   if (code !== saved) { showToast('الرمز غير صحيح', 'error'); return; }
   if (!_pendingReg) { showToast('انتهت الجلسة، حاول مجدداً', 'error'); showPage('page-register'); return; }
-
-  const email    = _pendingReg.email;
-  const password = _pendingReg.pass;
-  const username = email.split('@')[0];
-
-  // ── تسجيل في قاعدة البيانات (backend) ──
-  try {
-    const res = await fetch(SERVER_URL + '/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, username })
-    });
-    const data = await res.json();
-    if (data.ok && data.token) {
-      // حفظ التوكن والـ uid من الـ backend
-      localStorage.setItem('wf_token', data.token);
-      localStorage.setItem('wf_user_id', data.user.uid || data.user.id);
-      localStorage.setItem('wf_email', email);
-    }
-  } catch(e) {
-    console.warn('Backend register failed (non-fatal):', e);
-  }
-
-  // ── حفظ محلي كـ fallback ──
   const users = JSON.parse(localStorage.getItem('wf_users') || '{}');
-  users[email] = { pass: password };
+  users[_pendingReg.email] = { pass: _pendingReg.pass };
   localStorage.setItem('wf_users', JSON.stringify(users));
   localStorage.removeItem('wf_reg_code');
   _pendingReg = null;
   showToast('✅ تم إنشاء الحساب بنجاح!', 'success');
-  finalizeLogin('email', email);
+  finalizeLogin('email', document.getElementById('reg-email').value.trim());
 }
 
 async function forgotStep1() {
@@ -5312,6 +5316,272 @@ function _runInitMarkupLabel() {
     console.warn('[LivePrice] Failed to sync prices:', e);
   }
 })();
+</script>
+<!-- ════════════════════════════════════════ -->
+
+<!-- ══ خدمات دارك فولو الديناميكية ══════════════════════════ -->
+<script>
+(function() {
+  'use strict';
+
+  // بيانات الخدمات المحمّلة
+  let _darkCats = [];        // قائمة الأقسام مرتّبة
+  let _darkLoaded = false;   // تم التحميل مرة؟
+  let _darkLoading = false;  // جاري التحميل؟
+
+  /* ─── تحميل الخدمات من السيرفر ─── */
+  async function loadDarkServices(forceReload) {
+    if (_darkLoading) return;
+    if (_darkLoaded && !forceReload) return;
+    _darkLoading = true;
+
+    try {
+      const res = await fetch(SERVER_URL + '/services/list?lang=ar', {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!res.ok) throw new Error('server ' + res.status);
+      const data = await res.json();
+      if (!data.ok) throw new Error('api error');
+
+      _darkCats = data.categories || [];
+      _darkLoaded = true;
+
+      // تحديث الـ subtitle في الزر الرئيسي
+      const sub = document.getElementById('all-services-sub');
+      if (sub) sub.textContent = _darkCats.length + ' قسم · ' + Object.keys(data.services || {}).length + ' خدمة';
+
+      renderDarkCategories();
+    } catch(e) {
+      console.warn('[DarkServices] فشل التحميل:', e);
+      const container = document.getElementById('dark-categories-list');
+      if (container) container.innerHTML =
+        '<div style="text-align:center;padding:60px 20px;color:#ff6677;">' +
+        '<p style="font-size:28px;margin-bottom:12px;">⚠️</p>' +
+        '<p style="font-size:14px;">تعذر تحميل الخدمات</p>' +
+        '<p style="font-size:12px;color:#888;margin-top:6px;">تأكد من اتصالك بالإنترنت</p>' +
+        '<button onclick="loadDarkServicesPublic(true)" style="margin-top:16px;padding:10px 24px;' +
+        'background:var(--accent,#DAA520);color:#000;border:none;border-radius:12px;' +
+        'font-size:13px;font-weight:700;cursor:pointer;">إعادة المحاولة</button></div>';
+      const sub = document.getElementById('all-services-sub');
+      if (sub) sub.textContent = 'اضغط للتحميل';
+    } finally {
+      _darkLoading = false;
+    }
+  }
+
+  /* ─── عرض الأقسام في الصفحة ─── */
+  function renderDarkCategories() {
+    const container = document.getElementById('dark-categories-list');
+    if (!container) return;
+
+    if (!_darkCats || _darkCats.length === 0) {
+      container.innerHTML =
+        '<div style="text-align:center;padding:60px 20px;color:#888;">' +
+        '<p style="font-size:28px;">📭</p><p style="font-size:14px;margin-top:12px;">لا توجد خدمات حالياً</p></div>';
+      return;
+    }
+
+    container.innerHTML = _darkCats.map((cat, idx) => {
+      const imgHtml = cat.image
+        ? `<img src="${_esc(cat.image)}" style="width:36px;height:36px;object-fit:cover;border-radius:10px;" onerror="this.style.display='none'" />`
+        : `<span style="font-size:24px;">${_esc(cat.icon)}</span>`;
+      const svcCount = cat.services ? cat.services.length : 0;
+      return `
+        <button class="menu-item" onclick="openDarkCatServices(${idx})" style="text-align:right;">
+          <span class="menu-item-icon" style="background:rgba(218,165,32,0.08);border-radius:12px;padding:4px;display:flex;align-items:center;justify-content:center;width:44px;height:44px;">${imgHtml}</span>
+          <div class="menu-item-content">
+            <span class="menu-item-text">${_esc(cat.name)}</span>
+            <span class="menu-item-sub" style="font-size:11px;">${svcCount} خدمة</span>
+          </div>
+          <span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </button>`;
+    }).join('');
+  }
+
+  /* ─── فتح خدمات قسم معين ─── */
+  window.openDarkCatServices = function(catIdx) {
+    const cat = _darkCats[catIdx];
+    if (!cat) return;
+
+    document.getElementById('dark-cat-title').textContent = cat.name;
+
+    const listEl = document.getElementById('dark-cat-services-list');
+    const svcs = cat.services || [];
+
+    if (svcs.length === 0) {
+      listEl.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#888;">لا توجد خدمات في هذا القسم</div>';
+    } else {
+      // احسب هامش الربح
+      const markup = typeof getAdminMarkup === 'function' ? getAdminMarkup() : 0;
+
+      listEl.innerHTML = svcs.map(svc => {
+        const price = (parseFloat(svc.rate || 0) + markup).toFixed(2);
+        const imgHtml = svc.image
+          ? `<img src="${_esc(svc.image)}" style="width:28px;height:28px;object-fit:cover;border-radius:8px;" onerror="this.parentElement.textContent='📦'" />`
+          : '📦';
+        return `
+          <button class="menu-item" onclick="openDarkService('${_esc(svc.name_ar||svc.name)}','${_esc(String(svc.id || svc.provider_service_id || ''))}',${price},${svc.min||1},${svc.max||10000})" style="text-align:right;">
+            <span class="menu-item-icon" style="background:rgba(218,165,32,0.06);border-radius:10px;padding:4px;display:flex;align-items:center;justify-content:center;width:40px;height:40px;">${imgHtml}</span>
+            <div class="menu-item-content">
+              <span class="menu-item-text" style="font-size:13px;">${_esc(svc.name_ar||svc.name)}</span>
+              <span class="menu-item-sub" style="font-size:11px;">الحد: ${svc.min||1} – ${svc.max||10000}</span>
+            </div>
+            <span style="font-size:12px;font-weight:700;color:var(--accent,#DAA520);white-space:nowrap;margin-right:4px;">${price} $</span>
+          </button>`;
+      }).join('');
+    }
+
+    navigate('dark-cat-services');
+  };
+
+  /* ─── فتح نموذج طلب الخدمة ─── */
+  window.openDarkService = function(name, serviceId, price, minQty, maxQty) {
+    // نستخدم نموذج خدمات تيليجرام الموجود كـ template
+    // أو نفتح نموذجاً عاماً
+    const formPage = document.getElementById('page-form-dark-order');
+    if (formPage) {
+      document.getElementById('dark-order-title').textContent = name;
+      document.getElementById('dark-order-service-id').value = serviceId;
+      document.getElementById('dark-order-price').textContent = price + ' $';
+      document.getElementById('dark-order-min').textContent = minQty;
+      document.getElementById('dark-order-max').textContent = maxQty;
+      document.getElementById('dark-order-qty').min = minQty;
+      document.getElementById('dark-order-qty').max = maxQty;
+      document.getElementById('dark-order-qty').value = minQty;
+      document.getElementById('dark-order-link').value = '';
+      navigate('form-dark-order');
+    } else {
+      // fallback: استخدم openTeleService إن وُجد
+      if (typeof openTeleService === 'function') {
+        openTeleService(name, serviceId, price);
+      }
+    }
+  };
+
+  /* ─── escape helper ─── */
+  function _esc(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  /* ─── public API ─── */
+  window.loadDarkServicesPublic = loadDarkServices;
+
+  /* ─── تحميل تلقائي عند فتح الصفحة ─── */
+  // انتظر DOMContentLoaded ثم حمّل في الخلفية
+  function _init() {
+    // hook: عند navigate إلى dark-services نحمّل لو لم نحمّل بعد
+    const origNavigate = window.navigate;
+    if (typeof origNavigate === 'function') {
+      window.navigate = function(target) {
+        if (target === 'dark-services' && !_darkLoaded) {
+          loadDarkServices(false);
+        }
+        return origNavigate.apply(this, arguments);
+      };
+    }
+    // تحميل مسبق في الخلفية بعد 3 ثوان من فتح التطبيق
+    setTimeout(function() { loadDarkServices(false); }, 3000);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _init);
+  } else {
+    _init();
+  }
+
+})();
+</script>
+
+<!-- ══ نموذج طلب خدمة دارك (عام) ══════════════════════════ -->
+<style>
+#page-form-dark-order .order-form-card { background:var(--card,#fff);border-radius:16px;padding:20px;margin-bottom:14px;border:1px solid var(--border,rgba(0,0,0,0.08)); }
+#page-form-dark-order .order-label { font-size:12px;font-weight:700;color:var(--text-muted,#888);margin-bottom:8px;display:block; }
+#page-form-dark-order .order-input { width:100%;padding:12px 14px;border:1.5px solid var(--border,rgba(0,0,0,0.1));border-radius:12px;font-size:14px;background:var(--input-bg,#f5f5f5);color:var(--text,#000);outline:none;direction:ltr;font-family:inherit; }
+#page-form-dark-order .price-row { display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border,rgba(0,0,0,0.07)); }
+</style>
+
+<section class="page slide-right" id="page-form-dark-order">
+  <header class="page-header">
+    <div class="subpage-top-bar">
+      <button class="btn-back" data-back="dark-cat-services"><svg viewBox="0 0 24 24" fill="none"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <div class="subpage-title-wrap"><h2 class="subpage-title" id="dark-order-title">طلب خدمة</h2></div>
+    </div>
+  </header>
+  <div class="page-content">
+    <div class="order-form-card">
+      <div class="price-row">
+        <span style="font-size:13px;color:var(--text-muted,#888);">السعر لكل 1000</span>
+        <span style="font-size:16px;font-weight:800;color:var(--accent,#DAA520);" id="dark-order-price">0 $</span>
+      </div>
+      <div class="price-row">
+        <span style="font-size:13px;color:var(--text-muted,#888);">الحد الأدنى / الأقصى</span>
+        <span style="font-size:13px;font-weight:700;color:var(--text,#000);"><span id="dark-order-min">1</span> – <span id="dark-order-max">10000</span></span>
+      </div>
+    </div>
+
+    <div class="order-form-card">
+      <label class="order-label">🔗 الرابط أو المعرف</label>
+      <input type="url" id="dark-order-link" class="order-input" placeholder="https://..." autocomplete="off" />
+    </div>
+
+    <div class="order-form-card">
+      <label class="order-label">🔢 الكمية</label>
+      <input type="number" id="dark-order-qty" class="order-input" value="100" />
+    </div>
+
+    <input type="hidden" id="dark-order-service-id" value="" />
+
+    <div id="dark-order-msg" style="display:none;padding:12px 14px;border-radius:12px;font-size:13px;margin-bottom:14px;text-align:center;"></div>
+
+    <button onclick="submitDarkOrder()" style="width:100%;padding:15px;border:none;border-radius:14px;background:linear-gradient(135deg,var(--accent,#DAA520),#B8860B);color:#000;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;">
+      🛒 تأكيد الطلب
+    </button>
+  </div>
+</section>
+
+<script>
+async function submitDarkOrder() {
+  const serviceId = document.getElementById('dark-order-service-id').value;
+  const link      = (document.getElementById('dark-order-link').value || '').trim();
+  const qty       = parseInt(document.getElementById('dark-order-qty').value) || 0;
+  const msgEl     = document.getElementById('dark-order-msg');
+  const title     = document.getElementById('dark-order-title').textContent;
+
+  function showMsg(txt, ok) {
+    msgEl.style.display = 'block';
+    msgEl.style.background = ok ? 'rgba(29,185,84,0.1)' : 'rgba(255,34,51,0.1)';
+    msgEl.style.color = ok ? '#1DB954' : '#ff4455';
+    msgEl.style.border = '1px solid ' + (ok ? 'rgba(29,185,84,0.3)' : 'rgba(255,34,51,0.3)');
+    msgEl.textContent = txt;
+  }
+
+  if (!link)    return showMsg('❌ أدخل الرابط أو المعرف', false);
+  if (qty <= 0) return showMsg('❌ أدخل كمية صحيحة', false);
+
+  const token = localStorage.getItem('wf_user_token') || '';
+  if (!token) return showMsg('❌ يجب تسجيل الدخول أولاً', false);
+
+  showMsg('⏳ جاري إرسال الطلب...', true);
+
+  try {
+    const res = await fetch(SERVER_URL + '/order/place', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-User-Token': token },
+      body: JSON.stringify({ service: serviceId, link, quantity: qty })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showMsg('✅ تم إرسال الطلب بنجاح! رقم الطلب: #' + data.order_id, true);
+      // حفظ الطلب محلياً
+      if (typeof saveOrder === 'function') saveOrder(title, qty, 'pending', data.cost || 0);
+      setTimeout(() => { navigate('dark-cat-services'); }, 2000);
+    } else {
+      showMsg('❌ ' + (data.error || 'فشل الطلب'), false);
+    }
+  } catch(e) {
+    showMsg('❌ خطأ في الاتصال', false);
+  }
+}
 </script>
 <!-- ════════════════════════════════════════ -->
 </body>
