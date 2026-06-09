@@ -1217,7 +1217,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     <div class="page-content">
       <p class="section-label">الأقسام الرئيسية</p>
-      <button class="menu-item" data-nav="dark-services" id="btn-all-services"><span class="menu-item-icon">🌐</span><div class="menu-item-content"><span class="menu-item-text">جميع الخدمات</span><span class="menu-item-sub" id="all-services-sub">تحميل...</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-nav="white-services"><span class="menu-item-icon">🌟</span><div class="menu-item-content"><span class="menu-item-text">خدمات وايت</span><span class="menu-item-sub">متابعون، لايكات، مشاهدات</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-nav="cards"><span class="menu-item-icon">🎴</span><div class="menu-item-content"><span class="menu-item-text">البطائق</span><span class="menu-item-sub">بطاقات الهدايا والشحن كاملة</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-nav="games"><span class="menu-item-icon">🎮</span><div class="menu-item-content"><span class="menu-item-text">شحن الألعاب</span><span class="menu-item-sub">ببجي، كود، جينشين، دلتا فورس</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
@@ -1230,9 +1229,10 @@ document.addEventListener('DOMContentLoaded', function() {
   <!-- PAGE 2 — خدمات وايت -->
   <section class="page page-white-services slide-right" id="page-white-services">
     <header class="page-header"><div class="subpage-top-bar"><button class="btn-back" data-back="main"><svg viewBox="0 0 24 24" fill="none"><polyline points="15 18 9 12 15 6"/></svg></button><div class="subpage-title-wrap"><h2 class="subpage-title">خدمات وايت</h2></div></div></header>
-    <div class="page-content">
+    <div class="page-content" id="content-white-services">
       <button class="menu-item" data-nav="form-insta-white"><span class="menu-item-icon">📸</span><div class="menu-item-content"><span class="menu-item-text">خدمات انستا | وايت</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-nav="form-telegram-white"><span class="menu-item-icon">✈️</span><div class="menu-item-content"><span class="menu-item-text">خدمات تليجرام | وايت</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
+      <div id="dyn-white-services"></div>
     </div>
   </section>
 
@@ -1266,7 +1266,7 @@ document.addEventListener('DOMContentLoaded', function() {
   <!-- PAGE 3 — قسم البطائق -->
   <section class="page page-cards slide-right" id="page-cards">
     <header class="page-header"><div class="subpage-top-bar"><button class="btn-back" data-back="main"><svg viewBox="0 0 24 24" fill="none"><polyline points="15 18 9 12 15 6"/></svg></button><div class="subpage-title-wrap"><h2 class="subpage-title">قسم البطائق</h2></div></div></header>
-    <div class="page-content">
+    <div class="page-content" id="content-cards">
       <button class="menu-item" data-icon-key="card_itunes" onclick="openCardForm('بطاقات آيتونز | iTunes', 'itunes')"><span class="menu-item-icon">🎵</span><div class="menu-item-content"><span class="menu-item-text">بطاقات آيتونز | iTunes</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-icon-key="card_nintendo" onclick="openCardForm('بطاقات نينتندو | Nintendo', 'nintendo')"><span class="menu-item-icon">🔴</span><div class="menu-item-content"><span class="menu-item-text">بطاقات نينتندو | Nintendo</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-icon-key="card_blizzard" onclick="openCardForm('بطاقات بليزارد | Blizzard', 'blizzard')"><span class="menu-item-icon">❄️</span><div class="menu-item-content"><span class="menu-item-text">بطاقات بليزارد | Blizzard</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
@@ -1276,46 +1276,49 @@ document.addEventListener('DOMContentLoaded', function() {
       <button class="menu-item" data-icon-key="card_steam" onclick="openCardForm('بطاقات ستيم | STEAM', 'steam')"><span class="menu-item-icon">💨</span><div class="menu-item-content"><span class="menu-item-text">بطاقات ستيم | STEAM</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-icon-key="card_crunchyroll" onclick="openCardForm('بطاقات شحن كرانشي رول | Crunchyroll', 'crunchyroll')"><span class="menu-item-icon">🟠</span><div class="menu-item-content"><span class="menu-item-text">بطاقات شحن كرانشي رول | Crunchyroll</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-icon-key="card_roblox" onclick="openCardForm('بطاقات شحن روبلكس | Roblox', 'roblox')"><span class="menu-item-icon">🧱</span><div class="menu-item-content"><span class="menu-item-text">بطاقات شحن روبلكس | Roblox</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
+      <div id="dyn-cards"></div>
     </div>
   </section>
 
   <!-- PAGE 4 — شحن الألعاب -->
   <section class="page page-games slide-right" id="page-games">
     <header class="page-header"><div class="subpage-top-bar"><button class="btn-back" data-back="main"><svg viewBox="0 0 24 24" fill="none"><polyline points="15 18 9 12 15 6"/></svg></button><div class="subpage-title-wrap"><h2 class="subpage-title">شحن الألعاب</h2></div></div></header>
-    <div class="page-content">
+    <div class="page-content" id="content-games">
       <button class="menu-item" data-icon-key="game_oxide" onclick="openGameForm('اوكسايد موبايل | OXIDE Mobile', 'oxide')"><span class="menu-item-icon">🌋</span><div class="menu-item-content"><span class="menu-item-text">اوكسايد موبايل | OXIDE Mobile</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-icon-key="game_pubg" onclick="openGameForm('ببجي موبايل | PUBG MOBILE', 'pubg')"><span class="menu-item-icon">🪂</span><div class="menu-item-content"><span class="menu-item-text">ببجي موبايل | PUBG MOBILE</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-icon-key="game_genshin" onclick="openGameForm('جينشين امباكت | Genshin Impact', 'genshin')"><span class="menu-item-icon">✨</span><div class="menu-item-content"><span class="menu-item-text">جينشين امباكت | Genshin Impact</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-icon-key="game_delta" onclick="openGameForm('دلتا فورس | Delta Force', 'delta')"><span class="menu-item-icon">🎖️</span><div class="menu-item-content"><span class="menu-item-text">دلتا فورس | Delta Force</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-icon-key="game_cod" onclick="openGameForm('كولف ديوتي موبايل | Call of Duty', 'cod')"><span class="menu-item-icon">💀</span><div class="menu-item-content"><span class="menu-item-text">كولف ديوتي موبايل | Call of Duty</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-icon-key="game_ludo" onclick="openGameForm('شحن يلا لودو | Yalla Ludo', 'ludo')"><span class="menu-item-icon">🎲</span><div class="menu-item-content"><span class="menu-item-text">شحن يلا لودو | Yalla Ludo</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
+      <div id="dyn-games"></div>
     </div>
   </section>
 
   <!-- PAGE 5 — قسم الاشتراكات -->
   <section class="page page-subscriptions slide-right" id="page-subscriptions">
     <header class="page-header"><div class="subpage-top-bar"><button class="btn-back" data-back="main"><svg viewBox="0 0 24 24" fill="none"><polyline points="15 18 9 12 15 6"/></svg></button><div class="subpage-title-wrap"><h2 class="subpage-title">قسم الاشتراكات</h2></div></div></header>
-    <div class="page-content">
+    <div class="page-content" id="content-subscriptions">
       <button class="menu-item" data-icon-key="sub_nitro" onclick="openSubForm('نايترو دسكورد | Nitro', 'nitro')"><span class="menu-item-icon">🔮</span><div class="menu-item-content"><span class="menu-item-text">نايترو دسكورد | Nitro</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-icon-key="sub_steam_subs" onclick="openSubForm('العاب ستيم | STEAM', 'steam_subs')"><span class="menu-item-icon">🕹️</span><div class="menu-item-content"><span class="menu-item-text">العاب ستيم | STEAM</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-icon-key="sub_tele" onclick="openSubForm('تليجرام بريميوم | Telegram', 'tele')"><span class="menu-item-icon">💎</span><div class="menu-item-content"><span class="menu-item-text">تليجرام بريميوم | Telegram</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-icon-key="sub_xbox" onclick="openSubForm('كيم باس | Xbox', 'xbox')"><span class="menu-item-icon">💚</span><div class="menu-item-content"><span class="menu-item-text">كيم باس | Xbox</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-icon-key="sub_psn" onclick="openSubForm('اشتراكات بلايستيشن | PSN', 'psn')"><span class="menu-item-icon">🎮</span><div class="menu-item-content"><span class="menu-item-text">اشتراكات بلايستيشن | PSN</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-icon-key="sub_netflix" onclick="openSubForm('نتفلكس | Netflix', 'netflix')"><span class="menu-item-icon">🍿</span><div class="menu-item-content"><span class="menu-item-text">نتفلكس | Netflix</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
-
+      <div id="dyn-subscriptions"></div>
     </div>
   </section>
 
   <!-- PAGE 6 — شحن رصيد الهاتف -->
   <section class="page page-topup slide-right" id="page-topup">
     <header class="page-header"><div class="subpage-top-bar"><button class="btn-back" data-back="main"><svg viewBox="0 0 24 24" fill="none"><polyline points="15 18 9 12 15 6"/></svg></button><div class="subpage-title-wrap"><h2 class="subpage-title">شحن رصيد الهاتف</h2></div></div></header>
-    <div class="page-content">
+    <div class="page-content" id="content-topup">
       <button class="menu-item" data-icon-key="phone_iraq" onclick="openPhoneForm('شحن رصيد الهاتف | العراق', 'iraq')"><span class="menu-item-icon">🇮🇶</span><div class="menu-item-content"><span class="menu-item-text">العراق</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-icon-key="phone_saudi" onclick="openPhoneForm('شحن رصيد الهاتف | السعودية', 'saudi')"><span class="menu-item-icon">🇸🇦</span><div class="menu-item-content"><span class="menu-item-text">السعودية</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-icon-key="phone_jordan" onclick="openPhoneForm('شحن رصيد الهاتف | الاردن', 'jordan')"><span class="menu-item-icon">🇯🇴</span><div class="menu-item-content"><span class="menu-item-text">الاردن</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-icon-key="phone_lebanon" onclick="openPhoneForm('شحن رصيد الهاتف | لبنان', 'lebanon')"><span class="menu-item-icon">🇱🇧</span><div class="menu-item-content"><span class="menu-item-text">لبنان</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-icon-key="phone_egypt" onclick="openPhoneForm('شحن رصيد الهاتف | مصر', 'egypt')"><span class="menu-item-icon">🇪🇬</span><div class="menu-item-content"><span class="menu-item-text">مصر</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
       <button class="menu-item" data-icon-key="phone_bahrain" onclick="openPhoneForm('شحن رصيد الهاتف | البحرين', 'bahrain')"><span class="menu-item-icon">🇧🇭</span><div class="menu-item-content"><span class="menu-item-text">البحرين</span></div><span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span></button>
+      <div id="dyn-topup"></div>
     </div>
   </section>
 
@@ -5325,168 +5328,163 @@ function _runInitMarkupLabel() {
   'use strict';
 
   // بيانات الخدمات المحمّلة
-  let _darkCats = [];        // قائمة الأقسام مرتّبة
-  let _darkLoaded = false;   // تم التحميل مرة؟
-  let _darkLoading = false;  // جاري التحميل؟
+  let _darkCats = [];
+  let _darkLoaded = false;
+  let _darkLoading = false;
+
+  // خريطة الأقسام الرئيسية → حاوية الحقن
+  const GROUP_CONTAINERS = {
+    white:         'dyn-white-services',
+    cards:         'dyn-cards',
+    games:         'dyn-games',
+    subscriptions: 'dyn-subscriptions',
+    topup:         'dyn-topup',
+  };
+
+  // الأقسام الثابتة الموجودة — نتجنب تكرارها (مطابقة جزئية بالاسم)
+  const STATIC_NAMES = [
+    'انستا | وايت','تليجرام | وايت',
+    'آيتونز','نينتندو','بليزارد','فورتنايت','بلايستيشن','فالورانت','ستيم','كرانشي','روبلكس',
+    'اوكسايد','ببجي','جينشين','دلتا فورس','كولف ديوتي','يلا لودو',
+    'نايترو','العاب ستيم','تليجرام بريميوم','كيم باس','بلايستيشن | psn','نتفلكس',
+    'العراق','السعودية','الاردن','لبنان','مصر','البحرين'
+  ];
+
+  function _isStaticDuplicate(name) {
+    const n = (name||'').toLowerCase();
+    return STATIC_NAMES.some(s => n.includes(s.toLowerCase()));
+  }
+
+  /* ─── بناء HTML لزر قسم فرعي ─── */
+  function _buildCatBtn(cat, idx) {
+    const imgHtml = cat.image
+      ? `<img src="${_esc(cat.image)}" style="width:38px;height:38px;object-fit:cover;border-radius:12px;" onerror="this.parentElement.innerHTML='${cat.icon||'📦'}'" />`
+      : `<span style="font-size:22px;line-height:1;">${_esc(cat.icon||'📦')}</span>`;
+    return `<button class="menu-item" onclick="openDarkCatServices(${idx})" style="text-align:right;">
+      <span class="menu-item-icon" style="background:rgba(218,165,32,0.07);border-radius:12px;padding:4px;display:flex;align-items:center;justify-content:center;width:44px;height:44px;">${imgHtml}</span>
+      <div class="menu-item-content">
+        <span class="menu-item-text">${_esc(cat.name)}</span>
+        <span class="menu-item-sub" style="font-size:11px;">${(cat.services||[]).length} خدمة</span>
+      </div>
+      <span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span>
+    </button>`;
+  }
+
+  /* ─── حقن الأقسام في حاوياتها ─── */
+  function _injectGroups() {
+    // صفّر كل الحاويات أولاً
+    Object.values(GROUP_CONTAINERS).forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '';
+    });
+
+    // صنّف وأضف
+    const grouped = {};
+    _darkCats.forEach((cat, idx) => {
+      const g = cat.group || 'other';
+      if (!grouped[g]) grouped[g] = [];
+      grouped[g].push({ cat, idx });
+    });
+
+    let injected = 0;
+    Object.entries(GROUP_CONTAINERS).forEach(([group, containerId]) => {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      const items = grouped[group] || [];
+      const newOnes = items.filter(({ cat }) => !_isStaticDuplicate(cat.name));
+      if (newOnes.length === 0) return;
+
+      // فاصل "من دارك فولو"
+      const sep = document.createElement('p');
+      sep.className = 'section-label';
+      sep.style.cssText = 'margin-top:16px;opacity:0.7;font-size:11px;';
+      sep.textContent = '⚡ من دارك فولو';
+      container.appendChild(sep);
+
+      newOnes.forEach(({ cat, idx }) => {
+        container.insertAdjacentHTML('beforeend', _buildCatBtn(cat, idx));
+        injected++;
+      });
+    });
+
+    console.log(`[DarkServices] حُقن ${injected} قسم في الصفحات`);
+  }
 
   /* ─── تحميل الخدمات من السيرفر ─── */
   async function loadDarkServices(forceReload) {
     if (_darkLoading) return;
     if (_darkLoaded && !forceReload) return;
     _darkLoading = true;
-
     try {
-      const res = await fetch(SERVER_URL + '/services/list?lang=ar', {
-        headers: { 'Accept': 'application/json' }
-      });
+      const res = await fetch(SERVER_URL + '/services/list?lang=ar');
       if (!res.ok) throw new Error('server ' + res.status);
       const data = await res.json();
       if (!data.ok) throw new Error('api error');
-
       _darkCats = data.categories || [];
       _darkLoaded = true;
-
-      // تحديث الـ subtitle في الزر الرئيسي
-      const sub = document.getElementById('all-services-sub');
-      if (sub) sub.textContent = _darkCats.length + ' قسم · ' + Object.keys(data.services || {}).length + ' خدمة';
-
-      renderDarkCategories();
+      _injectGroups();
     } catch(e) {
       console.warn('[DarkServices] فشل التحميل:', e);
-      const container = document.getElementById('dark-categories-list');
-      if (container) container.innerHTML =
-        '<div style="text-align:center;padding:60px 20px;color:#ff6677;">' +
-        '<p style="font-size:28px;margin-bottom:12px;">⚠️</p>' +
-        '<p style="font-size:14px;">تعذر تحميل الخدمات</p>' +
-        '<p style="font-size:12px;color:#888;margin-top:6px;">تأكد من اتصالك بالإنترنت</p>' +
-        '<button onclick="loadDarkServicesPublic(true)" style="margin-top:16px;padding:10px 24px;' +
-        'background:var(--accent,#DAA520);color:#000;border:none;border-radius:12px;' +
-        'font-size:13px;font-weight:700;cursor:pointer;">إعادة المحاولة</button></div>';
-      const sub = document.getElementById('all-services-sub');
-      if (sub) sub.textContent = 'اضغط للتحميل';
     } finally {
       _darkLoading = false;
     }
-  }
-
-  /* ─── عرض الأقسام في الصفحة ─── */
-  function renderDarkCategories() {
-    const container = document.getElementById('dark-categories-list');
-    if (!container) return;
-
-    if (!_darkCats || _darkCats.length === 0) {
-      container.innerHTML =
-        '<div style="text-align:center;padding:60px 20px;color:#888;">' +
-        '<p style="font-size:28px;">📭</p><p style="font-size:14px;margin-top:12px;">لا توجد خدمات حالياً</p></div>';
-      return;
-    }
-
-    container.innerHTML = _darkCats.map((cat, idx) => {
-      const imgHtml = cat.image
-        ? `<img src="${_esc(cat.image)}" style="width:36px;height:36px;object-fit:cover;border-radius:10px;" onerror="this.style.display='none'" />`
-        : `<span style="font-size:24px;">${_esc(cat.icon)}</span>`;
-      const svcCount = cat.services ? cat.services.length : 0;
-      return `
-        <button class="menu-item" onclick="openDarkCatServices(${idx})" style="text-align:right;">
-          <span class="menu-item-icon" style="background:rgba(218,165,32,0.08);border-radius:12px;padding:4px;display:flex;align-items:center;justify-content:center;width:44px;height:44px;">${imgHtml}</span>
-          <div class="menu-item-content">
-            <span class="menu-item-text">${_esc(cat.name)}</span>
-            <span class="menu-item-sub" style="font-size:11px;">${svcCount} خدمة</span>
-          </div>
-          <span class="menu-item-arrow"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></span>
-        </button>`;
-    }).join('');
   }
 
   /* ─── فتح خدمات قسم معين ─── */
   window.openDarkCatServices = function(catIdx) {
     const cat = _darkCats[catIdx];
     if (!cat) return;
-
     document.getElementById('dark-cat-title').textContent = cat.name;
-
     const listEl = document.getElementById('dark-cat-services-list');
     const svcs = cat.services || [];
-
-    if (svcs.length === 0) {
-      listEl.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#888;">لا توجد خدمات في هذا القسم</div>';
+    if (!svcs.length) {
+      listEl.innerHTML = '<div style="text-align:center;padding:40px;color:#888;">لا توجد خدمات</div>';
     } else {
-      // احسب هامش الربح
       const markup = typeof getAdminMarkup === 'function' ? getAdminMarkup() : 0;
-
       listEl.innerHTML = svcs.map(svc => {
-        const price = (parseFloat(svc.rate || 0) + markup).toFixed(2);
+        const price = (parseFloat(svc.rate||0) + markup).toFixed(2);
         const imgHtml = svc.image
           ? `<img src="${_esc(svc.image)}" style="width:28px;height:28px;object-fit:cover;border-radius:8px;" onerror="this.parentElement.textContent='📦'" />`
           : '📦';
-        return `
-          <button class="menu-item" onclick="openDarkService('${_esc(svc.name_ar||svc.name)}','${_esc(String(svc.id || svc.provider_service_id || ''))}',${price},${svc.min||1},${svc.max||10000})" style="text-align:right;">
-            <span class="menu-item-icon" style="background:rgba(218,165,32,0.06);border-radius:10px;padding:4px;display:flex;align-items:center;justify-content:center;width:40px;height:40px;">${imgHtml}</span>
-            <div class="menu-item-content">
-              <span class="menu-item-text" style="font-size:13px;">${_esc(svc.name_ar||svc.name)}</span>
-              <span class="menu-item-sub" style="font-size:11px;">الحد: ${svc.min||1} – ${svc.max||10000}</span>
-            </div>
-            <span style="font-size:12px;font-weight:700;color:var(--accent,#DAA520);white-space:nowrap;margin-right:4px;">${price} $</span>
-          </button>`;
+        return `<button class="menu-item" onclick="openDarkService('${_esc(svc.name_ar||svc.name)}','${_esc(String(svc.id||''))}',${price},${svc.min||1},${svc.max||10000})" style="text-align:right;">
+          <span class="menu-item-icon" style="background:rgba(218,165,32,0.06);border-radius:10px;padding:4px;display:flex;align-items:center;justify-content:center;width:40px;height:40px;">${imgHtml}</span>
+          <div class="menu-item-content">
+            <span class="menu-item-text" style="font-size:13px;">${_esc(svc.name_ar||svc.name)}</span>
+            <span class="menu-item-sub" style="font-size:11px;">الحد: ${svc.min||1} – ${svc.max||10000}</span>
+          </div>
+          <span style="font-size:12px;font-weight:700;color:var(--accent,#DAA520);white-space:nowrap;">${price} $</span>
+        </button>`;
       }).join('');
     }
-
     navigate('dark-cat-services');
   };
 
   /* ─── فتح نموذج طلب الخدمة ─── */
   window.openDarkService = function(name, serviceId, price, minQty, maxQty) {
-    // نستخدم نموذج خدمات تيليجرام الموجود كـ template
-    // أو نفتح نموذجاً عاماً
-    const formPage = document.getElementById('page-form-dark-order');
-    if (formPage) {
-      document.getElementById('dark-order-title').textContent = name;
-      document.getElementById('dark-order-service-id').value = serviceId;
-      document.getElementById('dark-order-price').textContent = price + ' $';
-      document.getElementById('dark-order-min').textContent = minQty;
-      document.getElementById('dark-order-max').textContent = maxQty;
-      document.getElementById('dark-order-qty').min = minQty;
-      document.getElementById('dark-order-qty').max = maxQty;
-      document.getElementById('dark-order-qty').value = minQty;
-      document.getElementById('dark-order-link').value = '';
-      navigate('form-dark-order');
-    } else {
-      // fallback: استخدم openTeleService إن وُجد
-      if (typeof openTeleService === 'function') {
-        openTeleService(name, serviceId, price);
-      }
-    }
+    document.getElementById('dark-order-title').textContent = name;
+    document.getElementById('dark-order-service-id').value = serviceId;
+    document.getElementById('dark-order-price').textContent = price + ' $';
+    document.getElementById('dark-order-min').textContent = minQty;
+    document.getElementById('dark-order-max').textContent = maxQty;
+    document.getElementById('dark-order-qty').min = minQty;
+    document.getElementById('dark-order-qty').max = maxQty;
+    document.getElementById('dark-order-qty').value = minQty;
+    document.getElementById('dark-order-link').value = '';
+    document.getElementById('dark-order-msg').style.display = 'none';
+    navigate('form-dark-order');
   };
 
-  /* ─── escape helper ─── */
   function _esc(str) {
-    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
-  /* ─── public API ─── */
   window.loadDarkServicesPublic = loadDarkServices;
 
-  /* ─── تحميل تلقائي عند فتح الصفحة ─── */
-  // انتظر DOMContentLoaded ثم حمّل في الخلفية
-  function _init() {
-    // hook: عند navigate إلى dark-services نحمّل لو لم نحمّل بعد
-    const origNavigate = window.navigate;
-    if (typeof origNavigate === 'function') {
-      window.navigate = function(target) {
-        if (target === 'dark-services' && !_darkLoaded) {
-          loadDarkServices(false);
-        }
-        return origNavigate.apply(this, arguments);
-      };
-    }
-    // تحميل مسبق في الخلفية بعد 3 ثوان من فتح التطبيق
-    setTimeout(function() { loadDarkServices(false); }, 3000);
-  }
-
+  // تحميل في الخلفية بعد ثانيتين من فتح التطبيق
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', _init);
+    document.addEventListener('DOMContentLoaded', () => setTimeout(() => loadDarkServices(false), 2000));
   } else {
-    _init();
+    setTimeout(() => loadDarkServices(false), 2000);
   }
 
 })();
