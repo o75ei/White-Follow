@@ -4938,70 +4938,151 @@ function toggleTheme() {
 // تحديث أسعار الخدمات تلقائياً من دارك فولو (+1$ على كل خدمة)
 // وإخفاء أي خدمة غير موجودة في دارك فولو
 // ══════════════════════════════════════════════════════════════
-// [FIX] syncDarkfollowPrices — يستخدم /api/prices (final_price من السيرفر)
-// بدلاً من حساب rate + getAdminMarkup() يدوياً مما كان يسبب تعارضاً مع _loadLivePrices
 (async function syncDarkfollowPrices() {
+  // خريطة: key الخدمة في بوتنا → service ID في دارك فولو
   const SERVICE_MAP = {
-    'devil':'1961','ice':'1941','shark':'1915','joker':'1910',
-    'dragon':'1548','falcon':'1573','long':'1811','bear':'1898',
-    'anaconda':'1789','panda':'1812','tiger':'1588',
-    'tg_deleted_limited':'1984','tg_deleted_nodrop':'1950','tg_lifetime':'1948',
-    'tg_forever':'1551','tg_online':'1922','tg_search':'1907',
-    'tg_cheap':'1552','tg_nodrop30':'1919','tg_nodrop15':'1867','tg_nodrop7':'1777',
+    // انستغرام وايت
+    'devil':              '1961',
+    'ice':                '1941',
+    'shark':              '1915',
+    'joker':              '1910',
+    'dragon':             '1548',
+    'falcon':             '1573',
+    'long':               '1811',
+    'bear':               '1898',
+    'anaconda':           '1789',
+    'panda':              '1812',
+    'tiger':              '1588',
+    // تيليجرام وايت
+    'tg_deleted_limited': '1984',
+    'tg_deleted_nodrop':  '1950',
+    'tg_lifetime':        '1948',
+    'tg_forever':         '1551',
+    'tg_online':          '1922',
+    'tg_search':          '1907',
+    'tg_cheap':           '1552',
+    'tg_nodrop30':        '1919',
+    'tg_nodrop15':        '1867',
+    'tg_nodrop7':         '1777',
   };
+
+  // خريطة أزرار openGameItem: value → service ID في دارك فولو
   const GAME_ITEM_MAP = {
-    'ox50':'1939','ox250':'1940','pb60':'1878','pb325':'1879','pb660':'1881','pb985':'1895',
-    'gen5':'1603','gen15':'1604','gen30':'1605','gen50':'1606','gen100':'1607',
-    'dt18':'1894','dt30':'1893','dt60':'1892','dt320':'1891','dt460':'1890',
-    'cod80':'1759','cod420':'1760','cod880':'1761','cod2400':'1762','ludo830':'1882',
+    'ox50':    '1939',
+    'ox250':   '1940',
+    'pb60':    '1878',
+    'pb325':   '1879',
+    'pb660':   '1881',
+    'pb985':   '1895',
+    'gen5':    '1603',
+    'gen15':   '1604',
+    'gen30':   '1605',
+    'gen50':   '1606',
+    'gen100':  '1607',
+    'dt18':    '1894',
+    'dt30':    '1893',
+    'dt60':    '1892',
+    'dt320':   '1891',
+    'dt460':   '1890',
+    'cod80':   '1759',
+    'cod420':  '1760',
+    'cod880':  '1761',
+    'cod2400': '1762',
+    'ludo830': '1882',
   };
+
   try {
-    // [FIX] نجيب final_price الصحيح من /api/prices (محسوب بالسيرفر مع الربح)
-    // لا نحسب rate + markup يدوياً لأن ذلك يعطي سعر مختلف عن باقي أنظمة التزامن
-    const res = await fetch(`${SERVER_URL}/api/prices`, { headers: { 'Accept': 'application/json' } });
-    if (!res.ok) return;
-    if (!(res.headers.get('content-type') || '').includes('application/json')) return;
+    // [FIX] استخدام SERVER_URL بدلاً من relative URL الذي يرجع HTML
+    const res = await fetch(`${SERVER_URL}/services/list`, {
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!res.ok) return; // السيرفر غير متاح — نتجاهل بهدوء
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) return; // تأكد أن الرد JSON
     const data = await res.json();
-    if (!data.ok || !data.prices) return;
-    const prices = data.prices;
+    if (!data.ok) return;
 
-    // صور الخدمات (اختياري — لا يؤثر على السعر)
-    let servicesMeta = {};
-    try {
-      const lr = await fetch(`${SERVER_URL}/services/list`, { headers: { 'Accept': 'application/json' } });
-      if (lr.ok) { const ld = await lr.json(); if (ld.ok) servicesMeta = ld.services || {}; }
-    } catch(_) {}
+    const available = data.services; // { "service_id": { rate, name, ... } }
 
-    // أزرار [data-icon-key] (انستا + تيليجرام وايت)
+    // نمشي على كل زر خدمة في الصفحة
     document.querySelectorAll('[data-icon-key]').forEach(btn => {
-      const svcKey = (btn.getAttribute('data-icon-key') || '').replace(/^insta_/,'').replace(/^tele_/,'');
-      const did = SERVICE_MAP[svcKey];
-      if (!did) return;
-      if (!(did in prices)) { btn.style.display = 'none'; return; }
-      const newPrice = parseFloat(prices[did]).toFixed(2);
+      const iconKey = btn.getAttribute('data-icon-key');
+      // نحول data-icon-key مثل "insta_devil" → "devil"، "tele_tg_online" → "tg_online"
+      let svcKey = iconKey.replace(/^insta_/, '').replace(/^tele_/, '');
+
+      const darkfollowId = SERVICE_MAP[svcKey];
+      if (!darkfollowId) return;
+
+      const svcData = available[darkfollowId];
+
+      if (!svcData) {
+        // الخدمة نحذفت من دارك فولو → نخفي الزر بالكامل
+        btn.style.display = 'none';
+        return;
+      }
+
+      // الخدمة موجودة → نحدث السعر = سعر دارك فولو + هامش الربح
+      const newPrice = (parseFloat(svcData.rate) + getAdminMarkup()).toFixed(2);
       const badge = btn.querySelector('.price-badge');
-      if (badge) { const svg = badge.querySelector('svg'); badge.textContent = '$' + newPrice; if (svg) badge.insertBefore(svg, badge.firstChild); }
-      const sm = servicesMeta[did];
-      if (sm && sm.image) { const iconEl = btn.querySelector('.menu-item-icon'); if (iconEl && !iconEl.querySelector('img')) iconEl.innerHTML = `<img src="${sm.image}" style="width:28px;height:28px;object-fit:cover;border-radius:8px;" onerror="this.style.display='none'" />`; }
-      btn.setAttribute('data-svc-id', did);
-      let oc = btn.getAttribute('onclick') || '';
-      let updated = oc.replace(/'[\d.]+'\)$/, `'${newPrice}')`);
-      if (updated.match(/open(Insta|Tele)Service\('[^']*','[^']*','[^']*'\)$/)) updated = updated.replace(/\)$/, `,'${did}')`);
-      if (updated !== oc) btn.setAttribute('onclick', updated);
+      if (badge) {
+        // نحتفظ بأيقونة السلة ونبدل النص فقط
+        const svg = badge.querySelector('svg');
+        badge.textContent = '$' + newPrice;
+        if (svg) badge.insertBefore(svg, badge.firstChild);
+      }
+
+      // ── تحديث صورة الخدمة من دارك فولو إن وجدت ──
+      if (svcData.image) {
+        const iconEl = btn.querySelector('.menu-item-icon');
+        if (iconEl && !iconEl.querySelector('img')) {
+          iconEl.innerHTML = `<img src="${svcData.image}" style="width:28px;height:28px;object-fit:cover;border-radius:8px;" onerror="this.style.display='none'" />`;
+        }
+      }
+
+      // نحدث data-svc-id بالـ ID الحقيقي من دارك فولو
+      btn.setAttribute('data-svc-id', darkfollowId);
+
+      // نحدث الـ onclick بالسعر الجديد + نضيف svcId كـ parameter رابع
+      const onclick = btn.getAttribute('onclick') || '';
+      let updated = onclick.replace(/'[\d.]+'\)$/, `'${newPrice}')`);
+      // أضف svcId كـ parameter رابع إن لم يكن موجوداً بعد
+      if (updated.match(/openInstaService\('[^']*','[^']*','[^']*'\)$/)) {
+        updated = updated.replace(/\)$/, `,'${darkfollowId}')`);
+      } else if (updated.match(/openTeleService\('[^']*','[^']*','[^']*'\)$/)) {
+        updated = updated.replace(/\)$/, `,'${darkfollowId}')`);
+      }
+      if (updated !== onclick) btn.setAttribute('onclick', updated);
     });
 
-    // أزرار openGameItem
+    // ── أزرار openGameItem (الألعاب والبطاقات اليدوية) ──
     document.querySelectorAll('button[onclick^="openGameItem"]').forEach(btn => {
-      const oc = btn.getAttribute('onclick') || '';
-      const m = oc.match(/openGameItem\('[^']*','([^']+)',([\d.]+)\)/);
-      if (!m) return;
-      const did = GAME_ITEM_MAP[m[1]];
-      if (!did) return;
-      if (!(did in prices)) { btn.style.display = 'none'; return; }
-      const newPrice = parseFloat(prices[did]).toFixed(2);
-      btn.setAttribute('onclick', oc.replace(/,[\d.]+\)$/, `,${newPrice})`));
+      const onclick = btn.getAttribute('onclick') || '';
+      // نستخرج value من openGameItem('label','value',price)
+      const match = onclick.match(/openGameItem\('[^']*','([^']+)',([\d.]+)\)/);
+      if (!match) return;
+      const itemKey = match[1];
+      const darkfollowId = GAME_ITEM_MAP[itemKey];
+      if (!darkfollowId) return;
+
+      const svcData = available[darkfollowId];
+      if (!svcData) {
+        btn.style.display = 'none';
+        return;
+      }
+
+      const newPrice = (parseFloat(svcData.rate) + getAdminMarkup()).toFixed(2);
+
+      // تحديث الـ onclick بالسعر الجديد
+      const newOnclick = onclick.replace(/,[\d.]+\)$/, `,${newPrice})`);
+      btn.setAttribute('onclick', newOnclick);
+
+      // تحديث شارة السعر
       const badge = btn.querySelector('.price-badge');
-      if (badge) { const svg = badge.querySelector('svg'); badge.textContent = newPrice + ' د.ع'; if (svg) badge.insertBefore(svg, badge.firstChild); }
+      if (badge) {
+        const svg = badge.querySelector('svg');
+        badge.textContent = newPrice + ' د.ع';
+        if (svg) badge.insertBefore(svg, badge.firstChild);
+      }
     });
 
   } catch (e) {
@@ -5202,9 +5283,54 @@ function _runInitMarkupLabel() {
 <input type="file" id="icon-pick-gallery" accept="image/*" style="display:none" />
 <input type="file" id="icon-pick-camera"  accept="image/*" capture="environment" style="display:none" />
 <!-- ════════════════════════════════════════ -->
-<!-- [FIX] syncLivePrices removed — duplicate of _loadLivePrices (line ~2732)
-     Both fetched /api/prices and updated [data-svc-id] buttons, causing
-     double-write conflicts. _loadLivePrices handles this correctly. -->
+<!-- ── Live Price Sync from Server ── -->
+<script>
+(async function syncLivePrices() {
+  try {
+    const BASE = window.location.origin;
+    const res = await fetch(BASE + '/api/prices');
+    if (!res.ok) return;
+    const data = await res.json();
+    const prices = data.prices || {};
+    if (!Object.keys(prices).length) return;
+
+    // Cart SVG for price badge
+    const cartSVG = `<svg viewBox="0 0 24 24"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>`;
+
+    // Only update buttons that already exist in DOM and have data-svc-id
+    document.querySelectorAll('[data-svc-id]').forEach(btn => {
+      const svcId = btn.getAttribute('data-svc-id');
+      if (!svcId || !(svcId in prices)) return;
+
+      const newRate = parseFloat(prices[svcId]);
+      if (!newRate) return;
+
+      const newRateStr = newRate.toFixed(2);
+
+      // Update price badge text
+      const badge = btn.querySelector('.price-badge');
+      if (badge) {
+        // Detect currency: د.ع vs $
+        const isDinar = badge.innerText && badge.innerText.includes('د.ع');
+        badge.innerHTML = isDinar
+          ? `${cartSVG}${newRateStr} د.ع`
+          : `${cartSVG}$${newRateStr}`;
+      }
+
+      // Update onclick price argument (last numeric arg before closing paren)
+      const onclick = btn.getAttribute('onclick') || '';
+      const updated = onclick
+        .replace(/,\s*([\d.]+)\s*\)(\s*)$/, `,${newRateStr})$2`)   // numeric arg: openCardItem('x','y',3.5)
+        .replace(/,'([\d.]+)'\)(\s*)$/, `,'${newRateStr}')$2`);    // string arg:  openInstaService('x','y','0.74')
+      if (updated !== onclick) btn.setAttribute('onclick', updated);
+    });
+
+    console.log('[LivePrice] Updated', document.querySelectorAll('[data-svc-id]').length, 'elements via /api/prices');
+  } catch(e) {
+    console.warn('[LivePrice] Failed to sync prices:', e);
+  }
+})();
+</script>
 <!-- ════════════════════════════════════════ -->
 
 <!-- ══ خدمات دارك فولو الديناميكية ══════════════════════════ -->
@@ -5268,6 +5394,26 @@ function _runInitMarkupLabel() {
       if (el) el.innerHTML = '';
     });
 
+    // [FIX] جمع أسماء الأزرار الـ static الموجودة في كل صفحة
+    // لمنع حقن قسم ديناميكي يكرر قسم static موجود مسبقاً
+    const _staticNames = {};
+    Object.entries(GROUP_CONTAINERS).forEach(([group, containerId]) => {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      // اجمع الأخوة (siblings) قبل الـ dyn-container — هم الـ static buttons
+      const parent = container.parentElement;
+      if (!parent) return;
+      const names = new Set();
+      Array.from(parent.querySelectorAll('.menu-item')).forEach(btn => {
+        if (container.contains(btn)) return; // تجاهل الديناميكيين
+        const txt = (btn.querySelector('.menu-item-text') || btn).textContent || '';
+        // normalize: أزل | وايت / | دارك وتحويل lower
+        const norm = txt.replace(/\|\s*(وايت|white|دارك|dark)/gi, '').trim().toLowerCase();
+        if (norm) names.add(norm);
+      });
+      _staticNames[group] = names;
+    });
+
     // صنّف الأقسام حسب group مع الحفاظ على ترتيب sort_order من الـ API
     const grouped = {};
     _darkCats.forEach((cat, idx) => {
@@ -5275,7 +5421,6 @@ function _runInitMarkupLabel() {
       if (!grouped[g]) grouped[g] = [];
       grouped[g].push({ cat, idx });
     });
-    // الأقسام تأتي مرتّبة من السيرفر بـ sort_order — لا نعيد ترتيبها
 
     let injected = 0;
     Object.entries(GROUP_CONTAINERS).forEach(([group, containerId]) => {
@@ -5284,8 +5429,22 @@ function _runInitMarkupLabel() {
       const items = grouped[group] || [];
       if (items.length === 0) return;
 
+      const staticNames = _staticNames[group] || new Set();
       const parentPage = GROUP_PARENT_PAGE[group] || 'white-services';
+
+      // [FIX] تتبع الأسماء المحقونة لمنع تكرار الأقسام الديناميكية نفسها
+      const injectedNames = new Set();
+
       items.forEach(({ cat, idx }) => {
+        // [FIX] normalize اسم القسم
+        const normName = (cat.name || '').replace(/\|\s*(وايت|white|دارك|dark)/gi, '').trim().toLowerCase();
+
+        // تخطى لو موجود كـ static button
+        if (normName && staticNames.has(normName)) return;
+        // تخطى لو تم حقنه مسبقاً في هذا الـ group (تكرار ديناميكي)
+        if (normName && injectedNames.has(normName)) return;
+        if (normName) injectedNames.add(normName);
+
         container.insertAdjacentHTML('beforeend', _buildCatBtn(cat, idx, parentPage));
         injected++;
       });
