@@ -1314,8 +1314,10 @@ def services_list():
         return "white"  # fallback: ضع في white بدل إخفائه
 
     # بناء قائمة الأقسام مرتّبة مع خدماتها وتصنيفها
-    # مع دمج الأقسام المكررة بنفس sort_order (تكرار بسبب اختلاف اسم الـ category من دارك فولو)
-    seen_sort = {}   # sort_order → index in categories_list
+    # [FIX] دمج الأقسام المكررة بنفس sort_order أو نفس اسم القسم
+    # (التكرار يحدث لو دارك فولو غيّر اسم category وأصبح عند sort_order=0 متعدد)
+    seen_sort = {}    # sort_order → index in categories_list  (sort_order > 0 only)
+    seen_name = {}    # name_ar.lower() → index in categories_list
     categories_list = []
     for c in cats:
         cat = dict(c)
@@ -1329,11 +1331,28 @@ def services_list():
         group = _get_group(cat["sort_order"], cat["name_ar"], cat["name_en"])
         cat_source = "white" if all(sv.get("source") == "white" for sv in cat_svcs) else "dark"
         so = cat["sort_order"]
-        if so in seen_sort:
+        name_key = (cat["name_ar"] or "").lower().strip()
+
+        # [FIX] أولوية الدمج: أولاً بـ sort_order (لو > 0)، ثم بالاسم
+        merge_idx = None
+        if so > 0 and so in seen_sort:
+            merge_idx = seen_sort[so]
+        elif name_key and name_key in seen_name:
+            merge_idx = seen_name[name_key]
+
+        if merge_idx is not None:
             # دمج الخدمات في القسم الموجود بدل إضافة قسم جديد مكرر
-            categories_list[seen_sort[so]]["services"].extend(cat_svcs)
+            existing_ids = {sv["id"] for sv in categories_list[merge_idx]["services"]}
+            for sv in cat_svcs:
+                if sv["id"] not in existing_ids:
+                    categories_list[merge_idx]["services"].append(sv)
+                    existing_ids.add(sv["id"])
         else:
-            seen_sort[so] = len(categories_list)
+            idx = len(categories_list)
+            if so > 0:
+                seen_sort[so] = idx
+            if name_key:
+                seen_name[name_key] = idx
             categories_list.append({
                 "id": cat["id"],
                 "name": cat["name_ar"] if lang == "ar" else (cat["name_en"] or cat["name_ar"]),
@@ -3055,15 +3074,34 @@ def _sync_provider_catalog(provider_id=None):
                         cat_name = str(svc.get("category", "General")).strip()
                         cat_key  = cat_name.lower()
 
-                        # Create category if missing
+                        # Create category if missing — upsert on name_en to prevent duplicates
+                        # when DarkFollow changes category name casing/spacing between syncs
                         if cat_key not in cat_map:
                             icon, sort_order, ar_name = _get_cat_info(cat_name)
-                            cur = db.execute(
-                                "INSERT INTO categories (name_ar, name_en, icon, sort_order, is_active) VALUES (%s,%s,%s,%s,1)",
-                                (ar_name, cat_name, icon, sort_order)
-                            )
-                            cat_map[cat_key] = cur.lastrowid
-                            log.info(f"[catalog] New category: {cat_name} → {ar_name}")
+                            # [FIX] Check by name_en first to avoid duplicate categories
+                            existing_cat = db.execute(
+                                "SELECT id FROM categories WHERE LOWER(name_en)=%s LIMIT 1",
+                                (cat_key,)
+                            ).fetchone()
+                            if existing_cat:
+                                cat_map[cat_key] = existing_cat["id"]
+                                log.info(f"[catalog] Reused existing category: {cat_name} (id={existing_cat['id']})")
+                            else:
+                                # Also check by sort_order to prevent duplicate sort positions
+                                existing_so = db.execute(
+                                    "SELECT id FROM categories WHERE sort_order=%s AND sort_order > 0 LIMIT 1",
+                                    (sort_order,)
+                                ).fetchone()
+                                if existing_so:
+                                    cat_map[cat_key] = existing_so["id"]
+                                    log.info(f"[catalog] Reused category by sort_order={sort_order}: {cat_name}")
+                                else:
+                                    cur = db.execute(
+                                        "INSERT INTO categories (name_ar, name_en, icon, sort_order, is_active) VALUES (%s,%s,%s,%s,1)",
+                                        (ar_name, cat_name, icon, sort_order)
+                                    )
+                                    cat_map[cat_key] = cur.lastrowid
+                                    log.info(f"[catalog] New category: {cat_name} → {ar_name}")
 
                         cat_id = cat_map[cat_key]
                         provider_service_id = str(svc.get("service", ""))
