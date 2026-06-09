@@ -11,13 +11,39 @@
   <!-- Telegram WebApp SDK — لازم يكون أول شيء يتحمّل -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
-    // ── فتح المتصفح الخارجي لو الصفحة اتفتحت داخل تيليجرام ──
+    // ── بانر "افتح بالمتصفح" لو الصفحة اتفتحت داخل تيليجرام ──
     (function() {
-      var tg = window.Telegram && window.Telegram.WebApp;
-      if (!tg || !tg.openLink) return; // مو تيليجرام WebApp
-      // نتحقق: هل initDataUnsafe موجود؟ يعني فعلاً داخل تيليجرام
-      if (!tg.initData && !tg.initDataUnsafe) return;
-      tg.openLink(window.location.href);
+      var ua = navigator.userAgent || '';
+      var isTg = /Telegram/i.test(ua) || (window.Telegram && window.Telegram.WebApp);
+      if (!isTg) return;
+
+      // أضف بانر في أعلى الصفحة بعد تحميل DOM
+      document.addEventListener('DOMContentLoaded', function() {
+        var url = window.location.href;
+        var banner = document.createElement('div');
+        banner.id = 'tg-open-banner';
+        banner.style.cssText = [
+          'position:fixed','top:0','left:0','right:0','z-index:99999',
+          'background:#c0392b','color:#fff','text-align:center',
+          'padding:10px 16px','font-size:14px','font-weight:700',
+          'font-family:Arial,sans-serif','direction:rtl',
+          'display:flex','align-items:center','justify-content:center','gap:10px',
+          'box-shadow:0 2px 8px rgba(0,0,0,0.3)'
+        ].join(';');
+        banner.innerHTML =
+          '<span>للتجربة الأفضل افتح بالمتصفح</span>' +
+          '<a href="' + url + '" target="_blank" rel="noopener" ' +
+          'style="background:#fff;color:#c0392b;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:800;text-decoration:none;white-space:nowrap;">' +
+          '🌐 فتح' +
+          '</a>' +
+          '<span onclick="document.getElementById(\'tg-open-banner\').remove()" ' +
+          'style="cursor:pointer;opacity:0.7;font-size:18px;line-height:1;padding:0 4px;">✕</span>';
+        document.body.insertBefore(banner, document.body.firstChild);
+
+        // عدّل الـ body padding حتى المحتوى ما ينخبّى تحت البانر
+        document.body.style.paddingTop = (document.body.style.paddingTop
+          ? parseInt(document.body.style.paddingTop) + 44 : 44) + 'px';
+      });
     })();
   </script>
   <meta name="deploy-timestamp" content="1749254400" />
