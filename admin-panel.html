@@ -819,7 +819,7 @@ window.addEventListener('DOMContentLoaded', function() {
   document.getElementById('bot-url-display').textContent = _serverUrl;
 
   // فحص جلسة محفوظة
-  const saved = sessionStorage.getItem('wf_panel_key');
+  const saved = localStorage.getItem('wf_panel_key');
   if (saved) {
     _adminKey = saved;
     showDashboard();
@@ -830,6 +830,25 @@ window.addEventListener('DOMContentLoaded', function() {
     _bc = new BroadcastChannel('wf_admin_panel');
   }
 });
+
+// ── تسجيل الدخول الصامت (تلقائي) ──────────────────────────────
+async function doLogin_silent() {
+  // يحاول تسجيل الدخول تلقائياً بكلمة المرور المحفوظة
+  const savedPass = localStorage.getItem('wf_panel_pass');
+  if (!savedPass) return;
+  try {
+    const res = await fetch(_serverUrl + '/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: savedPass })
+    });
+    const data = await res.json();
+    if (data.ok && data.token) {
+      _adminKey = data.token;
+      localStorage.setItem('wf_panel_key', data.token);
+    }
+  } catch(e) {}
+}
 
 // ── تسجيل الدخول ──────────────────────────────────────────────
 async function doLogin() {
@@ -855,7 +874,8 @@ async function doLogin() {
       return;
     }
     _adminKey = data.token;
-    sessionStorage.setItem('wf_panel_key', data.token);
+    localStorage.setItem('wf_panel_key', data.token);
+    localStorage.setItem('wf_panel_pass', key);
   } catch(e) {
     document.getElementById('login-err').style.display = 'block';
     btn.textContent = 'دخول 🚀';
@@ -890,7 +910,7 @@ function showDashboard() {
 function doLogout() {
   if (!confirm('تأكيد تسجيل الخروج؟')) return;
   _adminKey = '';
-  sessionStorage.removeItem('wf_panel_key');
+  localStorage.removeItem('wf_panel_key');
   localStorage.removeItem('wf_panel_admin_active');
   _pushCmd({ action: 'admin_logout' });
   document.getElementById('login-screen').style.display = 'flex';
@@ -943,6 +963,12 @@ async function fetchDFBalance() {
       headers: { 'X-Admin-Token': _adminKey }
     });
     const data = await res.json();
+    if (res.status === 401) {
+      els.forEach(e => { if(e) e.textContent = '🔄 إعادة اتصال...'; });
+      await doLogin_silent();
+      if (_adminKey) loadDFBalance();
+      return;
+    }
     const val = typeof data.balance !== 'undefined'
       ? parseFloat(data.balance).toFixed(2) + ' $'
       : '⚠️ ' + (data.error || 'تعذر الجلب');
@@ -1005,6 +1031,18 @@ async function loadUsers() {
     const res = await fetch(_serverUrl + '/admin/users', {
       headers: { 'X-Admin-Token': _adminKey }
     });
+    if (res.status === 401) {
+      // Session expired — re-authenticate automatically
+      localStorage.removeItem('wf_panel_key');
+      _adminKey = '';
+      await doLogin_silent();
+      if (_adminKey) {
+        loadUsers();
+      } else {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#ff6677;padding:30px;">⚠️ انتهت الجلسة — أعد تسجيل الدخول</td></tr>';
+      }
+      return;
+    }
     const data = await res.json();
     const users = data.users || data || [];
 
@@ -1185,7 +1223,7 @@ async function pingServer() {
 // ── مسح الكاش ─────────────────────────────────────────────────
 function clearAllCache() {
   if (!confirm('هل أنت متأكد؟ سيتم مسح بيانات الكاش المحلي للوحة فقط.')) return;
-  const key = sessionStorage.getItem('wf_panel_key');
+  const key = localStorage.getItem('wf_panel_key');
   localStorage.removeItem('wf_panel_server');
   localStorage.removeItem('wf_panel_cmd');
   sessionStorage.clear();
