@@ -3516,19 +3516,43 @@ async function registerStep1() {
   }
 }
 
-function verifyRegCode() {
+async function verifyRegCode() {
   const code = document.getElementById('verify-reg-code').value.trim();
   const saved = localStorage.getItem('wf_reg_code');
   if (!code) { showToast('أدخل رمز التحقق', 'error'); return; }
   if (code !== saved) { showToast('الرمز غير صحيح', 'error'); return; }
   if (!_pendingReg) { showToast('انتهت الجلسة، حاول مجدداً', 'error'); showPage('page-register'); return; }
+
+  const email    = _pendingReg.email;
+  const password = _pendingReg.pass;
+  const username = email.split('@')[0];
+
+  // ── تسجيل في قاعدة البيانات (backend) ──
+  try {
+    const res = await fetch(SERVER_URL + '/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, username })
+    });
+    const data = await res.json();
+    if (data.ok && data.token) {
+      // حفظ التوكن والـ uid من الـ backend
+      localStorage.setItem('wf_token', data.token);
+      localStorage.setItem('wf_user_id', data.user.uid || data.user.id);
+      localStorage.setItem('wf_email', email);
+    }
+  } catch(e) {
+    console.warn('Backend register failed (non-fatal):', e);
+  }
+
+  // ── حفظ محلي كـ fallback ──
   const users = JSON.parse(localStorage.getItem('wf_users') || '{}');
-  users[_pendingReg.email] = { pass: _pendingReg.pass };
+  users[email] = { pass: password };
   localStorage.setItem('wf_users', JSON.stringify(users));
   localStorage.removeItem('wf_reg_code');
   _pendingReg = null;
   showToast('✅ تم إنشاء الحساب بنجاح!', 'success');
-  finalizeLogin('email', document.getElementById('reg-email').value.trim());
+  finalizeLogin('email', email);
 }
 
 async function forgotStep1() {
