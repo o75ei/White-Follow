@@ -578,38 +578,75 @@ def health():
     return jsonify({"ok": True, "time": datetime.datetime.utcnow().isoformat()})
 
 # ─────────────────────────────────────────────
-# Webhook Telegram
+# Telegram Bot — Shared Update Handler
+# (used by the polling loop below)
 # ─────────────────────────────────────────────
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    update = request.get_json()
-    if not update:
-        return "ok"
-    msg = update.get("message", {})
-    chat_id = msg.get("chat", {}).get("id")
-    text = msg.get("text", "")
-    user = msg.get("from", {})
-    name = user.get("first_name", "User")
-    tg_id = str(user.get("id", ""))
+def _handle_tg_update(update):
+    """Process a single Telegram update dict (message or callback_query)."""
+    try:
+        msg     = update.get("message") or update.get("edited_message") or {}
+        cb      = update.get("callback_query") or {}
 
-    if not chat_id:
-        return "ok"
+        # ── Callback queries (inline button clicks) ──
+        if cb:
+            cb_id   = cb.get("id")
+            cb_data = cb.get("data", "")
+            cb_user = cb.get("from", {})
+            cb_chat = (cb.get("message") or {}).get("chat", {})
+            chat_id = cb_chat.get("id")
+            tg_id   = str(cb_user.get("id", ""))
+            # Acknowledge the callback
+            tg("answerCallbackQuery", {"callback_query_id": cb_id})
+            # Handle known callbacks here if needed
+            return
 
-    # ── رد /start فوراً بدون انتظار قاعدة البيانات ──
-    if text.startswith("/start"):
-        tg("sendMessage", {
-            "chat_id": chat_id,
-            "text": f"👋 أهلاً <b>{name}</b>!\n\nمرحباً بك في بوت إدارة خدمات SMM.\nاضغط الزر أدناه لفتح التطبيق:",
-            "parse_mode": "HTML",
-            "reply_markup": {
-                "inline_keyboard": [
-                    [{"text": "🚀 فتح التطبيق", "web_app": {"url": WEBAPP_URL}}],
-                    [{"text": "💬 الدعم الفني", "url": f"https://t.me/{SUPPORT_USERNAME}"}]
-                ]
-            }
-        })
-        # سجّل المستخدم في الخلفية بدون ما يعطّل الرد
-        def _register():
+        # ── Regular messages ──
+        chat_id = msg.get("chat", {}).get("id")
+        text    = msg.get("text", "")
+        user    = msg.get("from", {})
+        name    = user.get("first_name", "User")
+        tg_id   = str(user.get("id", ""))
+
+        if not chat_id:
+            return
+
+        # ── /start ──
+        if text.startswith("/start"):
+            tg("sendMessage", {
+                "chat_id": chat_id,
+                "text": f"👋 أهلاً <b>{name}</b>!\n\nمرحباً بك في بوت إدارة خدمات SMM.\nاضغط الزر أدناه لفتح التطبيق:",
+                "parse_mode": "HTML",
+                "reply_markup": {
+                    "inline_keyboard": [
+                        [{"text": "🚀 فتح التطبيق", "web_app": {"url": WEBAPP_URL}}],
+                        [{"text": "💬 الدعم الفني", "url": f"https://t.me/{SUPPORT_USERNAME}"}]
+                    ]
+                }
+            })
+            # Register user in background
+            def _register():
+                try:
+                    with get_db() as db:
+                        db.execute("""
+                            INSERT INTO users (telegram_id, username)
+                            VALUES (%s, %s)
+                            ON CONFLICT (telegram_id) DO NOTHING
+                        """, (tg_id, user.get("username", name)))
+                        db.execute("UPDATE users SET last_seen=NOW() WHERE telegram_id=%s", (tg_id,))
+                        db.commit()
+                        u_row = db.execute("SELECT id, uid FROM users WHERE telegram_id=%s", (tg_id,)).fetchone()
+                        if u_row and not u_row.get("uid"):
+                            new_uid = f"WF-{u_row['id']:06d}"
+                            db.execute("UPDATE users SET uid=%s WHERE id=%s", (new_uid, u_row["id"]))
+                            db.commit()
+                except Exception as e:
+                    log.error(f"[polling] /start DB error (non-fatal): {e}")
+            if tg_id:
+                threading.Thread(target=_register, daemon=True).start()
+            return
+
+        # Auto-register for all other commands (non-fatal)
+        if tg_id:
             try:
                 with get_db() as db:
                     db.execute("""
@@ -619,70 +656,105 @@ def webhook():
                     """, (tg_id, user.get("username", name)))
                     db.execute("UPDATE users SET last_seen=NOW() WHERE telegram_id=%s", (tg_id,))
                     db.commit()
-                    u_row = db.execute("SELECT id, uid FROM users WHERE telegram_id=%s", (tg_id,)).fetchone()
-                    if u_row and not u_row.get("uid"):
-                        new_uid = f"WF-{u_row['id']:06d}"
-                        db.execute("UPDATE users SET uid=%s WHERE id=%s", (new_uid, u_row["id"]))
-                        db.commit()
             except Exception as e:
-                log.error(f"[webhook] DB error (non-fatal): {e}")
-        if tg_id:
-            threading.Thread(target=_register, daemon=True).start()
-        return "ok"
+                log.error(f"[polling] auto-register DB error (non-fatal): {e}")
 
-    # Auto-register user (non-fatal) للأوامر الأخرى
-    if tg_id:
-        try:
+        # ── /balance ──
+        if text.startswith("/balance"):
             with get_db() as db:
-                db.execute("""
-                    INSERT INTO users (telegram_id, username)
-                    VALUES (%s, %s)
-                    ON CONFLICT (telegram_id) DO NOTHING
-                """, (tg_id, user.get("username", name)))
-                db.execute("UPDATE users SET last_seen=NOW() WHERE telegram_id=%s", (tg_id,))
-                db.commit()
-        except Exception as e:
-            log.error(f"[webhook] DB error (non-fatal): {e}")
+                user_data = db.execute(
+                    "SELECT balance FROM users WHERE telegram_id=%s", (tg_id,)
+                ).fetchone()
+            balance = user_data["balance"] if user_data else 0
+            tg("sendMessage", {
+                "chat_id": chat_id,
+                "text": f"💰 رصيدك الحالي: <b>${balance:.2f}</b>",
+                "parse_mode": "HTML"
+            })
 
-    if text.startswith("/balance"):
-        with get_db() as db:
-            user_data = db.execute(
-                "SELECT balance FROM users WHERE telegram_id=%s", (tg_id,)
-            ).fetchone()
-        balance = user_data["balance"] if user_data else 0
-        tg("sendMessage", {
-            "chat_id": chat_id,
-            "text": f"💰 رصيدك الحالي: <b>${balance:.2f}</b>",
-            "parse_mode": "HTML"
-        })
-    elif text.startswith("/orders"):
-        with get_db() as db:
-            orders = db.execute("""
-                SELECT o.id, o.status, s.name_ar
-                FROM orders o
-                LEFT JOIN services s ON s.id=o.service_id
-                WHERE o.user_id=(SELECT id FROM users WHERE telegram_id=%s)
-                ORDER BY o.created_at DESC LIMIT 5
-            """, (tg_id,)).fetchall()
-        if not orders:
-            text_msg = "📭 لا توجد طلبات"
-        else:
-            text_msg = "📦 آخر 5 طلبات:\n\n"
-            for o in orders:
-                status_emoji = {"pending":"🟡","active":"🟢","completed":"✅","cancelled":"❌","partial":"⚠️"}.get(o["status"],"⚪")
-                text_msg += f"{status_emoji} #{o['id']} - {o['name_ar'] or 'خدمة'}\n"
-        tg("sendMessage", {"chat_id": chat_id, "text": text_msg})
-    elif text.startswith("/support"):
-        tg("sendMessage", {
-            "chat_id": chat_id,
-            "text": "للدعم الفني راسلنا عبر:",
-            "reply_markup": {
-                "inline_keyboard": [[
-                    {"text": "💬 تواصل مع الدعم", "url": f"https://t.me/{SUPPORT_USERNAME}"}
-                ]]
-            }
-        })
-    return "ok"
+        # ── /orders ──
+        elif text.startswith("/orders"):
+            with get_db() as db:
+                orders = db.execute("""
+                    SELECT o.id, o.status, s.name_ar
+                    FROM orders o
+                    LEFT JOIN services s ON s.id=o.service_id
+                    WHERE o.user_id=(SELECT id FROM users WHERE telegram_id=%s)
+                    ORDER BY o.created_at DESC LIMIT 5
+                """, (tg_id,)).fetchall()
+            if not orders:
+                text_msg = "📭 لا توجد طلبات"
+            else:
+                text_msg = "📦 آخر 5 طلبات:\n\n"
+                for o in orders:
+                    status_emoji = {"pending":"🟡","active":"🟢","completed":"✅","cancelled":"❌","partial":"⚠️"}.get(o["status"],"⚪")
+                    text_msg += f"{status_emoji} #{o['id']} - {o['name_ar'] or 'خدمة'}\n"
+            tg("sendMessage", {"chat_id": chat_id, "text": text_msg})
+
+        # ── /support ──
+        elif text.startswith("/support"):
+            tg("sendMessage", {
+                "chat_id": chat_id,
+                "text": "للدعم الفني راسلنا عبر:",
+                "reply_markup": {
+                    "inline_keyboard": [[
+                        {"text": "💬 تواصل مع الدعم", "url": f"https://t.me/{SUPPORT_USERNAME}"}
+                    ]]
+                }
+            })
+
+    except Exception as e:
+        log.error(f"[polling] _handle_tg_update error: {e}")
+
+
+# ─────────────────────────────────────────────
+# Telegram Bot — Threaded Polling Loop
+# Replaces the old /webhook endpoint completely.
+# ─────────────────────────────────────────────
+def _bot_polling_loop():
+    """
+    Non-blocking background thread that polls Telegram getUpdates
+    with offset tracking to avoid reprocessing old messages.
+    Retries automatically after any network or server error.
+    """
+    if not TELEGRAM_BOT_TOKEN:
+        log.warning("[polling] TELEGRAM_BOT_TOKEN not set — bot polling disabled")
+        return
+
+    log.info("[polling] Telegram polling loop started")
+    offset = 0
+
+    while True:
+        try:
+            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
+            params = {"timeout": 30, "offset": offset, "allowed_updates": ["message", "callback_query"]}
+            resp = requests.get(url, params=params, timeout=40)
+            data = resp.json()
+
+            if not data.get("ok"):
+                log.warning(f"[polling] getUpdates not ok: {data}")
+                time.sleep(3)
+                continue
+
+            updates = data.get("result", [])
+            for update in updates:
+                update_id = update.get("update_id", 0)
+                if update_id >= offset:
+                    offset = update_id + 1
+                # Process in a separate thread so one slow handler
+                # doesn't delay the polling loop
+                threading.Thread(
+                    target=_handle_tg_update,
+                    args=(update,),
+                    daemon=True
+                ).start()
+
+        except requests.exceptions.Timeout:
+            # Long-poll timeout is normal — just loop again immediately
+            continue
+        except Exception as e:
+            log.error(f"[polling] error — retrying in 3s: {e}")
+            time.sleep(3)
 
 # ─────────────────────────────────────────────
 # User Auth (Web)
@@ -815,31 +887,32 @@ def auth_register():
         if username and db.execute("SELECT id FROM users WHERE LOWER(username)=%s", (username.lower(),)).fetchone():
             return jsonify({"error": "اسم المستخدم مأخوذ، اختر اسماً آخر"}), 409
 
-    # Generate 6-digit OTP
-    code    = "".join(random.choices(string.digits, k=6))
-    expires = (datetime.datetime.utcnow() + datetime.timedelta(minutes=10)).isoformat()
-    ph      = hash_password(password)
-
+    # ── التسجيل الفوري بدون التحقق من البريد الإلكتروني ──
+    # send_verification_email is intentionally DISABLED — users are auto-verified
+    ph = hash_password(password)
     with get_db() as db:
-        # Remove old pending verifications for same email
-        db.execute("DELETE FROM email_verifications WHERE email=%s", (email,))
-        db.execute(
-            "INSERT INTO email_verifications (email,username,password_hash,code,expires_at) VALUES (%s,%s,%s,%s,%s)",
-            (email, username, ph, code, expires)
+        cur = db.execute(
+            "INSERT INTO users (email, username, password_hash) VALUES (%s, %s, %s)",
+            (email, username, ph)
         )
+        user_id = cur.lastrowid
+        uid = f"WF-{user_id:06d}"
+        db.execute("UPDATE users SET uid=%s WHERE id=%s", (uid, user_id))
         db.commit()
 
-    # Always require OTP - send via EmailJS from frontend
-    # Try SMTP as backup (optional)
-    try:
-        if SMTP_USER and SMTP_PASS:
-            _send_verification_email(email, code, username)
-    except Exception:
-        pass  # EmailJS handles delivery
-
-    return jsonify({"ok": True, "verified": False, "email": email,
-                    "code": code,
-                    "message": "أدخل رمز التحقق المرسل إلى بريدك الإلكتروني"})
+    notify_admin(f"👤 مستخدم جديد: {email} (#{user_id})")
+    token = _create_user_token(user_id)
+    return jsonify({
+        "ok": True,
+        "token": token,
+        "user": {
+            "id": user_id,
+            "uid": uid,
+            "email": email,
+            "username": username,
+            "balance": 0
+        }
+    })
 
 @app.route("/auth/verify-email", methods=["POST"])
 def auth_verify_email():
@@ -2960,11 +3033,12 @@ def _startup():
     except Exception as e:
         log.error(f"[startup] DB init failed — will retry lazily: {e}")
 
-    # ── Telegram Webhook + Commands ──
+    # ── Telegram Bot — delete old webhook and start polling thread ──
     if TELEGRAM_BOT_TOKEN:
         try:
-            webhook_url = f"{WEBAPP_URL}/webhook"
-            threading.Thread(target=lambda: tg("setWebhook", {"url": webhook_url}), daemon=True).start()
+            # Delete any previously registered webhook so polling works correctly
+            threading.Thread(target=lambda: tg("deleteWebhook", {"drop_pending_updates": False}), daemon=True).start()
+            # Register bot commands
             threading.Thread(target=lambda: tg("setMyCommands", {"commands": [
                 {"command": "start",   "description": "فتح التطبيق"},
                 {"command": "balance", "description": "عرض رصيدي"},
@@ -2973,6 +3047,8 @@ def _startup():
             ]}), daemon=True).start()
         except Exception as e:
             log.error(f"[startup] TG setup failed: {e}")
+        # Start the polling loop in a persistent background thread
+        threading.Thread(target=_bot_polling_loop, daemon=True).start()
 
     # ── Background cron ──
     threading.Thread(target=_cron_loop, daemon=True).start()
