@@ -5453,9 +5453,8 @@ function _runInitMarkupLabel() {
     if (!svcs.length) {
       listEl.innerHTML = '<div style="text-align:center;padding:40px;color:#888;">لا توجد خدمات</div>';
     } else {
-      const markup = typeof getAdminMarkup === 'function' ? getAdminMarkup() : 0;
       listEl.innerHTML = svcs.map(svc => {
-        const price = (parseFloat(svc.rate||0) + markup).toFixed(2);
+        const price = parseFloat(svc.rate||0).toFixed(2);
         const imgHtml = svc.image
           ? `<img src="${_esc(svc.image)}" style="width:28px;height:28px;object-fit:cover;border-radius:8px;" onerror="this.parentElement.textContent='📦'" />`
           : '📦';
