@@ -5407,8 +5407,8 @@ function _runInitMarkupLabel() {
       Array.from(parent.querySelectorAll('.menu-item')).forEach(btn => {
         if (container.contains(btn)) return; // تجاهل الديناميكيين
         const txt = (btn.querySelector('.menu-item-text') || btn).textContent || '';
-        // normalize: أزل | وايت / | دارك وتحويل lower
-        const norm = txt.replace(/\|\s*(وايت|white|دارك|dark)/gi, '').trim().toLowerCase();
+        // normalize: أزل كل شيء بعد | (مو بس وايت/دارك) + مسافات زائدة + lower
+        const norm = txt.replace(/\s*\|.*$/gi, '').replace(/\s+/g, ' ').trim().toLowerCase();
         if (norm) names.add(norm);
       });
       _staticNames[group] = names;
@@ -5436,8 +5436,8 @@ function _runInitMarkupLabel() {
       const injectedNames = new Set();
 
       items.forEach(({ cat, idx }) => {
-        // [FIX] normalize اسم القسم
-        const normName = (cat.name || '').replace(/\|\s*(وايت|white|دارك|dark)/gi, '').trim().toLowerCase();
+        // [FIX] normalize اسم القسم — أزل كل شيء بعد | (مو بس وايت/دارك) ليطابق الـ static
+        const normName = (cat.name || '').replace(/\s*\|.*$/gi, '').replace(/\s+/g, ' ').trim().toLowerCase();
 
         // تخطى لو موجود كـ static button
         if (normName && staticNames.has(normName)) return;
