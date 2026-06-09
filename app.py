@@ -889,24 +889,26 @@ def auth_register():
 
     # ── التسجيل الفوري بدون التحقق من البريد الإلكتروني ──
     # send_verification_email is intentionally DISABLED — users are auto-verified
-    ph = hash_password(password)
-    with get_db() as db:
-        cur = db.execute(
-            "INSERT INTO users (email, username, password_hash) VALUES (%s, %s, %s)",
-            (email, username, ph)
-        )
-        user_id = cur.lastrowid
-        uid = f"WF-{user_id:06d}"
-        db.execute("UPDATE users SET uid=%s WHERE id=%s", (uid, user_id))
-        db.commit()
+    # uid is a permanent unique alphanumeric string (Supabase-style UUID), never changes
+    ph  = hash_password(password)
+    uid = secrets.token_urlsafe(16)   # e.g. "uE9N3k..." — unique, URL-safe, 22 chars
 
-    notify_admin(f"👤 مستخدم جديد: {email} (#{user_id})")
-    token = _create_user_token(user_id)
+    with get_db() as db:
+        db.execute(
+            "INSERT INTO users (uid, email, username, password_hash) VALUES (%s, %s, %s, %s)",
+            (uid, email, username, ph)
+        )
+        db.commit()
+        user_row = db.execute("SELECT id FROM users WHERE uid=%s", (uid,)).fetchone()
+        user_id  = user_row["id"] if user_row else uid   # fallback to uid string if SERIAL unavailable
+
+    notify_admin(f"👤 مستخدم جديد: {email} (uid={uid})")
+    token = _create_user_token(uid)
     return jsonify({
         "ok": True,
         "token": token,
         "user": {
-            "id": user_id,
+            "id": uid,
             "uid": uid,
             "email": email,
             "username": username,
@@ -941,20 +943,20 @@ def auth_verify_email():
             db.execute("DELETE FROM email_verifications WHERE email=%s", (email,))
             db.commit()
             return jsonify({"error": "هذا البريد مسجل مسبقاً. سجّل دخولك أو استخدم بريد آخر"}), 409
-        cur = db.execute(
-            "INSERT INTO users (email,username,password_hash) VALUES (%s,%s,%s)",
-            (email, row["username"], row["password_hash"])
+        uid = secrets.token_urlsafe(16)
+        db.execute(
+            "INSERT INTO users (uid, email, username, password_hash) VALUES (%s, %s, %s, %s)",
+            (uid, email, row["username"], row["password_hash"])
         )
-        user_id = cur.lastrowid
-        uid = f"WF-{user_id:06d}"
-        db.execute("UPDATE users SET uid=%s WHERE id=%s", (uid, user_id))
         db.execute("DELETE FROM email_verifications WHERE email=%s", (email,))
         db.commit()
+        u_row = db.execute("SELECT id FROM users WHERE uid=%s", (uid,)).fetchone()
+        user_id = u_row["id"] if u_row else uid
 
-    token = _create_user_token(user_id)
-    notify_admin(f"👤 مستخدم جديد (تحقق بريد): {email} (#{user_id})")
+    token = _create_user_token(uid)
+    notify_admin(f"👤 مستخدم جديد (تحقق بريد): {email} (uid={uid})")
     return jsonify({"ok": True, "token": token,
-                    "user": {"id": user_id, "uid": uid, "email": email,
+                    "user": {"id": uid, "uid": uid, "email": email,
                              "username": row["username"], "balance": 0}})
 
 @app.route("/auth/resend-code", methods=["POST"])
@@ -1058,11 +1060,26 @@ def auth_reset_confirm():
     return jsonify({"ok": True, "message": "تم تغيير كلمة المرور. يرجى تسجيل الدخول"})
 
 def _create_user_token(user_id):
+    """
+    user_id may be an integer (users.id) or a uid string.
+    If it's a uid string, look up the integer id first so
+    user_sessions.user_id (INTEGER) always stays consistent.
+    """
     token = secrets.token_hex(24)
     expires = (datetime.datetime.utcnow() + datetime.timedelta(days=30)).isoformat()
+    # Resolve uid string → integer id if needed
+    resolved_id = user_id
+    if isinstance(user_id, str) and not user_id.isdigit():
+        try:
+            with get_db() as db:
+                row = db.execute("SELECT id FROM users WHERE uid=%s", (user_id,)).fetchone()
+                if row:
+                    resolved_id = row["id"]
+        except Exception:
+            pass
     with get_db() as db:
         db.execute("INSERT INTO user_sessions (token,user_id,expires_at) VALUES (%s,%s,%s)",
-                   (token, user_id, expires))
+                   (token, resolved_id, expires))
         db.commit()
     return token
 
