@@ -442,6 +442,20 @@
       display: flex;
       gap: 10px;
       margin-bottom: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .filter-select {
+      min-width: 150px;
+      background: rgba(255,255,255,0.04);
+      border: 1.5px solid var(--border);
+      border-radius: 11px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: var(--font);
+      outline: none;
     }
 
     /* Responsive */
@@ -603,6 +617,7 @@
           <button class="btn btn-red" onclick="fetchDFBalance()">🔄 تحديث رصيد دارك فولو</button>
           <button class="btn btn-gold" onclick="pushToBot('reload')">🔁 إعادة تحميل البوت</button>
           <button class="btn btn-blue" onclick="loadUsers()">🔃 تحديث بيانات المستخدمين</button>
+          <button class="btn btn-purple" onclick="forceRefreshCatalog()">⚡ مزامنة فورية للكاتالوج</button>
           <button class="btn btn-green" onclick="switchTab('topup')">💰 تعبئة رصيد مستخدم</button>
         </div>
         <div class="alert" id="quick-alert"></div>
@@ -653,8 +668,13 @@
       <div class="panel-card">
         <div class="search-row">
           <input class="p-input arabic" id="users-search"
-                 placeholder="🔍 بحث بـ UID أو الإيميل..."
+                 placeholder="🔍 بحث: UID، إيميل، أو Telegram ID..."
                  oninput="filterUsersTable()" />
+          <select class="filter-select" id="users-balance-filter" onchange="filterUsersTable()">
+            <option value="all">كل الأرصدة</option>
+            <option value="active">رصيد نشط (&gt; 0)</option>
+            <option value="zero">رصيد صفر</option>
+          </select>
           <button class="btn btn-blue" onclick="loadUsers()">تحديث 🔃</button>
         </div>
 
@@ -728,6 +748,7 @@
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
           <button class="btn btn-gold" onclick="syncPrices()">🔄 مزامنة الأسعار الآن</button>
           <button class="btn btn-green" onclick="syncCatalog()">📦 مزامنة الخدمات الكاملة</button>
+          <button class="btn btn-purple" onclick="forceRefreshCatalog()">⚡ مزامنة فورية (أرصدة + كاتالوج)</button>
         </div>
         <div class="alert" id="sync-alert" style="margin-top:12px;"></div>
       </div>
@@ -1007,31 +1028,53 @@ async function saveMarkup() {
   showAlert('markup-alert', '✅ تم حفظ هامش الربح: $' + val.toFixed(2) + ' لكل خدمة', 'success');
 }
 
+// ── تطبيع صف مستخدم (NULL/legacy uid) ─────────────────────────
+function normalizeUser(u) {
+  if (!u || typeof u !== 'object') return null;
+  const d = Object.assign({}, u);
+  let uid = String(d.uid || d.id || d.user_id || '').trim();
+  if (!uid && d.username && String(d.username).startsWith('WF-')) uid = String(d.username);
+  else if (!uid && d.telegram_id) uid = 'TG-' + String(d.telegram_id);
+  else if (!uid && d.id != null) uid = 'WF-' + String(d.id).padStart(6, '0');
+  else if (!uid) uid = 'LEGACY-' + String(d.email || 'unknown').slice(0, 8);
+  d.uid = uid;
+  d.email = d.email || '';
+  d.telegram_id = d.telegram_id || '';
+  d.balance = parseFloat(d.balance || 0);
+  d.total_charged = parseFloat(d.total_charged || 0);
+  d.total_spent = parseFloat(d.total_spent || 0);
+  d.orders_count = parseInt(d.orders_count || 0, 10) || 0;
+  return d;
+}
+
 // ── تحميل المستخدمين من السيرفر ───────────────────────────────
 async function loadUsers() {
   const tbody = document.getElementById('users-tbody');
   tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;"><span class="spinner"></span> جاري التحميل...</td></tr>';
 
   try {
-    const res = await fetch(_serverUrl + '/admin/users', {
+    const res = await fetch(_serverUrl + '/admin/users?limit=200', {
       headers: { 'X-Admin-Token': _adminKey }
     });
 
+    let data = {};
+    try { data = await res.json(); } catch(_) { data = {}; }
+
     if (!res.ok) {
-      const errText = await res.text();
-      console.error('loadUsers HTTP error:', res.status, errText);
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#ff6677;padding:30px;">❌ خطأ ${res.status}: ${errText.slice(0,200)}</td></tr>`;
+      const errMsg = esc(data.error || data.message || ('HTTP ' + res.status));
+      console.error('loadUsers HTTP error:', res.status, errMsg);
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#ff6677;padding:30px;">خطأ ' + res.status + ': ' + errMsg + '</td></tr>';
+      showAlert('users-alert', 'تعذر تحميل المستخدمين: ' + errMsg, 'error');
       return;
     }
 
-    const data = await res.json();
-    console.log('loadUsers response:', data);
-
-    // دعم أي structure: {users:[...]}, {data:[...]}, أو array مباشر
-    const users = Array.isArray(data) ? data
+    const users = (Array.isArray(data) ? data
                 : Array.isArray(data.users) ? data.users
                 : Array.isArray(data.data)  ? data.data
-                : [];
+                : []).map(normalizeUser).filter(Boolean);
+
+    _usersCache = {};
+    users.forEach(u => { _usersCache[u.uid] = u; });
 
     if (users.length === 0) {
       tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;">لا يوجد مستخدمون بعد</td></tr>';
@@ -1039,20 +1082,13 @@ async function loadUsers() {
       return;
     }
 
-    _usersCache = {};
-    users.forEach(u => {
-      // دعم UUID و WF-XXXXXX و integer IDs
-      u.uid = u.uid || u.id || u.user_id || '';
-      u.uid = String(u.uid);
-      _usersCache[u.uid] = u;
-    });
-
-    renderUsersTable(users);
+    filterUsersTable();
     loadUsersStats(users);
 
   } catch(e) {
     console.error('loadUsers exception:', e);
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#ff6677;padding:30px;">⚠️ خطأ في الاتصال: ${e.message}</td></tr>`;
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#ff6677;padding:30px;">خطأ في الاتصال: ' + esc(e.message) + '</td></tr>';
+    showAlert('users-alert', 'خطأ في الاتصال: ' + e.message, 'error');
   }
 }
 
@@ -1089,30 +1125,41 @@ function loadUsersStats(users) {
 function renderUsersTable(users) {
   const tbody = document.getElementById('users-tbody');
   if (!users || users.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;">لا يوجد مستخدمون</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;">لا يوجد مستخدمون مطابقون</td></tr>';
     return;
   }
-  tbody.innerHTML = users.map(u => `
-    <tr>
-      <td class="uid-cell">${esc(u.uid)}</td>
-      <td style="font-size:12px;">${esc(u.email||'—')}</td>
-      <td><span class="balance-badge">${parseFloat(u.balance||0).toFixed(2)}</span></td>
-      <td style="color:var(--muted);font-size:12px;">${parseFloat(u.total_charged||0).toFixed(2)}</td>
-      <td style="color:#ff6677;font-size:12px;">${parseFloat(u.total_spent||0).toFixed(2)}</td>
-      <td style="color:var(--muted);font-size:12px;">${u.orders_count||0}</td>
-      <td>
-        <button class="inline-btn ib-charge" onclick="quickCharge('${esc(u.uid)}')">+ شحن</button>
-        <button class="inline-btn ib-deduct" onclick="quickDeduct('${esc(u.uid)}')">− خصم</button>
-      </td>
-    </tr>
-  `).join('');
+  tbody.innerHTML = users.map(u => {
+    const uid = esc(u.uid);
+    const bal = (u.balance || 0).toFixed(2);
+    return '<tr>' +
+      '<td class="uid-cell">' + uid + '</td>' +
+      '<td style="font-size:12px;">' + esc(u.email || '—') + (u.telegram_id ? '<br><span style="color:var(--muted);font-size:10px;">TG: ' + esc(u.telegram_id) + '</span>' : '') + '</td>' +
+      '<td><span class="balance-badge">' + bal + '</span></td>' +
+      '<td style="color:var(--muted);font-size:12px;">' + (u.total_charged || 0).toFixed(2) + '</td>' +
+      '<td style="color:#ff6677;font-size:12px;">' + (u.total_spent || 0).toFixed(2) + '</td>' +
+      '<td style="color:var(--muted);font-size:12px;">' + (u.orders_count || 0) + '</td>' +
+      '<td>' +
+        '<button class="inline-btn ib-charge" data-uid="' + uid + '" onclick="quickCharge(this.dataset.uid)">+ شحن</button> ' +
+        '<button class="inline-btn ib-deduct" data-uid="' + uid + '" onclick="quickDeduct(this.dataset.uid)">− خصم</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
 }
 
 function filterUsersTable() {
-  const q = (document.getElementById('users-search').value || '').toLowerCase();
-  const users = Object.values(_usersCache).filter(u =>
-    !q || u.uid.toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q)
-  );
+  const q = (document.getElementById('users-search').value || '').toLowerCase().trim();
+  const balFilter = document.getElementById('users-balance-filter')?.value || 'all';
+  const users = Object.values(_usersCache).filter(u => {
+    const matchQ = !q
+      || String(u.uid || '').toLowerCase().includes(q)
+      || String(u.email || '').toLowerCase().includes(q)
+      || String(u.telegram_id || '').toLowerCase().includes(q);
+    const bal = parseFloat(u.balance || 0);
+    const matchBal = balFilter === 'all'
+      || (balFilter === 'active' && bal > 0)
+      || (balFilter === 'zero' && bal <= 0);
+    return matchQ && matchBal;
+  });
   renderUsersTable(users);
 }
 
@@ -1244,14 +1291,6 @@ function clearAllCache() {
   alert('✅ تم مسح الكاش');
 }
 
-// ── إحصائيات عند التشغيل ──────────────────────────────────────
-function loadUsersStats(users) {
-  if (!users) users = Object.values(_usersCache);
-  document.getElementById('stat-users').textContent = users.length;
-  const tb = users.reduce((s,u) => s+(u.balance||0),0);
-  document.getElementById('stat-total-bal').textContent = tb.toFixed(0);
-}
-
 // ── Helpers ───────────────────────────────────────────────────
 function esc(str) {
   return String(str||'')
@@ -1320,6 +1359,32 @@ async function syncCatalog() {
   }
   btn.disabled = false;
   btn.textContent = '📦 مزامنة الخدمات الكاملة';
+}
+
+async function forceRefreshCatalog() {
+  showAlert('sync-alert', '⏳ جاري تشغيل مزامنة فورية للأرصدة والكاتالوج...', 'info');
+  showAlert('quick-alert', '⏳ مزامنة فورية قيد التشغيل...', 'info');
+  try {
+    const res = await fetch(_serverUrl + '/admin/refresh-catalog', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': _adminKey },
+      body: JSON.stringify({})
+    });
+    const data = await res.json();
+    if (res.ok && data.ok) {
+      showAlert('sync-alert', '✅ ' + (data.message || 'بدأت المزامنة الفورية'), 'success');
+      showAlert('quick-alert', '✅ بدأت مزامنة الأرصدة والكاتالوج', 'success');
+      fetchDFBalance();
+      setTimeout(loadServicesStatus, 3000);
+    } else {
+      const err = data.error || ('HTTP ' + res.status);
+      showAlert('sync-alert', '⚠️ ' + err, 'error');
+      showAlert('quick-alert', '⚠️ ' + err, 'error');
+    }
+  } catch(e) {
+    showAlert('sync-alert', '❌ خطأ: ' + e.message, 'error');
+    showAlert('quick-alert', '❌ خطأ: ' + e.message, 'error');
+  }
 }
 
 async function loadServicesStatus() {
