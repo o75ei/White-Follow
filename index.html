@@ -12,32 +12,12 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
     // ── فتح المتصفح الخارجي لو الصفحة اتفتحت داخل تيليجرام ──
-    // الطريقة: نتحقق من User-Agent إذا Telegram WebView → redirect بـ intent (Android) أو openLink
     (function() {
-      var ua = navigator.userAgent || '';
-      var isTgWebView = /TelegramBot|TgWebBrowser|TelegramWebView/i.test(ua)
-                     || (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.platform !== 'unknown');
-      if (!isTgWebView) return; // مو تيليجرام — شغّل طبيعي
-
-      var url = window.location.href;
-
-      // Android: intent scheme يجبر الفتح بالمتصفح الافتراضي
-      var isAndroid = /android/i.test(ua);
-      if (isAndroid) {
-        var intent = 'intent://' + url.replace(/^https?:\/\//, '') + '#Intent;scheme=https;action=android.intent.action.VIEW;end';
-        window.location.replace(intent);
-        return;
-      }
-
-      // iOS / Desktop: استخدم Telegram openLink API مع try_browser: true
       var tg = window.Telegram && window.Telegram.WebApp;
-      if (tg && tg.openLink) {
-        tg.openLink(url);
-        return;
-      }
-
-      // Fallback: window.open بـ _blank
-      window.open(url, '_blank');
+      if (!tg || !tg.openLink) return; // مو تيليجرام WebApp
+      // نتحقق: هل initDataUnsafe موجود؟ يعني فعلاً داخل تيليجرام
+      if (!tg.initData && !tg.initDataUnsafe) return;
+      tg.openLink(window.location.href);
     })();
   </script>
   <meta name="deploy-timestamp" content="1749254400" />
