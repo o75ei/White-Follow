@@ -1309,11 +1309,13 @@ def services_list():
             return "games"
         if so < 60:
             return "subscriptions"
-        if so < 80:
+        if so < 100:
             return "topup"
-        return "other"
+        return "white"  # fallback: ضع في white بدل إخفائه
 
     # بناء قائمة الأقسام مرتّبة مع خدماتها وتصنيفها
+    # مع دمج الأقسام المكررة بنفس sort_order (تكرار بسبب اختلاف اسم الـ category من دارك فولو)
+    seen_sort = {}   # sort_order → index in categories_list
     categories_list = []
     for c in cats:
         cat = dict(c)
@@ -1322,9 +1324,16 @@ def services_list():
             for pid, sv in services_dict.items()
             if sv["category_id"] == cat["id"]
         ]
-        if cat_svcs:
-            group = _get_group(cat["sort_order"], cat["name_ar"], cat["name_en"])
-            cat_source = "white" if all(sv.get("source") == "white" for sv in cat_svcs) else "dark"
+        if not cat_svcs:
+            continue
+        group = _get_group(cat["sort_order"], cat["name_ar"], cat["name_en"])
+        cat_source = "white" if all(sv.get("source") == "white" for sv in cat_svcs) else "dark"
+        so = cat["sort_order"]
+        if so in seen_sort:
+            # دمج الخدمات في القسم الموجود بدل إضافة قسم جديد مكرر
+            categories_list[seen_sort[so]]["services"].extend(cat_svcs)
+        else:
+            seen_sort[so] = len(categories_list)
             categories_list.append({
                 "id": cat["id"],
                 "name": cat["name_ar"] if lang == "ar" else (cat["name_en"] or cat["name_ar"]),
@@ -1332,7 +1341,7 @@ def services_list():
                 "name_en": cat["name_en"],
                 "icon": cat["icon"] or "📦",
                 "image": cat.get("image_url") or "",
-                "sort_order": cat["sort_order"],
+                "sort_order": so,
                 "group": group,
                 "source": cat_source,
                 "services": cat_svcs,
