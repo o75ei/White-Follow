@@ -2030,10 +2030,6 @@ class PanelApplication:
                 }
             )
 
-        @sr("/health", methods=["GET"])
-        def health_check() -> Any:
-            return jsonify({"ok": True, "status": "healthy"}), 200
-
         @sr("/user/balance", methods=["POST"])
         @admin
         def admin_user_balance_by_uid() -> Any:
