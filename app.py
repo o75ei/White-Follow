@@ -165,9 +165,40 @@ class SchemaManager:
         self.db = db
 
     def initialize(self) -> None:
+        self._migrate_services_column()
         self._create_tables()
         self._deduplicate_categories()
         log.info("Schema initialized")
+
+    def _migrate_services_column(self) -> None:
+        """ترقية: إذا الداتابيس عندها provider_service_id بدل remote_id → أعد تسميتها."""
+        with self.db.connection() as conn:
+            with self.db.cursor(conn) as cur:
+                # تحقق هل العمود القديم موجود
+                cur.execute("""
+                    SELECT column_name FROM information_schema.columns
+                    WHERE table_name='services' AND column_name='provider_service_id'
+                """)
+                if cur.fetchone():
+                    log.info("Migration: renaming provider_service_id → remote_id")
+                    cur.execute("ALTER TABLE services RENAME COLUMN provider_service_id TO remote_id")
+                # احذف الـ constraint القديم لو موجود وأضف الصحيح
+                cur.execute("""
+                    ALTER TABLE services DROP CONSTRAINT IF EXISTS uq_services_provider_sid
+                """)
+                cur.execute("""
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1 FROM pg_constraint
+                            WHERE conname = 'services_provider_id_remote_id_key'
+                            AND conrelid = 'services'::regclass
+                        ) THEN
+                            ALTER TABLE services ADD CONSTRAINT services_provider_id_remote_id_key
+                            UNIQUE (provider_id, remote_id);
+                        END IF;
+                    END$$;
+                """)
 
     def _create_tables(self) -> None:
         ddl = """
