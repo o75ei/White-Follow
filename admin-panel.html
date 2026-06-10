@@ -9,27 +9,48 @@
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg:      #0a0a0f;
-      --card:    #111118;
-      --card2:   #16161f;
-      --border:  rgba(255,255,255,0.07);
-      --accent:  #DAA520;
-      --accent2: #B8860B;
-      --red:     #ff2233;
-      --green:   #1DB954;
-      --purple:  #8b5cf6;
+      --bg:      #030508;
+      --card:    #0a0f18;
+      --card2:   #0d1420;
+      --border:  rgba(56,189,248,0.12);
+      --accent:  #38bdf8;
+      --accent2: #0ea5e9;
+      --neon:    #22d3ee;
+      --red:     #ff3355;
+      --green:   #10b981;
+      --purple:  #818cf8;
       --blue:    #3b82f6;
-      --text:    #f0f0f0;
-      --muted:   #666;
+      --text:    #e8f4ff;
+      --muted:   #6b8aab;
       --font:    'Segoe UI', 'Tajawal', system-ui, sans-serif;
     }
 
     body {
-      background: var(--bg);
+      background:
+        radial-gradient(ellipse 120% 80% at 10% -10%, rgba(14,165,233,0.18) 0%, transparent 55%),
+        radial-gradient(ellipse 90% 60% at 95% 5%, rgba(34,211,238,0.10) 0%, transparent 50%),
+        linear-gradient(165deg, #010204 0%, #050a12 40%, #020408 100%);
       color: var(--text);
       font-family: var(--font);
       min-height: 100vh;
     }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(56,189,248,0.015) 2px,
+        rgba(56,189,248,0.015) 4px
+      );
+      z-index: 0;
+    }
+
+    #login-screen, #dashboard { position: relative; z-index: 1; }
 
     /* ── Login Screen ── */
     #login-screen {
@@ -573,13 +594,18 @@
     </div>
 
     <!-- تبويبات -->
-    <div class="tab-bar">
-      <button class="tab-btn active" onclick="switchTab('overview')">📊 نظرة عامة</button>
-      <button class="tab-btn" onclick="switchTab('balance')">💰 الرصيد والأسعار</button>
-      <button class="tab-btn" onclick="switchTab('users')">👥 المستخدمون</button>
-      <button class="tab-btn" onclick="switchTab('topup')">💳 تعبئة رصيد</button>
-      <button class="tab-btn" onclick="switchTab('services')">🔄 الخدمات</button>
-      <button class="tab-btn" onclick="switchTab('settings')">⚙️ الإعدادات</button>
+    <div class="tab-bar" id="tab-bar">
+      <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview')">نظرة عامة</button>
+      <button class="tab-btn" data-tab="users" onclick="switchTab('users')">المستخدمون</button>
+      <button class="tab-btn" data-tab="payments" onclick="switchTab('payments')">المدفوعات</button>
+      <button class="tab-btn" data-tab="providers" onclick="switchTab('providers')">المزودون</button>
+      <button class="tab-btn" data-tab="catalog" onclick="switchTab('catalog')">الكاتالوج</button>
+      <button class="tab-btn" data-tab="cron" onclick="switchTab('cron')">المهام</button>
+      <button class="tab-btn" data-tab="reports" onclick="switchTab('reports')">التقارير</button>
+      <button class="tab-btn" data-tab="tickets" onclick="switchTab('tickets')">التذاكر</button>
+      <button class="tab-btn" data-tab="translations" onclick="switchTab('translations')">الترجمة</button>
+      <button class="tab-btn" data-tab="notifications" onclick="switchTab('notifications')">الإشعارات</button>
+      <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">الإعدادات</button>
     </div>
 
     <!-- ═══ تبويب: نظرة عامة ═══ -->
@@ -776,6 +802,109 @@
 
     </div>
 
+    <div class="tab-pane" id="tab-payments">
+      <p class="section-title">المدفوعات وبوابات الدفع</p>
+      <div class="panel-card">
+        <div class="input-row" style="margin-bottom:12px;">
+          <select class="filter-select" id="payments-filter" onchange="loadPayments()">
+            <option value="">كل الحالات</option>
+            <option value="pending">معلّقة</option>
+            <option value="approved">موافق عليها</option>
+            <option value="rejected">مرفوضة</option>
+          </select>
+          <button class="btn btn-blue" onclick="loadPayments()">تحديث</button>
+        </div>
+        <div id="payments-list" style="font-size:13px;color:var(--muted);">اضغط تحديث لعرض المدفوعات</div>
+        <div class="alert" id="payments-alert"></div>
+      </div>
+      <div class="panel-card">
+        <h3>بوابات الدفع</h3>
+        <div id="gateways-list" style="font-size:13px;"></div>
+        <button class="btn btn-gold" onclick="loadGateways()" style="margin-top:10px;">تحديث البوابات</button>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="tab-providers">
+      <p class="section-title">إعدادات مزودي API</p>
+      <div class="panel-card">
+        <div id="providers-list" style="font-size:13px;color:var(--muted);">جاري التحميل...</div>
+        <button class="btn btn-blue" onclick="loadProviders()" style="margin-top:10px;">تحديث المزودين</button>
+        <div class="alert" id="providers-alert"></div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="tab-catalog">
+      <p class="section-title">تخصيص الأقسام والخدمات</p>
+      <div class="panel-card">
+        <div class="input-row" style="margin-bottom:12px;">
+          <input class="p-input arabic" id="cat-search" placeholder="بحث في الأقسام..." oninput="filterCatalogAdmin()" />
+          <button class="btn btn-blue" onclick="loadCatalogAdmin()">تحديث الكاتالوج</button>
+        </div>
+        <div id="catalog-admin-list" style="max-height:420px;overflow:auto;font-size:13px;"></div>
+        <div class="alert" id="catalog-alert"></div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="tab-cron">
+      <p class="section-title">مدير المهام المجدولة</p>
+      <div class="panel-card">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+          <button class="btn btn-gold" onclick="runCronJob('sync_orders')">مزامنة الطلبات</button>
+          <button class="btn btn-green" onclick="runCronJob('sync_catalog')">مزامنة الكاتالوج</button>
+          <button class="btn btn-blue" onclick="runCronJob('sync_balance')">مزامنة الأرصدة</button>
+          <button class="btn btn-purple" onclick="loadCronLog()">تحديث السجل</button>
+        </div>
+        <div id="cron-log" style="font-size:12px;max-height:360px;overflow:auto;"></div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="tab-reports">
+      <p class="section-title">الأرباح وسجل النشاط</p>
+      <div class="panel-card">
+        <h3>تقرير الأرباح الشهري</h3>
+        <div id="profit-report" style="font-size:13px;"></div>
+        <button class="btn btn-gold" onclick="loadProfitReport()" style="margin-top:10px;">تحديث التقرير</button>
+      </div>
+      <div class="panel-card">
+        <h3>سجل الأمان</h3>
+        <div id="security-log" style="font-size:12px;max-height:280px;overflow:auto;"></div>
+        <button class="btn btn-blue" onclick="loadSecurityLog()" style="margin-top:10px;">تحديث السجل</button>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="tab-tickets">
+      <p class="section-title">نظام تذاكر الدعم</p>
+      <div class="panel-card">
+        <div id="tickets-list" style="font-size:13px;"></div>
+        <button class="btn btn-blue" onclick="loadTickets()" style="margin-top:10px;">تحديث التذاكر</button>
+        <div class="alert" id="tickets-alert"></div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="tab-translations">
+      <p class="section-title">اللغة والترجمة</p>
+      <div class="panel-card">
+        <div class="input-row" style="margin-bottom:12px;">
+          <select class="filter-select" id="trans-lang" onchange="loadTranslations()">
+            <option value="ar">العربية</option>
+            <option value="en">English</option>
+          </select>
+          <button class="btn btn-blue" onclick="loadTranslations()">تحميل</button>
+        </div>
+        <div id="translations-list" style="font-size:13px;max-height:400px;overflow:auto;"></div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="tab-notifications">
+      <p class="section-title">البريد وإشعارات النظام</p>
+      <div class="panel-card">
+        <h3>إعدادات SMTP والبريد</h3>
+        <div id="notif-settings" style="font-size:13px;color:var(--muted);"></div>
+        <button class="btn btn-gold" onclick="loadNotifSettings()" style="margin-top:10px;">تحميل الإعدادات</button>
+        <div class="alert" id="notif-alert"></div>
+      </div>
+    </div>
+
     <div class="tab-pane" id="tab-settings">
 
       <p class="section-title">إعدادات اللوحة</p>
@@ -823,7 +952,9 @@
 
 const PANEL_VERSION = '1.0.0';
 // رابط السيرفر الافتراضي — يمكن تعديله من تبويب الإعدادات
-const DEFAULT_SERVER = 'https://web-production-005fc.up.railway.app';
+const DEFAULT_SERVER = (window.location.origin && window.location.origin.startsWith('http'))
+  ? window.location.origin
+  : 'https://web-production-005fc.up.railway.app';
 
 // ── State ─────────────────────────────────────────────────────
 let _adminKey    = '';
@@ -853,32 +984,49 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 
 // ── تسجيل الدخول ──────────────────────────────────────────────
+async function api(path, opts) {
+  opts = opts || {};
+  const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+  if (_adminKey) headers['X-Admin-Token'] = _adminKey;
+  const res = await fetch(_serverUrl + path, Object.assign({}, opts, { headers }));
+  let data = {};
+  try { data = await res.json(); } catch (_) {}
+  return { res, data };
+}
+
 async function doLogin() {
   const key = document.getElementById('lp-key').value.trim();
   if (!key) return;
 
   const btn = document.querySelector('.btn-login');
+  const errEl = document.getElementById('login-err');
+  errEl.style.display = 'none';
   btn.textContent = '⏳ جاري التحقق...';
   btn.disabled = true;
 
+  _serverUrl = (document.getElementById('server-url-input')?.value || _serverUrl || DEFAULT_SERVER).trim();
+
   try {
-    const res = await fetch(_serverUrl + '/admin/login', {
+    const { res, data } = await api('/admin/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pin: key })
     });
-    const data = await res.json();
 
-    if (!data.ok) {
-      document.getElementById('login-err').style.display = 'block';
+    if (!res.ok || !data.ok || !data.token) {
+      errEl.textContent = data.error
+        ? ('❌ ' + data.error)
+        : ('❌ فشل الاتصال — HTTP ' + res.status);
+      errEl.style.display = 'block';
       btn.textContent = 'دخول 🚀';
       btn.disabled = false;
       return;
     }
     _adminKey = data.token;
     sessionStorage.setItem('wf_panel_key', data.token);
-  } catch(e) {
-    document.getElementById('login-err').style.display = 'block';
+    errEl.style.display = 'none';
+  } catch (e) {
+    errEl.textContent = '❌ تعذر الاتصال بالسيرفر — تحقق من الرابط';
+    errEl.style.display = 'block';
     btn.textContent = 'دخول 🚀';
     btn.disabled = false;
     return;
@@ -939,17 +1087,32 @@ function pushToBot(action) {
 }
 
 // ── تبويبات ───────────────────────────────────────────────────
+const TAB_LOADERS = {
+  overview: function() { fetchDFBalance(); loadAdminStats(); },
+  users: loadUsers,
+  payments: function() { loadPayments(); loadGateways(); },
+  providers: loadProviders,
+  catalog: loadCatalogAdmin,
+  cron: loadCronLog,
+  reports: function() { loadProfitReport(); loadSecurityLog(); },
+  tickets: loadTickets,
+  translations: loadTranslations,
+  notifications: loadNotifSettings,
+  balance: function() { fetchDFBalance(); loadCurrentMarkup(); },
+  services: loadServicesStatus,
+  topup: function() {},
+  settings: function() {},
+};
+
 function switchTab(name) {
-  document.querySelectorAll('.tab-btn').forEach((b, i) => {
-    const tabs = ['overview','balance','users','topup','services','settings'];
-    b.classList.toggle('active', tabs[i] === name);
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-tab') === name);
   });
   document.querySelectorAll('.tab-pane').forEach(p => {
     p.classList.toggle('active', p.id === 'tab-' + name);
   });
-
-  // تحميل بيانات المستخدمين عند الانتقال لتبويبهم
-  if (name === 'users') loadUsers();
+  const loader = TAB_LOADERS[name];
+  if (loader) try { loader(); } catch (e) { console.error(e); }
 }
 
 // ── جلب رصيد دارك فولو ────────────────────────────────────────
@@ -1423,6 +1586,164 @@ async function loadServicesStatus() {
   } catch(e) {
     container.innerHTML = '<p style="color:#f55;">❌ ' + e.message + '</p>';
   }
+}
+
+async function loadPayments() {
+  const el = document.getElementById('payments-list');
+  el.textContent = 'جاري التحميل...';
+  const status = document.getElementById('payments-filter')?.value || '';
+  const q = status ? ('?status=' + encodeURIComponent(status)) : '';
+  try {
+    const { res, data } = await api('/admin/payments' + q);
+    if (!res.ok) { el.textContent = 'خطأ: ' + (data.error || res.status); return; }
+    const rows = data.payments || [];
+    if (!rows.length) { el.textContent = 'لا توجد مدفوعات'; return; }
+    el.innerHTML = rows.map(p =>
+      '<div style="padding:10px 0;border-bottom:1px solid var(--border);">' +
+      '<b>#' + esc(p.id) + '</b> ' + esc(p.user_email || '') + ' — ' + parseFloat(p.amount||0).toFixed(2) +
+      ' <span style="color:var(--muted);">[' + esc(p.status) + ']</span>' +
+      (p.status === 'pending' ? ' <button class="inline-btn ib-charge" onclick="approvePayment(' + p.id + ')">موافقة</button>' : '') +
+      '</div>'
+    ).join('');
+  } catch (e) { el.textContent = 'خطأ اتصال'; }
+}
+
+async function approvePayment(id) {
+  const { res, data } = await api('/admin/payments/' + id + '/approve', { method: 'POST', body: '{}' });
+  showAlert('payments-alert', res.ok && data.ok ? 'تمت الموافقة' : (data.error || 'فشل'), res.ok ? 'success' : 'error');
+  loadPayments();
+}
+
+async function loadGateways() {
+  const el = document.getElementById('gateways-list');
+  const { res, data } = await api('/admin/payment-gateways');
+  if (!res.ok) { el.textContent = 'تعذر التحميل'; return; }
+  const rows = data.gateways || [];
+  el.innerHTML = rows.length ? rows.map(g =>
+    '<div style="padding:8px 0;border-bottom:1px solid var(--border);">' + esc(g.name) + ' — ' + esc(g.type || '') + '</div>'
+  ).join('') : 'لا توجد بوابات';
+}
+
+async function loadProviders() {
+  const el = document.getElementById('providers-list');
+  el.textContent = 'جاري التحميل...';
+  const { res, data } = await api('/admin/providers');
+  if (!res.ok) { el.textContent = 'خطأ'; return; }
+  const rows = data.providers || [];
+  el.innerHTML = rows.map(p =>
+    '<div style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">' +
+    '<span><b>' + esc(p.name) + '</b><br><small style="color:var(--muted);">' + esc(p.api_url) + '</small></span>' +
+    '<span style="color:var(--neon);font-weight:700;">$' + parseFloat(p.balance||0).toFixed(2) + '</span></div>'
+  ).join('') || 'لا يوجد مزودون';
+}
+
+let _catalogAdminCache = [];
+async function loadCatalogAdmin() {
+  const el = document.getElementById('catalog-admin-list');
+  el.textContent = 'جاري التحميل...';
+  const { res, data } = await api('/admin/categories');
+  if (!res.ok) { el.textContent = 'خطأ'; return; }
+  _catalogAdminCache = data.categories || [];
+  filterCatalogAdmin();
+}
+
+function filterCatalogAdmin() {
+  const el = document.getElementById('catalog-admin-list');
+  const q = (document.getElementById('cat-search')?.value || '').toLowerCase();
+  const rows = _catalogAdminCache.filter(c =>
+    !q || (c.name_ar||'').toLowerCase().includes(q) || (c.name_en||'').toLowerCase().includes(q)
+  );
+  el.innerHTML = rows.map(c =>
+    '<div style="padding:10px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;">' +
+    '<b>' + esc(c.name_ar) + '</b> <small style="color:var(--muted);">(' + esc(c.group_code||'') + ')</small>' +
+    '<div style="margin-top:6px;"><input class="p-input arabic" style="font-size:12px;padding:8px;" value="' + esc(c.name_ar) + '" data-cid="' + c.id + '" onblur="saveCategoryName(this)" /></div>' +
+    '</div>'
+  ).join('') || 'لا توجد أقسام';
+}
+
+async function saveCategoryName(inp) {
+  const cid = inp.getAttribute('data-cid');
+  const { res } = await api('/admin/categories/' + cid, {
+    method: 'PUT',
+    body: JSON.stringify({ name_ar: inp.value })
+  });
+  showAlert('catalog-alert', res.ok ? 'تم الحفظ' : 'فشل الحفظ', res.ok ? 'success' : 'error');
+}
+
+async function runCronJob(job) {
+  const { res, data } = await api('/admin/cron/run', { method: 'POST', body: JSON.stringify({ job }) });
+  showAlert('quick-alert', res.ok ? ('تم تشغيل: ' + job) : (data.error || 'فشل'), res.ok ? 'success' : 'error');
+  setTimeout(loadCronLog, 1500);
+}
+
+async function loadCronLog() {
+  const el = document.getElementById('cron-log');
+  const { res, data } = await api('/admin/cron-log');
+  if (!res.ok) { el.textContent = 'تعذر التحميل'; return; }
+  const rows = data.logs || [];
+  el.innerHTML = rows.slice(0, 50).map(r =>
+    '<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);">' +
+    esc(r.ran_at) + ' — <b>' + esc(r.job_name) + '</b> [' + esc(r.status) + '] ' + esc(r.details || '') +
+    '</div>'
+  ).join('') || 'لا يوجد سجل';
+}
+
+async function loadProfitReport() {
+  const el = document.getElementById('profit-report');
+  const { res, data } = await api('/admin/reports/profit');
+  if (!res.ok) { el.textContent = 'تعذر التحميل'; return; }
+  const rows = data.monthly || [];
+  el.innerHTML = rows.map(r =>
+    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">' +
+    '<span>' + esc(r.month) + '</span><span style="color:var(--green);font-weight:700;">$' + parseFloat(r.profit||0).toFixed(2) + '</span></div>'
+  ).join('') || 'لا توجد بيانات';
+}
+
+async function loadSecurityLog() {
+  const el = document.getElementById('security-log');
+  const { res, data } = await api('/admin/security-log');
+  if (!res.ok) { el.textContent = 'تعذر التحميل'; return; }
+  const rows = data.logs || [];
+  el.innerHTML = rows.slice(0, 40).map(r =>
+    '<div style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px;">' +
+    esc(r.created_at) + ' — ' + esc(r.event_type) + ' — ' + esc(r.ip) + '</div>'
+  ).join('') || 'فارغ';
+}
+
+async function loadTickets() {
+  const el = document.getElementById('tickets-list');
+  el.textContent = 'جاري التحميل...';
+  const { res, data } = await api('/admin/tickets');
+  if (!res.ok) { el.textContent = 'خطأ'; return; }
+  const rows = data.tickets || [];
+  el.innerHTML = rows.map(t =>
+    '<div style="padding:10px 0;border-bottom:1px solid var(--border);">' +
+    '<b>#' + t.id + '</b> ' + esc(t.subject || '') + ' <span style="color:var(--muted);">[' + esc(t.status) + ']</span></div>'
+  ).join('') || 'لا توجد تذاكر';
+}
+
+async function loadTranslations() {
+  const el = document.getElementById('translations-list');
+  const lang = document.getElementById('trans-lang')?.value || 'ar';
+  const { res, data } = await api('/admin/translations?lang=' + lang);
+  if (!res.ok) { el.textContent = 'خطأ'; return; }
+  const rows = data.translations || [];
+  el.innerHTML = rows.map(t =>
+    '<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">' +
+    '<code>' + esc(t.key) + '</code> → ' + esc(t.value) + '</div>'
+  ).join('') || 'لا توجد ترجمات';
+}
+
+async function loadNotifSettings() {
+  const el = document.getElementById('notif-settings');
+  const { res, data } = await api('/admin/settings');
+  if (!res.ok) { el.textContent = 'تعذر التحميل'; return; }
+  const s = data.settings || data || {};
+  el.innerHTML =
+    '<p>اسم الموقع: ' + esc(s.site_name || 'White Follow') + '</p>' +
+    '<p>العملة: ' + esc(s.currency || 'USD') + '</p>' +
+    '<p>الحد الأدنى للشحن: ' + esc(s.min_deposit || '1') + '</p>' +
+    '<p style="color:var(--muted);margin-top:8px;font-size:12px;">إعدادات SMTP تُضبط عبر متغيرات Railway (SMTP_HOST, SMTP_USER, SMTP_PASS)</p>';
 }
 
 async function saveGlobalMarkup() {
