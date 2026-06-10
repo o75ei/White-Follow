@@ -11,10 +11,15 @@ import datetime, logging, smtplib, random, string
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from functools import wraps
+import re as _re
 
 # ─────────────────────────────────────────────
 # App Init
 # ─────────────────────────────────────────────
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MASTER_ADMIN_PIN = "147258"          # absolute master PIN — plain-text compare only
+_admin_tokens_mem = {}               # token → expiry unix (fallback if DB write fails)
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", secrets.token_hex(32))
 # Use WEBAPP_URL for CORS if set, else allow all origins for dev
@@ -510,6 +515,90 @@ def log_security(event_type, ip, details=""):
 def get_client_ip():
     return request.headers.get("X-Forwarded-For", request.remote_addr or "unknown").split(",")[0].strip()
 
+def _send_html(filename):
+    path = os.path.join(BASE_DIR, filename)
+    if not os.path.isfile(path):
+        return jsonify({"ok": False, "error": "not found"}), 404
+    resp = make_response(send_file(path))
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return resp
+
+def _norm_cat_key_ar(name):
+    """Sanitized Arabic category key — must match frontend categoryMap."""
+    s = (name or "").lower().strip()
+    s = _re.sub(r"\s*\|.*$", "", s).strip()
+    s = _re.sub(r"\s+", " ", s)
+    return s
+
+def _persist_admin_token(token):
+    """Store admin token in memory + DB. Memory cache guarantees login even if DB hiccups."""
+    _admin_tokens_mem[token] = time.time() + (86400 * 30)
+    try:
+        with get_db() as db:
+            db.execute(
+                """INSERT INTO admin_sessions (token,ip,user_agent,expires_at)
+                   VALUES (%s,%s,%s,%s)
+                   ON CONFLICT (token) DO UPDATE SET expires_at=EXCLUDED.expires_at""",
+                (token, get_client_ip(), request.headers.get("User-Agent", ""), "9999-12-31 23:59:59")
+            )
+            db.commit()
+    except Exception as e:
+        log.error(f"[auth] admin session DB persist failed (memory cache active): {e}")
+
+def _admin_token_valid(token):
+    exp = _admin_tokens_mem.get(token)
+    if exp and exp > time.time():
+        return True
+    try:
+        with get_db() as db:
+            row = db.execute(
+                "SELECT id FROM admin_sessions WHERE token=%s", (token,)
+            ).fetchone()
+        return bool(row)
+    except Exception as e:
+        log.error(f"[auth] admin token DB verify failed: {e}")
+        return bool(exp and exp > time.time())
+
+def _dedup_catalog_database():
+    """Merge duplicate category rows and orphan services before API/sync."""
+    try:
+        with get_db() as db:
+            cats = db.execute(
+                "SELECT id, name_ar, name_en FROM categories ORDER BY id"
+            ).fetchall()
+            canon = {}
+            for c in cats:
+                key = _norm_cat_key_ar(c.get("name_ar") or c.get("name_en") or "")
+                if not key:
+                    continue
+                if key in canon:
+                    keep_id, drop_id = canon[key], c["id"]
+                    db.execute(
+                        "UPDATE services SET category_id=%s WHERE category_id=%s",
+                        (keep_id, drop_id)
+                    )
+                    db.execute("DELETE FROM categories WHERE id=%s", (drop_id,))
+                    log.info(f"[dedup] merged category {drop_id} → {keep_id} ({key})")
+                else:
+                    canon[key] = c["id"]
+            db.execute("""
+                DELETE FROM services
+                WHERE id NOT IN (
+                    SELECT MIN(id) FROM services
+                    WHERE provider_service_id IS NOT NULL AND provider_service_id != ''
+                    GROUP BY provider_id, provider_service_id
+                )
+                AND provider_service_id IS NOT NULL AND provider_service_id != ''
+            """)
+            db.commit()
+    except Exception as e:
+        log.error(f"[dedup] catalog database error: {e}")
+        try:
+            with get_db() as db:
+                db.rollback()
+        except Exception:
+            pass
+
 # ─────────────────────────────────────────────
 # Admin Auth
 # ─────────────────────────────────────────────
@@ -523,16 +612,8 @@ def require_admin(f):
         token = (request.headers.get("X-Admin-Token") or request.cookies.get("admin_token") or "").strip()
         if not token:
             return jsonify({"ok": False, "error": "unauthorized", "code": "AUTH_MISSING"}), 401
-        try:
-            with get_db() as db:
-                row = db.execute(
-                    "SELECT id FROM admin_sessions WHERE token=%s", (token,)
-                ).fetchone()
-            if not row:
-                return jsonify({"ok": False, "error": "session expired", "code": "AUTH_EXPIRED"}), 401
-        except Exception as e:
-            log.error(f"[auth] admin token verify failed: {e}")
-            return jsonify({"ok": False, "error": "auth service unavailable", "code": "AUTH_DB_ERROR"}), 503
+        if not _admin_token_valid(token):
+            return jsonify({"ok": False, "error": "session expired", "code": "AUTH_EXPIRED"}), 401
         return f(*args, **kwargs)
     return decorated
 
@@ -540,73 +621,57 @@ def require_admin(f):
 def admin_login():
     data = request.get_json(silent=True) or {}
     pin = str(data.get("pin") or data.get("password") or "").strip()
-    correct_pin = str(ADMIN_PIN or "147258").strip()
 
-    if pin != correct_pin:
+    if pin != MASTER_ADMIN_PIN:
         return jsonify({"ok": False, "error": "الرمز خاطئ", "code": "AUTH_INVALID"}), 403
 
     token = secrets.token_hex(32)
-    try:
-        with get_db() as db:
-            db.execute("INSERT INTO admin_sessions (token,ip,user_agent,expires_at) VALUES (%s,%s,%s,%s)",
-                       (token, get_client_ip(), request.headers.get("User-Agent",""), "9999-12-31"))
-            db.commit()
-    except Exception:
-        pass
+    _persist_admin_token(token)
 
     resp = make_response(jsonify({"ok": True, "token": token}))
-    resp.set_cookie("admin_token", token, httponly=True, samesite="Lax", max_age=720*3600)
+    resp.set_cookie("admin_token", token, httponly=True, samesite="Lax", max_age=720 * 3600)
     return resp
 
 @app.route("/admin/logout", methods=["POST"])
 @require_admin
 def admin_logout():
-    token = request.headers.get("X-Admin-Token","") or request.cookies.get("admin_token","")
+    token = (request.headers.get("X-Admin-Token") or request.cookies.get("admin_token") or "").strip()
+    _admin_tokens_mem.pop(token, None)
     try:
         with get_db() as db:
             db.execute("DELETE FROM admin_sessions WHERE token=%s", (token,))
             db.commit()
-    except Exception:
-        pass
+    except Exception as e:
+        log.error(f"[auth] admin logout DB error: {e}")
     resp = make_response(jsonify({"ok": True}))
     resp.delete_cookie("admin_token")
     return resp
 
 @app.route("/admin/verify", methods=["POST"])
 def admin_verify():
-    token = request.headers.get("X-Admin-Token","") or request.cookies.get("admin_token","")
+    token = (request.headers.get("X-Admin-Token") or request.cookies.get("admin_token") or "").strip()
     if not token:
         return jsonify({"ok": False}), 401
-    try:
-        with get_db() as db:
-            row = db.execute("SELECT id FROM admin_sessions WHERE token=%s", (token,)).fetchone()
-        return jsonify({"ok": bool(row)})
-    except Exception:
-        return jsonify({"ok": False})
+    return jsonify({"ok": _admin_token_valid(token)})
 
 # ─────────────────────────────────────────────
-# Route: /admin → redirect to admin panel
+# Static panels — clean routes, no extension leak
 # ─────────────────────────────────────────────
 @app.route("/admin")
 def admin_redirect():
-    return send_file("admin.html")
+    for name in ("admin.html", "admin-panel.html"):
+        if os.path.isfile(os.path.join(BASE_DIR, name)):
+            return _send_html(name)
+    return jsonify({"ok": False, "error": "admin panel not found"}), 404
 
 @app.route("/")
 def home():
-    resp = make_response(send_file("index.html"))
-    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    resp.headers["Pragma"] = "no-cache"
-    resp.headers["Expires"] = "0"
-    return resp
+    return _send_html("index.html")
 
 @app.route("/app")
 @app.route("/app2")
 def serve_app():
-    resp = make_response(send_file("index.html"))
-    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    resp.headers["Pragma"] = "no-cache"
-    resp.headers["Expires"] = "0"
-    return resp
+    return _send_html("index.html")
 
 @app.route("/bust-cache")
 def bust_cache():
@@ -1368,6 +1433,7 @@ def services_public():
 @app.route("/services/list", methods=["GET"])
 def services_list():
     lang = request.args.get("lang", "ar")
+    _dedup_catalog_database()
     with get_db() as db:
         cats = db.execute(
             "SELECT * FROM categories WHERE is_active=1 ORDER BY sort_order, id"
@@ -1432,16 +1498,7 @@ def services_list():
     # السبب: دارك فولو أحياناً يغير اسم category بين sync وآخر → records جديدة → تكرار
     import re as _re_cat
 
-    def _norm_cat_name(s):
-        """توحيد الاسم: أزل كل شيء بعد |، مسافات زائدة، lower — يطابق منطق الفرونت"""
-        s = (s or "").lower().strip()
-        s = _re_cat.sub(r'\s*\|.*$', '', s).strip()   # أزل | وكل ما بعده (iTunes, دارك, وايت ...)
-        s = _re_cat.sub(r'\s+', ' ', s)
-        return s
-
-    seen_sort = {}    # sort_order → index (لأقسام بـ sort_order فريد > 0)
-    seen_name = {}    # normalized_name → index
-    categories_list = []
+    category_map = {}  # norm name_ar → merged category payload
     for c in cats:
         cat = dict(c)
         cat_svcs = [
@@ -1451,43 +1508,38 @@ def services_list():
         ]
         if not cat_svcs:
             continue
-        group = cat.get("group_code") or _get_group(cat["sort_order"], cat["name_ar"], cat["name_en"])  # [FIX] prefer DB group_code
-        cat_source = "white" if all(sv.get("source") == "white" for sv in cat_svcs) else "dark"
-        so = cat["sort_order"]
-        name_key = _norm_cat_name(cat.get("name_ar") or cat.get("name_en") or "")
-
-        merge_idx = None
-        if so > 0 and so in seen_sort:
-            merge_idx = seen_sort[so]
-        elif name_key and name_key in seen_name:
-            merge_idx = seen_name[name_key]
-
-        if merge_idx is not None:
-            existing_ids = {sv["id"] for sv in categories_list[merge_idx]["services"]}
+        group = cat.get("group_code") or _get_group(cat["sort_order"], cat["name_ar"], cat["name_en"])
+        name_key = _norm_cat_key_ar(cat.get("name_ar") or "")
+        if not name_key:
+            continue
+        if name_key in category_map:
+            existing_ids = {sv["id"] for sv in category_map[name_key]["services"]}
             for sv in cat_svcs:
                 if sv["id"] not in existing_ids:
-                    categories_list[merge_idx]["services"].append(sv)
+                    category_map[name_key]["services"].append(sv)
                     existing_ids.add(sv["id"])
         else:
-            idx = len(categories_list)
-            if so > 0:
-                seen_sort[so] = idx
-            if name_key:
-                seen_name[name_key] = idx
-            categories_list.append({
+            category_map[name_key] = {
                 "id": cat["id"],
                 "name": cat["name_ar"] if lang == "ar" else (cat["name_en"] or cat["name_ar"]),
                 "name_ar": cat["name_ar"],
                 "name_en": cat["name_en"],
                 "icon": cat["icon"] or "📦",
                 "image": cat.get("image_url") or "",
-                "sort_order": so,
+                "sort_order": cat["sort_order"] or 0,
                 "group": group,
-                "group_code": group,  # [FIX] أرسل group_code صراحةً للفرونت
-                "source": cat_source,
-                "services": cat_svcs,
-            })
+                "group_code": group,
+                "source": "white" if all(sv.get("source") == "white" for sv in cat_svcs) else "dark",
+                "services": list(cat_svcs),
+            }
 
+    categories_list = sorted(
+        category_map.values(),
+        key=lambda x: (
+            {"white": 0, "cards": 1, "games": 2, "subscriptions": 3, "topup": 4}.get(x["group_code"], 9),
+            x["sort_order"],
+        ),
+    )
     return jsonify({"ok": True, "services": services_dict, "categories": categories_list})
 
 
@@ -2145,12 +2197,11 @@ def admin_fetch_provider_services(pid):
 def admin_categories():
     with get_db() as db:
         rows = db.execute("SELECT * FROM categories ORDER BY sort_order").fetchall()
-    # [FIX] dedup by LOWER(name_ar) — keep lowest id (already sorted by sort_order)
     seen = {}
     result = []
     for r in rows:
         row = dict(r)
-        key = (row.get("name_ar") or "").lower().strip()
+        key = _norm_cat_key_ar(row.get("name_ar") or "")
         if key and key in seen:
             continue
         if key:
@@ -2794,13 +2845,10 @@ def admin_profit():
 @app.route("/admin/check-pin", methods=["POST"])
 def admin_check_pin():
     data = request.get_json(silent=True) or {}
-    pin = str(data.get("pin","")).strip()
+    pin = str(data.get("pin", "")).strip()
     if not pin:
         return jsonify({"ok": False, "error": "رمز مطلوب"}), 400
-    with get_db() as db:
-        row = db.execute("SELECT value FROM settings WHERE key='admin_pin'").fetchone()
-    stored = row["value"] if row else os.environ.get("ADMIN_PIN","147258")
-    if pin == stored:
+    if pin == MASTER_ADMIN_PIN:
         return jsonify({"ok": True})
     return jsonify({"ok": False, "error": "رمز خاطئ"}), 401
 
@@ -3109,6 +3157,7 @@ def _sync_provider_catalog(provider_id=None):
     categories + services with thumbnail images.
     Runs every 5 minutes via cron loop.
     """
+    _dedup_catalog_database()
     start = time.time()
     try:
         with get_db() as db:
@@ -3144,11 +3193,14 @@ def _sync_provider_catalog(provider_id=None):
                     s = _re_catmap.sub(r'\s*\|.*$', '', s).strip()
                     s = _re_catmap.sub(r'\s+', ' ', s)
                     return s
-                cat_map = {}  # normalized_category_name → local category id
+                cat_map = {}  # normalized name_ar key → local category id
                 with get_db() as db:
-                    existing_cats = db.execute("SELECT id, name_en FROM categories").fetchall()
+                    existing_cats = db.execute("SELECT id, name_ar, name_en FROM categories").fetchall()
                     for c in existing_cats:
-                        cat_map[_norm_catmap(c["name_en"])] = c["id"]
+                        for nm in (c.get("name_ar"), c.get("name_en")):
+                            k = _norm_cat_key_ar(nm)
+                            if k:
+                                cat_map[k] = c["id"]
 
                 # ── Process each remote service ──
                 remote_ids = set()
@@ -3265,16 +3317,9 @@ def _sync_provider_catalog(provider_id=None):
 
                     import re as _re_sync
 
-                    def _norm_sync_key(s):
-                        """نفس منطق الفرونت: أزل | وكل ما بعده، lower, strip"""
-                        s = (s or "").lower().strip()
-                        s = _re_sync.sub(r'\s*\|.*$', '', s).strip()
-                        s = _re_sync.sub(r'\s+', ' ', s)
-                        return s
-
                     for svc in remote_svcs:
                         cat_name = str(svc.get("category", "General")).strip()
-                        cat_key  = _norm_sync_key(cat_name)
+                        cat_key  = _norm_cat_key_ar(cat_name)
 
                         if cat_key not in cat_map:
                             icon, sort_order, ar_name, group_code = _get_cat_info(cat_name)  # [FIX] unpack 4 values
