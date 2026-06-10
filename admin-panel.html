@@ -1,1772 +1,1574 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🔐 لوحة تحكم | White Follow</title>
-  <meta name="robots" content="noindex, nofollow" />
-  <style>
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
-    :root {
-      --bg:      #030508;
-      --card:    #0a0f18;
-      --card2:   #0d1420;
-      --border:  rgba(56,189,248,0.12);
-      --accent:  #38bdf8;
-      --accent2: #0ea5e9;
-      --neon:    #22d3ee;
-      --red:     #ff3355;
-      --green:   #10b981;
-      --purple:  #818cf8;
-      --blue:    #3b82f6;
-      --text:    #e8f4ff;
-      --muted:   #6b8aab;
-      --font:    'Segoe UI', 'Tajawal', system-ui, sans-serif;
-    }
-
-    body {
-      background:
-        radial-gradient(ellipse 120% 80% at 10% -10%, rgba(14,165,233,0.18) 0%, transparent 55%),
-        radial-gradient(ellipse 90% 60% at 95% 5%, rgba(34,211,238,0.10) 0%, transparent 50%),
-        linear-gradient(165deg, #010204 0%, #050a12 40%, #020408 100%);
-      color: var(--text);
-      font-family: var(--font);
-      min-height: 100vh;
-    }
-
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(56,189,248,0.015) 2px,
-        rgba(56,189,248,0.015) 4px
-      );
-      z-index: 0;
-    }
-
-    #login-screen, #dashboard { position: relative; z-index: 1; }
-
-    /* ── Login Screen ── */
-    #login-screen {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 24px;
-      background: radial-gradient(ellipse at 50% 0%, rgba(218,165,32,0.12) 0%, transparent 70%);
-    }
-
-    .login-card {
-      background: var(--card);
-      border: 1px solid rgba(218,165,32,0.2);
-      border-radius: 24px;
-      padding: 40px 32px;
-      width: 100%;
-      max-width: 420px;
-      box-shadow: 0 0 60px rgba(218,165,32,0.08);
-    }
-
-    .login-logo {
-      text-align: center;
-      margin-bottom: 32px;
-    }
-
-    .login-logo .shield {
-      font-size: 52px;
-      display: block;
-      margin-bottom: 10px;
-    }
-
-    .login-logo h1 {
-      font-size: 22px;
-      font-weight: 800;
-      color: var(--accent);
-      letter-spacing: 0.5px;
-    }
-
-    .login-logo p {
-      font-size: 13px;
-      color: var(--muted);
-      margin-top: 4px;
-    }
-
-    .field-label {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--muted);
-      margin-bottom: 8px;
-      display: block;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-    }
-
-    .field-wrap {
-      position: relative;
-      margin-bottom: 20px;
-    }
-
-    .field-input {
-      width: 100%;
-      background: rgba(255,255,255,0.04);
-      border: 1.5px solid var(--border);
-      border-radius: 12px;
-      padding: 14px 16px;
-      color: var(--text);
-      font-size: 15px;
-      font-family: var(--font);
-      outline: none;
-      transition: border-color 0.2s;
-      direction: ltr;
-      text-align: center;
-      letter-spacing: 3px;
-    }
-
-    .field-input:focus { border-color: rgba(218,165,32,0.5); }
-
-    .btn-login {
-      width: 100%;
-      padding: 15px;
-      border: none;
-      border-radius: 14px;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      color: #000;
-      font-size: 15px;
-      font-weight: 800;
-      cursor: pointer;
-      font-family: var(--font);
-      transition: opacity 0.2s, transform 0.1s;
-      letter-spacing: 0.5px;
-    }
-
-    .btn-login:hover  { opacity: 0.9; }
-    .btn-login:active { transform: scale(0.98); }
-
-    .login-err {
-      display: none;
-      background: rgba(255,34,51,0.1);
-      border: 1px solid rgba(255,34,51,0.3);
-      border-radius: 10px;
-      padding: 10px 14px;
-      font-size: 13px;
-      color: #ff6677;
-      text-align: center;
-      margin-top: 16px;
-    }
-
-    /* ── Dashboard ── */
-    #dashboard { display: none; }
-
-    .topbar {
-      background: var(--card);
-      border-bottom: 1px solid var(--border);
-      padding: 16px 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-
-    .topbar-brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .topbar-brand .badge {
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      color: #000;
-      font-size: 10px;
-      font-weight: 900;
-      padding: 3px 8px;
-      border-radius: 6px;
-      letter-spacing: 1px;
-    }
-
-    .topbar-brand span {
-      font-size: 16px;
-      font-weight: 800;
-      color: var(--accent);
-    }
-
-    .topbar-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .status-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: var(--green);
-      box-shadow: 0 0 8px var(--green);
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
-
-    .status-txt { font-size: 12px; color: var(--muted); }
-
-    .btn-logout {
-      background: rgba(255,34,51,0.1);
-      border: 1px solid rgba(255,34,51,0.2);
-      color: var(--red);
-      padding: 7px 14px;
-      border-radius: 9px;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 700;
-      font-family: var(--font);
-      transition: background 0.2s;
-    }
-
-    .btn-logout:hover { background: rgba(255,34,51,0.2); }
-
-    /* ── Grid Layout ── */
-    .dashboard-body {
-      padding: 24px;
-      max-width: 1100px;
-      margin: 0 auto;
-    }
-
-    .section-title {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--muted);
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      margin-bottom: 14px;
-      margin-top: 32px;
-    }
-
-    .section-title:first-child { margin-top: 0; }
-
-    .stats-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 14px;
-      margin-bottom: 8px;
-    }
-
-    .stat-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 20px 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .stat-card .stat-icon { font-size: 24px; }
-    .stat-card .stat-val  { font-size: 26px; font-weight: 900; color: var(--text); }
-    .stat-card .stat-lbl  { font-size: 12px; color: var(--muted); }
-
-    /* ── Cards ── */
-    .panel-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 24px;
-      margin-bottom: 16px;
-    }
-
-    .panel-card h3 {
-      font-size: 15px;
-      font-weight: 800;
-      color: var(--text);
-      margin-bottom: 6px;
-    }
-
-    .panel-card .desc {
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 18px;
-    }
-
-    .input-row {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .p-input {
-      flex: 1;
-      min-width: 180px;
-      background: rgba(255,255,255,0.04);
-      border: 1.5px solid var(--border);
-      border-radius: 11px;
-      padding: 12px 14px;
-      color: var(--text);
-      font-size: 14px;
-      font-family: var(--font);
-      outline: none;
-      transition: border-color 0.2s;
-      direction: ltr;
-    }
-
-    .p-input:focus { border-color: rgba(255,255,255,0.2); }
-
-    .p-input.arabic { direction: rtl; }
-
-    .btn {
-      padding: 12px 20px;
-      border: none;
-      border-radius: 11px;
-      font-size: 13px;
-      font-weight: 800;
-      cursor: pointer;
-      font-family: var(--font);
-      transition: opacity 0.2s, transform 0.1s;
-      white-space: nowrap;
-    }
-
-    .btn:active { transform: scale(0.97); }
-    .btn:hover  { opacity: 0.85; }
-
-    .btn-gold   { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #000; }
-    .btn-green  { background: linear-gradient(135deg, var(--green), #16a34a); color: #fff; }
-    .btn-red    { background: linear-gradient(135deg, var(--red), #cc0011); color: #fff; }
-    .btn-purple { background: linear-gradient(135deg, var(--purple), #6d28d9); color: #fff; }
-    .btn-blue   { background: linear-gradient(135deg, var(--blue), #1d4ed8); color: #fff; }
-    .btn-gray   { background: rgba(255,255,255,0.08); color: var(--text); }
-
-    /* ── Alert Box ── */
-    .alert {
-      border-radius: 12px;
-      padding: 12px 16px;
-      font-size: 13px;
-      margin-top: 12px;
-      display: none;
-    }
-
-    .alert.success { background: rgba(29,185,84,0.12); border: 1px solid rgba(29,185,84,0.25); color: #4ade80; }
-    .alert.error   { background: rgba(255,34,51,0.10); border: 1px solid rgba(255,34,51,0.25); color: #ff6677; }
-    .alert.info    { background: rgba(59,130,246,0.10); border: 1px solid rgba(59,130,246,0.25); color: #60a5fa; }
-
-    /* ── Users Table ── */
-    .users-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-      margin-top: 8px;
-    }
-
-    .users-table th {
-      text-align: right;
-      padding: 10px 14px;
-      background: rgba(255,255,255,0.03);
-      color: var(--muted);
-      font-weight: 700;
-      font-size: 11px;
-      letter-spacing: 0.5px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .users-table td {
-      padding: 12px 14px;
-      border-bottom: 1px solid rgba(255,255,255,0.03);
-      vertical-align: middle;
-    }
-
-    .users-table tr:last-child td { border-bottom: none; }
-    .users-table tr:hover td { background: rgba(255,255,255,0.02); }
-
-    .uid-cell { font-family: monospace; font-size: 11px; color: var(--muted); }
-
-    .balance-badge {
-      background: rgba(29,185,84,0.12);
-      color: #4ade80;
-      border-radius: 7px;
-      padding: 3px 9px;
-      font-weight: 700;
-      font-size: 12px;
-    }
-
-    .inline-btn {
-      padding: 5px 11px;
-      border: none;
-      border-radius: 7px;
-      font-size: 11px;
-      font-weight: 700;
-      cursor: pointer;
-      font-family: var(--font);
-      margin-right: 4px;
-      transition: opacity 0.2s;
-    }
-
-    .inline-btn:hover { opacity: 0.8; }
-    .ib-charge { background: rgba(29,185,84,0.15); color: #4ade80; }
-    .ib-deduct { background: rgba(255,34,51,0.12); color: #ff6677; }
-
-    /* ── Bot Link Status ── */
-    .bot-link-bar {
-      background: rgba(59,130,246,0.08);
-      border: 1px solid rgba(59,130,246,0.2);
-      border-radius: 14px;
-      padding: 14px 18px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 24px;
-    }
-
-    .bot-link-bar .icon { font-size: 22px; }
-    .bot-link-bar .txt { flex: 1; }
-    .bot-link-bar .txt strong { font-size: 13px; color: var(--text); display: block; }
-    .bot-link-bar .txt small  { font-size: 11px; color: var(--muted); }
-
-    /* Markup Display */
-    .markup-display {
-      background: rgba(218,165,32,0.08);
-      border: 1px solid rgba(218,165,32,0.2);
-      border-radius: 12px;
-      padding: 14px 18px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 14px;
-    }
-
-    .markup-display .lbl { font-size: 12px; color: var(--muted); }
-    .markup-display .val { font-size: 22px; font-weight: 900; color: var(--accent); }
-
-    /* DF Balance */
-    .df-balance-card {
-      background: linear-gradient(135deg, rgba(255,34,51,0.08), rgba(255,34,51,0.03));
-      border: 1px solid rgba(255,34,51,0.2);
-      border-radius: 16px;
-      padding: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-    }
-
-    .df-balance-card .df-lbl { font-size: 12px; color: var(--muted); }
-    .df-balance-card .df-val { font-size: 28px; font-weight: 900; color: var(--red); }
-
-    /* Search box */
-    .search-row {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-
-    .filter-select {
-      min-width: 150px;
-      background: rgba(255,255,255,0.04);
-      border: 1.5px solid var(--border);
-      border-radius: 11px;
-      padding: 12px 14px;
-      color: var(--text);
-      font-size: 14px;
-      font-family: var(--font);
-      outline: none;
-    }
-
-    /* Responsive */
-    @media (max-width: 640px) {
-      .dashboard-body { padding: 16px; }
-      .stats-row { grid-template-columns: 1fr 1fr; }
-      .topbar { padding: 12px 16px; }
-      .input-row { flex-direction: column; }
-      .input-row .btn { width: 100%; }
-    }
-
-    /* Tabs */
-    .tab-bar {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 20px;
-      overflow-x: auto;
-      padding-bottom: 4px;
-    }
-
-    .tab-btn {
-      padding: 9px 18px;
-      border: 1.5px solid var(--border);
-      border-radius: 10px;
-      background: transparent;
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
-      font-family: var(--font);
-      white-space: nowrap;
-      transition: all 0.2s;
-    }
-
-    .tab-btn.active {
-      background: rgba(218,165,32,0.12);
-      border-color: rgba(218,165,32,0.35);
-      color: var(--accent);
-    }
-
-    .tab-pane { display: none; }
-    .tab-pane.active { display: block; }
-
-    /* Spinner */
-    .spinner {
-      display: inline-block;
-      width: 16px; height: 16px;
-      border: 2px solid rgba(255,255,255,0.15);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      vertical-align: middle;
-      margin-left: 6px;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة تحكم SMM — Admin Panel</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --neon-blue:#00d4ff;
+  --neon-pink:#ff2d95;
+  --obsidian:#0a0a0f;
+  --obsidian-light:#12121a;
+  --glass:rgba(18,18,28,0.65);
+  --glass-border:rgba(0,212,255,0.15);
+  --text-primary:#e8e8f0;
+  --text-muted:#8888a0;
+  --danger:#ff4466;
+  --success:#00ff88;
+  --warning:#ffaa00;
+  --glow-blue:0 0 20px rgba(0,212,255,0.4),0 0 40px rgba(0,212,255,0.15);
+  --glow-pink:0 0 20px rgba(255,45,149,0.4),0 0 40px rgba(255,45,149,0.15);
+  --radius:12px;
+  --font:'Segoe UI',Tahoma,Arial,sans-serif;
+}
+html{font-size:14px;scroll-behavior:smooth}
+body{
+  font-family:var(--font);
+  background:var(--obsidian);
+  color:var(--text-primary);
+  min-height:100vh;
+  overflow-x:hidden;
+  direction:rtl;
+}
+
+/* ── Animated Fractured Obsidian Background ── */
+.bg-layer{
+  position:fixed;inset:0;z-index:0;overflow:hidden;
+  background:var(--obsidian);
+}
+.bg-layer::before{
+  content:'';position:absolute;inset:-50%;
+  background:
+    conic-gradient(from 0deg at 20% 30%,rgba(0,212,255,0.08) 0deg,transparent 60deg),
+    conic-gradient(from 180deg at 80% 70%,rgba(255,45,149,0.08) 0deg,transparent 60deg),
+    radial-gradient(ellipse at 30% 20%,rgba(0,212,255,0.06) 0%,transparent 50%),
+    radial-gradient(ellipse at 70% 80%,rgba(255,45,149,0.06) 0%,transparent 50%);
+  animation:bgRotate 30s linear infinite;
+}
+.bg-layer::after{
+  content:'';position:absolute;inset:0;
+  background:
+    linear-gradient(135deg,transparent 40%,rgba(0,212,255,0.03) 41%,rgba(0,212,255,0.03) 42%,transparent 43%),
+    linear-gradient(45deg,transparent 55%,rgba(255,45,149,0.03) 56%,rgba(255,45,149,0.03) 57%,transparent 58%),
+    linear-gradient(225deg,transparent 30%,rgba(0,212,255,0.02) 31%,rgba(0,212,255,0.02) 32%,transparent 33%),
+    linear-gradient(315deg,transparent 65%,rgba(255,45,149,0.02) 66%,rgba(255,45,149,0.02) 67%,transparent 68%);
+  background-size:200px 200px,180px 180px,220px 220px,160px 160px;
+  animation:fractureShift 20s ease-in-out infinite alternate;
+}
+@keyframes bgRotate{to{transform:rotate(360deg)}}
+@keyframes fractureShift{
+  0%{background-position:0 0,50px 50px,100px 0,0 100px}
+  100%{background-position:200px 200px,250px 250px,300px 100px,100px 300px}
+}
+
+/* ── Scanlines ── */
+.scanlines{
+  position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.03) 2px,
+    rgba(0,0,0,0.03) 4px
+  );
+  animation:scanMove 8s linear infinite;
+}
+@keyframes scanMove{
+  0%{background-position:0 0}
+  100%{background-position:0 100px}
+}
+
+/* ── Login Screen ── */
+#loginScreen{
+  position:fixed;inset:0;z-index:100;
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(8px);
+}
+.login-card{
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  border-radius:var(--radius);
+  padding:48px 40px;
+  width:min(420px,90vw);
+  backdrop-filter:blur(20px);
+  box-shadow:var(--glow-blue);
+  transition:box-shadow 0.4s;
+}
+.login-card:hover{box-shadow:var(--glow-pink)}
+.login-card h1{
+  font-size:1.6rem;text-align:center;margin-bottom:8px;
+  background:linear-gradient(135deg,var(--neon-blue),var(--neon-pink));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.login-card .subtitle{
+  text-align:center;color:var(--text-muted);margin-bottom:32px;font-size:0.85rem;
+}
+.pin-group{margin-bottom:24px}
+.pin-group label{display:block;margin-bottom:8px;color:var(--text-muted);font-size:0.85rem}
+.pin-input{
+  width:100%;padding:14px 18px;
+  background:rgba(0,0,0,0.4);
+  border:1px solid var(--glass-border);
+  border-radius:8px;
+  color:var(--neon-blue);
+  font-size:1.8rem;text-align:center;letter-spacing:12px;
+  font-family:monospace;
+  transition:border-color 0.3s,box-shadow 0.3s;
+}
+.pin-input:focus{
+  outline:none;border-color:var(--neon-blue);
+  box-shadow:0 0 15px rgba(0,212,255,0.3);
+}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:10px 20px;border:none;border-radius:8px;
+  font-family:var(--font);font-size:0.9rem;font-weight:600;
+  cursor:pointer;transition:all 0.3s;
+  position:relative;overflow:hidden;
+}
+.btn-primary{
+  width:100%;padding:14px;
+  background:linear-gradient(135deg,var(--neon-blue),#0099cc);
+  color:#000;
+}
+.btn-primary:hover{box-shadow:var(--glow-blue);transform:translateY(-1px)}
+.btn-secondary{
+  background:rgba(0,212,255,0.1);
+  border:1px solid var(--neon-blue);
+  color:var(--neon-blue);
+}
+.btn-secondary:hover{box-shadow:var(--glow-blue);background:rgba(0,212,255,0.2)}
+.btn-danger{
+  background:rgba(255,68,102,0.15);
+  border:1px solid var(--danger);
+  color:var(--danger);
+}
+.btn-danger:hover{box-shadow:0 0 20px rgba(255,68,102,0.4)}
+.btn-success{
+  background:rgba(0,255,136,0.15);
+  border:1px solid var(--success);
+  color:var(--success);
+}
+.btn-success:hover{box-shadow:0 0 20px rgba(0,255,136,0.4)}
+.btn-sm{padding:6px 12px;font-size:0.78rem}
+.btn:disabled{opacity:0.4;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+.login-error{
+  color:var(--danger);text-align:center;margin-top:16px;
+  font-size:0.85rem;min-height:20px;
+}
+
+/* ── Main App ── */
+#app{display:none;position:relative;z-index:2;min-height:100vh}
+#app.active{display:block}
+
+/* ── Header ── */
+.app-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 24px;
+  background:rgba(10,10,15,0.8);
+  border-bottom:1px solid var(--glass-border);
+  backdrop-filter:blur(12px);
+  position:sticky;top:0;z-index:50;
+}
+.header-brand{
+  display:flex;align-items:center;gap:12px;
+}
+.header-brand h1{
+  font-size:1.2rem;
+  background:linear-gradient(135deg,var(--neon-blue),var(--neon-pink));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.header-brand .badge{
+  font-size:0.65rem;padding:2px 8px;
+  background:rgba(0,212,255,0.15);
+  border:1px solid var(--neon-blue);
+  border-radius:20px;color:var(--neon-blue);
+  font-family:monospace;
+}
+.header-actions{display:flex;align-items:center;gap:12px}
+.server-url-input{
+  padding:6px 12px;background:rgba(0,0,0,0.4);
+  border:1px solid var(--glass-border);border-radius:6px;
+  color:var(--text-muted);font-size:0.75rem;font-family:monospace;
+  width:200px;direction:ltr;text-align:left;
+}
+.server-url-input:focus{outline:none;border-color:var(--neon-blue)}
+.status-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--success);box-shadow:0 0 8px var(--success);
+  animation:pulse 2s infinite;
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+
+/* ── Hero Balance Banner ── */
+.hero-banner{
+  margin:20px 24px;
+  padding:28px 32px;
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  border-radius:var(--radius);
+  backdrop-filter:blur(16px);
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:16px;
+  position:relative;overflow:hidden;
+  transition:box-shadow 0.4s;
+}
+.hero-banner:hover{box-shadow:var(--glow-blue)}
+.hero-banner::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--neon-blue),var(--neon-pink),var(--neon-blue));
+  animation:heroGlow 3s ease-in-out infinite;
+}
+@keyframes heroGlow{0%,100%{opacity:0.6}50%{opacity:1}}
+.hero-left{display:flex;flex-direction:column;gap:4px}
+.hero-label{font-size:0.85rem;color:var(--text-muted)}
+.hero-label span{font-family:monospace;color:var(--neon-pink);font-size:0.75rem;margin-right:8px}
+.hero-balance{
+  font-size:2.8rem;font-weight:700;font-family:monospace;
+  background:linear-gradient(135deg,var(--neon-blue),#fff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+  direction:ltr;text-align:right;
+}
+.hero-balance.loading{opacity:0.3}
+.hero-meta{display:flex;gap:20px;font-size:0.78rem;color:var(--text-muted)}
+.hero-meta span{font-family:monospace}
+.hero-right{display:flex;align-items:center;gap:12px}
+.refresh-indicator{
+  font-size:0.72rem;color:var(--text-muted);font-family:monospace;
+  direction:ltr;
+}
+
+/* ── Navigation Tabs ── */
+.nav-tabs{
+  display:flex;gap:4px;padding:0 24px;
+  overflow-x:auto;scrollbar-width:thin;
+  border-bottom:1px solid var(--glass-border);
+  margin-bottom:0;
+}
+.nav-tab{
+  padding:12px 20px;
+  background:transparent;border:none;
+  color:var(--text-muted);
+  font-family:var(--font);font-size:0.85rem;font-weight:500;
+  cursor:pointer;white-space:nowrap;
+  border-bottom:2px solid transparent;
+  transition:all 0.3s;
+  position:relative;
+}
+.nav-tab:hover{color:var(--neon-blue)}
+.nav-tab.active{
+  color:var(--neon-blue);
+  border-bottom-color:var(--neon-blue);
+  text-shadow:0 0 10px rgba(0,212,255,0.5);
+}
+.nav-tab .tab-icon{margin-left:6px;font-size:0.9rem}
+
+/* ── Tab Content ── */
+.tab-content{display:none;padding:24px;animation:fadeIn 0.3s}
+.tab-content.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Cards ── */
+.card{
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  border-radius:var(--radius);
+  padding:24px;
+  backdrop-filter:blur(12px);
+  margin-bottom:20px;
+  transition:box-shadow 0.3s,border-color 0.3s;
+}
+.card:hover{
+  border-color:rgba(0,212,255,0.3);
+  box-shadow:0 4px 24px rgba(0,212,255,0.08);
+}
+.card-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:20px;padding-bottom:12px;
+  border-bottom:1px solid rgba(255,255,255,0.05);
+}
+.card-title{font-size:1.05rem;font-weight:600}
+.card-title .en{font-family:monospace;font-size:0.75rem;color:var(--neon-pink);margin-right:8px}
+
+/* ── Stats Grid ── */
+.stats-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+  gap:16px;
+}
+.stat-card{
+  background:rgba(0,0,0,0.3);
+  border:1px solid var(--glass-border);
+  border-radius:10px;
+  padding:20px;
+  transition:all 0.3s;
+}
+.stat-card:hover{
+  border-color:var(--neon-blue);
+  box-shadow:var(--glow-blue);
+  transform:translateY(-2px);
+}
+.stat-label{font-size:0.78rem;color:var(--text-muted);margin-bottom:8px}
+.stat-value{
+  font-size:1.6rem;font-weight:700;font-family:monospace;
+  color:var(--neon-blue);direction:ltr;text-align:right;
+}
+.stat-value.pink{color:var(--neon-pink)}
+.stat-value.green{color:var(--success)}
+
+/* ── Quick Actions ── */
+.quick-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+
+/* ── Table ── */
+.table-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--glass-border)}
+table{width:100%;border-collapse:collapse;font-size:0.85rem}
+thead{background:rgba(0,212,255,0.05)}
+th{
+  padding:12px 16px;text-align:right;
+  font-weight:600;color:var(--neon-blue);
+  border-bottom:1px solid var(--glass-border);
+  white-space:nowrap;
+}
+th .en{font-family:monospace;font-size:0.7rem;color:var(--text-muted);display:block}
+td{
+  padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.03);
+  vertical-align:middle;
+}
+tr:hover td{background:rgba(0,212,255,0.03)}
+td.mono{font-family:monospace;font-size:0.8rem;direction:ltr;text-align:right;color:var(--neon-blue)}
+td.balance{font-family:monospace;font-weight:600;direction:ltr;text-align:right}
+.row-actions{display:flex;gap:6px;flex-wrap:nowrap}
+
+/* ── Search / Filter ── */
+.search-bar{
+  display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;
+}
+.search-input{
+  flex:1;min-width:200px;
+  padding:10px 16px;
+  background:rgba(0,0,0,0.4);
+  border:1px solid var(--glass-border);
+  border-radius:8px;
+  color:var(--text-primary);
+  font-family:var(--font);font-size:0.85rem;
+  transition:border-color 0.3s;
+}
+.search-input:focus{outline:none;border-color:var(--neon-blue);box-shadow:0 0 10px rgba(0,212,255,0.2)}
+.search-input::placeholder{color:var(--text-muted)}
+
+/* ── Forms ── */
+.form-group{margin-bottom:16px}
+.form-group label{display:block;margin-bottom:6px;font-size:0.85rem;color:var(--text-muted)}
+.form-group label .en{font-family:monospace;color:var(--neon-pink);font-size:0.75rem;margin-right:6px}
+.form-input,.form-select{
+  width:100%;padding:10px 14px;
+  background:rgba(0,0,0,0.4);
+  border:1px solid var(--glass-border);
+  border-radius:8px;
+  color:var(--text-primary);
+  font-family:var(--font);font-size:0.85rem;
+  transition:border-color 0.3s;
+}
+.form-input:focus,.form-select:focus{
+  outline:none;border-color:var(--neon-blue);
+  box-shadow:0 0 10px rgba(0,212,255,0.2);
+}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:600px){.form-row{grid-template-columns:1fr}}
+
+/* ── Sliders ── */
+.slider-group{margin-bottom:20px;padding:16px;background:rgba(0,0,0,0.2);border-radius:8px;border:1px solid var(--glass-border)}
+.slider-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.slider-label{font-size:0.9rem;font-weight:500}
+.slider-label .en{font-family:monospace;font-size:0.72rem;color:var(--neon-pink);margin-right:6px}
+.slider-value{font-family:monospace;color:var(--neon-blue);font-size:0.9rem;direction:ltr}
+input[type=range]{
+  -webkit-appearance:none;width:100%;height:6px;
+  background:rgba(0,212,255,0.15);border-radius:3px;outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:18px;height:18px;
+  background:var(--neon-blue);border-radius:50%;cursor:pointer;
+  box-shadow:0 0 10px rgba(0,212,255,0.5);
+  transition:box-shadow 0.3s;
+}
+input[type=range]::-webkit-slider-thumb:hover{box-shadow:var(--glow-blue)}
+input[type=range]::-moz-range-thumb{
+  width:18px;height:18px;
+  background:var(--neon-blue);border-radius:50%;cursor:pointer;border:none;
+  box-shadow:0 0 10px rgba(0,212,255,0.5);
+}
+.global-slider{
+  background:rgba(0,212,255,0.05);
+  border:1px solid var(--neon-blue);
+  padding:20px;border-radius:10px;margin-bottom:24px;
+}
+.global-slider .slider-label{font-size:1.1rem;color:var(--neon-blue)}
+
+/* ── Security Log ── */
+.security-event{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:12px 16px;
+  border-bottom:1px solid rgba(255,255,255,0.03);
+  transition:background 0.2s;
+}
+.security-event:hover{background:rgba(255,45,149,0.05)}
+.event-icon{
+  width:36px;height:36px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1rem;flex-shrink:0;
+}
+.event-icon.balance_jump{background:rgba(255,170,0,0.15);color:var(--warning)}
+.event-icon.admin_login_fail{background:rgba(255,68,102,0.15);color:var(--danger)}
+.event-icon.rapid_order{background:rgba(255,45,149,0.15);color:var(--neon-pink)}
+.event-body{flex:1}
+.event-type{font-weight:600;font-size:0.85rem;margin-bottom:4px}
+.event-type .en{font-family:monospace;font-size:0.72rem;color:var(--text-muted);margin-right:6px}
+.event-detail{font-size:0.8rem;color:var(--text-muted);font-family:monospace;direction:ltr;text-align:right}
+.event-time{font-size:0.72rem;color:var(--text-muted);font-family:monospace;margin-top:4px;direction:ltr;text-align:right}
+
+/* ── Cron Log ── */
+.cron-output{
+  background:rgba(0,0,0,0.5);
+  border:1px solid var(--glass-border);
+  border-radius:8px;
+  padding:16px;
+  font-family:'Courier New',monospace;
+  font-size:0.78rem;
+  color:var(--neon-blue);
+  max-height:400px;
+  overflow-y:auto;
+  white-space:pre-wrap;
+  direction:ltr;text-align:left;
+  line-height:1.6;
+}
+.cron-metrics{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+  gap:12px;margin-bottom:16px;
+}
+.cron-metric{
+  background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);
+  border-radius:8px;padding:14px;text-align:center;
+}
+.cron-metric-label{font-size:0.72rem;color:var(--text-muted);margin-bottom:4px}
+.cron-metric-value{font-family:monospace;font-size:1.2rem;color:var(--neon-blue);direction:ltr}
+
+/* ── Toast Notifications ── */
+#toastContainer{
+  position:fixed;top:20px;left:20px;z-index:9999;
+  display:flex;flex-direction:column;gap:8px;
+}
+.toast{
+  padding:12px 20px;border-radius:8px;
+  font-size:0.85rem;min-width:280px;
+  backdrop-filter:blur(12px);
+  animation:toastIn 0.3s ease-out;
+  border:1px solid;
+}
+.toast.success{background:rgba(0,255,136,0.15);border-color:var(--success);color:var(--success)}
+.toast.error{background:rgba(255,68,102,0.15);border-color:var(--danger);color:var(--danger)}
+.toast.info{background:rgba(0,212,255,0.15);border-color:var(--neon-blue);color:var(--neon-blue)}
+@keyframes toastIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+
+/* ── Loading / Empty States ── */
+.loading-spinner{
+  display:inline-block;width:20px;height:20px;
+  border:2px solid rgba(0,212,255,0.2);
+  border-top-color:var(--neon-blue);
+  border-radius:50%;
+  animation:spin 0.8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty-state{
+  text-align:center;padding:40px;color:var(--text-muted);
+}
+.empty-state .icon{font-size:2rem;margin-bottom:12px;opacity:0.5}
+.error-banner{
+  background:rgba(255,68,102,0.1);
+  border:1px solid var(--danger);
+  border-radius:8px;
+  padding:12px 16px;
+  color:var(--danger);
+  font-size:0.85rem;
+  margin-bottom:16px;
+  display:flex;align-items:center;gap:10px;
+}
+
+/* ── Modal ── */
+.modal-overlay{
+  position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,0.7);
+  backdrop-filter:blur(4px);
+  display:flex;align-items:center;justify-content:center;
+  animation:fadeIn 0.2s;
+}
+.modal{
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  border-radius:var(--radius);
+  padding:28px;
+  width:min(440px,90vw);
+  backdrop-filter:blur(20px);
+  box-shadow:var(--glow-blue);
+}
+.modal h3{margin-bottom:16px;font-size:1.1rem}
+.modal-actions{display:flex;gap:10px;margin-top:20px;justify-content:flex-end}
+
+/* ── Services Status ── */
+.service-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;
+  border-bottom:1px solid rgba(255,255,255,0.03);
+  transition:background 0.2s;
+}
+.service-item:hover{background:rgba(0,212,255,0.03)}
+.service-name{font-weight:500}
+.service-name .en{font-family:monospace;font-size:0.72rem;color:var(--text-muted);margin-right:6px}
+.service-status{
+  font-family:monospace;font-size:0.78rem;
+  padding:4px 10px;border-radius:12px;
+}
+.service-status.up{background:rgba(0,255,136,0.15);color:var(--success)}
+.service-status.down{background:rgba(255,68,102,0.15);color:var(--danger)}
+.service-status.unknown{background:rgba(136,136,160,0.15);color:var(--text-muted)}
+
+/* ── Settings ── */
+.settings-section{margin-bottom:24px}
+.settings-section h3{font-size:0.95rem;margin-bottom:12px;color:var(--neon-blue)}
+
+/* ── User Found Card ── */
+.user-found-card{
+  background:rgba(0,212,255,0.05);
+  border:1px solid var(--neon-blue);
+  border-radius:10px;
+  padding:20px;margin-top:16px;
+}
+.user-found-card .uid{font-family:monospace;font-size:1.1rem;color:var(--neon-blue);direction:ltr;text-align:right;margin-bottom:8px}
+.user-found-card .email{color:var(--text-muted);margin-bottom:4px}
+.user-found-card .bal{font-family:monospace;font-size:1.4rem;font-weight:700;direction:ltr;text-align:right;margin:12px 0}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:rgba(0,0,0,0.2)}
+::-webkit-scrollbar-thumb{background:rgba(0,212,255,0.3);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(0,212,255,0.5)}
+
+/* ── Responsive ── */
+@media(max-width:768px){
+  .hero-banner{margin:12px;padding:20px}
+  .hero-balance{font-size:2rem}
+  .tab-content{padding:16px}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .app-header{flex-direction:column;gap:12px}
+  .header-actions{width:100%;justify-content:space-between}
+  .server-url-input{width:100%}
+}
+</style>
 </head>
 <body>
 
-<!-- ══════════════════════════════════════════════════════════
-     شاشة تسجيل الدخول
-═══════════════════════════════════════════════════════════ -->
-<div id="login-screen">
+<div class="bg-layer"></div>
+<div class="scanlines"></div>
+
+<!-- ═══════════════ LOGIN SCREEN ═══════════════ -->
+<div id="loginScreen">
   <div class="login-card">
-    <div class="login-logo">
-      <span class="shield">🔐</span>
-      <h1>لوحة التحكم</h1>
-      <p>White Follow — Admin Panel</p>
+    <h1>لوحة التحكم</h1>
+    <p class="subtitle">SMM Admin Panel — أدخل رمز PIN للدخول</p>
+    <div class="pin-group">
+      <label for="pinInput">رمز PIN <span class="en" style="font-family:monospace;color:var(--neon-pink)">max 6 digits</span></label>
+      <input type="password" id="pinInput" class="pin-input" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="••••••">
     </div>
-
-    <label class="field-label">كلمة سر الأدمن</label>
-    <div class="field-wrap">
-      <input id="lp-key" class="field-input" type="password"
-             placeholder="••••••••••••"
-             maxlength="40"
-             onkeydown="if(event.key==='Enter') doLogin()" />
-    </div>
-
-    <button class="btn-login" onclick="doLogin()">دخول 🚀</button>
-    <div class="login-err" id="login-err">❌ كلمة السر غير صحيحة</div>
+    <button class="btn btn-primary" id="loginBtn" onclick="App.login()">دخول — Login</button>
+    <div class="login-error" id="loginError"></div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════
-     لوحة التحكم الرئيسية
-═══════════════════════════════════════════════════════════ -->
-<div id="dashboard">
+<!-- ═══════════════ MAIN APP ═══════════════ -->
+<div id="app">
 
-  <!-- شريط علوي -->
-  <div class="topbar">
-    <div class="topbar-brand">
-      <span>⚙️</span>
-      <span>لوحة التحكم</span>
-      <div class="badge">ADMIN</div>
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-brand">
+      <h1>لوحة تحكم SMM</h1>
+      <span class="badge">ADMIN v4.0</span>
     </div>
-    <div class="topbar-right">
-      <div class="status-dot"></div>
-      <span class="status-txt" id="conn-status">متصل</span>
-      <button class="btn-logout" onclick="doLogout()">تسجيل خروج</button>
+    <div class="header-actions">
+      <input type="text" class="server-url-input" id="serverUrlInput" placeholder="Server URL" title="Server URL">
+      <div class="status-dot" id="connectionDot" title="Connected"></div>
+      <button class="btn btn-danger btn-sm" onclick="App.logout()">خروج — Logout</button>
+    </div>
+  </header>
+
+  <!-- Hero Balance Banner -->
+  <div class="hero-banner" id="heroBanner">
+    <div class="hero-left">
+      <div class="hero-label">رصيد Dark Follow <span class="en">DF Balance</span></div>
+      <div class="hero-balance loading" id="dfBalance">—</div>
+      <div class="hero-meta">
+        <span id="dfCurrency">USD</span>
+        <span id="dfLastUpdate">—</span>
+      </div>
+    </div>
+    <div class="hero-right">
+      <span class="refresh-indicator" id="dfRefreshIndicator">auto-refresh: 60s</span>
+      <button class="btn btn-secondary btn-sm" onclick="App.refreshDFBalance()">تحديث — Refresh</button>
     </div>
   </div>
 
-  <!-- المحتوى -->
-  <div class="dashboard-body">
+  <!-- Navigation -->
+  <nav class="nav-tabs" id="navTabs">
+    <button class="nav-tab active" data-tab="overview" onclick="App.switchTab('overview')">
+      <span class="tab-icon">◈</span> نظرة عامة — Overview
+    </button>
+    <button class="nav-tab" data-tab="users" onclick="App.switchTab('users')">
+      <span class="tab-icon">◉</span> المستخدمون — Users
+    </button>
+    <button class="nav-tab" data-tab="topup" onclick="App.switchTab('topup')">
+      <span class="tab-icon">⊕</span> شحن UID — Top-up
+    </button>
+    <button class="nav-tab" data-tab="margins" onclick="App.switchTab('margins')">
+      <span class="tab-icon">◧</span> الهوامش — Margins
+    </button>
+    <button class="nav-tab" data-tab="security" onclick="App.switchTab('security')">
+      <span class="tab-icon">⛨</span> الأمان — Security
+    </button>
+    <button class="nav-tab" data-tab="cron" onclick="App.switchTab('cron')">
+      <span class="tab-icon">⏱</span> كرون — Cron
+    </button>
+    <button class="nav-tab" data-tab="services" onclick="App.switchTab('services')">
+      <span class="tab-icon">⚙</span> الخدمات — Services
+    </button>
+    <button class="nav-tab" data-tab="settings" onclick="App.switchTab('settings')">
+      <span class="tab-icon">⚙</span> الإعدادات — Settings
+    </button>
+  </nav>
 
-    <!-- شريط حالة الاتصال بالبوت -->
-    <div class="bot-link-bar" id="bot-link-bar">
-      <span class="icon">🤖</span>
-      <div class="txt">
-        <strong id="bot-url-display">جاري الاتصال...</strong>
-        <small>رابط السيرفر (Railway)</small>
+  <!-- ═══ TAB: OVERVIEW ═══ -->
+  <div class="tab-content active" id="tab-overview">
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card">
+        <div class="stat-label">إجمالي المستخدمين <span class="en" style="font-family:monospace;font-size:0.65rem;color:var(--neon-pink)">total_users</span></div>
+        <div class="stat-value" id="statTotalUsers">—</div>
       </div>
-      <button class="btn btn-gray" onclick="pingServer()" style="padding:8px 14px;font-size:12px;">فحص الاتصال</button>
-    </div>
-
-    <!-- تبويبات -->
-    <div class="tab-bar" id="tab-bar">
-      <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview')">نظرة عامة</button>
-      <button class="tab-btn" data-tab="users" onclick="switchTab('users')">المستخدمون</button>
-      <button class="tab-btn" data-tab="payments" onclick="switchTab('payments')">المدفوعات</button>
-      <button class="tab-btn" data-tab="providers" onclick="switchTab('providers')">المزودون</button>
-      <button class="tab-btn" data-tab="catalog" onclick="switchTab('catalog')">الكاتالوج</button>
-      <button class="tab-btn" data-tab="cron" onclick="switchTab('cron')">المهام</button>
-      <button class="tab-btn" data-tab="reports" onclick="switchTab('reports')">التقارير</button>
-      <button class="tab-btn" data-tab="tickets" onclick="switchTab('tickets')">التذاكر</button>
-      <button class="tab-btn" data-tab="translations" onclick="switchTab('translations')">الترجمة</button>
-      <button class="tab-btn" data-tab="notifications" onclick="switchTab('notifications')">الإشعارات</button>
-      <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">الإعدادات</button>
-    </div>
-
-    <!-- ═══ تبويب: نظرة عامة ═══ -->
-    <div class="tab-pane active" id="tab-overview">
-
-      <!-- إحصائيات سريعة -->
-      <p class="section-title">إحصائيات سريعة</p>
-      <div class="stats-row">
-        <div class="stat-card">
-          <span class="stat-icon">💹</span>
-          <span class="stat-val" id="stat-df-balance">—</span>
-          <span class="stat-lbl">رصيد دارك فولو ($)</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-icon">👥</span>
-          <span class="stat-val" id="stat-users">0</span>
-          <span class="stat-lbl">إجمالي المستخدمين</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-icon">📈</span>
-          <span class="stat-val" id="stat-markup">$1.00</span>
-          <span class="stat-lbl">هامش الربح الحالي</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-icon">💵</span>
-          <span class="stat-val" id="stat-total-bal">0</span>
-          <span class="stat-lbl">مجموع أرصدة العملاء</span>
-        </div>
+      <div class="stat-card">
+        <div class="stat-label">الطلبات اليوم <span class="en" style="font-family:monospace;font-size:0.65rem;color:var(--neon-pink)">orders_today</span></div>
+        <div class="stat-value pink" id="statOrdersToday">—</div>
       </div>
-
-      <!-- أزرار سريعة -->
-      <p class="section-title">إجراءات سريعة</p>
-      <div class="panel-card">
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <button class="btn btn-red" onclick="fetchDFBalance()">🔄 تحديث رصيد دارك فولو</button>
-          <button class="btn btn-gold" onclick="pushToBot('reload')">🔁 إعادة تحميل البوت</button>
-          <button class="btn btn-blue" onclick="loadUsers()">🔃 تحديث بيانات المستخدمين</button>
-          <button class="btn btn-purple" onclick="forceRefreshCatalog()">⚡ مزامنة فورية للكاتالوج</button>
-          <button class="btn btn-green" onclick="switchTab('topup')">💰 تعبئة رصيد مستخدم</button>
-        </div>
-        <div class="alert" id="quick-alert"></div>
+      <div class="stat-card">
+        <div class="stat-label">إيرادات اليوم <span class="en" style="font-family:monospace;font-size:0.65rem;color:var(--neon-pink)">revenue_today</span></div>
+        <div class="stat-value green" id="statRevenueToday">—</div>
       </div>
-
-    </div>
-
-    <!-- ═══ تبويب: الرصيد والأسعار ═══ -->
-    <div class="tab-pane" id="tab-balance">
-
-      <!-- رصيد دارك فولو -->
-      <p class="section-title">رصيد حساب دارك فولو</p>
-      <div class="df-balance-card">
-        <div>
-          <div class="df-lbl">رصيدك بالموقع</div>
-          <div class="df-val" id="df-balance-val">جاري التحميل...</div>
-        </div>
-        <button class="btn btn-red" onclick="fetchDFBalance()">🔄 تحديث</button>
+      <div class="stat-card">
+        <div class="stat-label">طلبات معلّقة <span class="en" style="font-family:monospace;font-size:0.65rem;color:var(--neon-pink)">pending_orders</span></div>
+        <div class="stat-value" id="statPendingOrders">—</div>
       </div>
-
-      <!-- هامش الربح -->
-      <p class="section-title">هامش الربح</p>
-      <div class="panel-card">
-        <h3>📈 تعديل هامش الربح</h3>
-        <p class="desc">المبلغ يُضاف تلقائياً على سعر كل خدمة — مثال: 1 يعني +$1 على كل خدمة</p>
-
-        <div class="markup-display">
-          <span class="lbl">القيمة الحالية ($)</span>
-          <span class="val" id="markup-current-val">$0.00</span>
-        </div>
-
-        <div class="input-row">
-          <input class="p-input" id="markup-input" type="number"
-                 min="0" step="0.1" value="0"
-                 placeholder="مثال: 1 (يعني +$1 على كل خدمة)" />
-          <button class="btn btn-gold" onclick="saveMarkup()">💾 حفظ وإرسال للبوت</button>
-        </div>
-        <div class="alert" id="markup-alert"></div>
+      <div class="stat-card">
+        <div class="stat-label">إجمالي الخدمات <span class="en" style="font-family:monospace;font-size:0.65rem;color:var(--neon-pink)">total_services</span></div>
+        <div class="stat-value" id="statTotalServices">—</div>
       </div>
-
-    </div>
-
-    <!-- ═══ تبويب: المستخدمون ═══ -->
-    <div class="tab-pane" id="tab-users">
-
-      <p class="section-title">إدارة المستخدمين</p>
-
-      <div class="panel-card">
-        <div class="search-row">
-          <input class="p-input arabic" id="users-search"
-                 placeholder="🔍 بحث: UID، إيميل، أو Telegram ID..."
-                 oninput="filterUsersTable()" />
-          <select class="filter-select" id="users-balance-filter" onchange="filterUsersTable()">
-            <option value="all">كل الأرصدة</option>
-            <option value="active">رصيد نشط (&gt; 0)</option>
-            <option value="zero">رصيد صفر</option>
-          </select>
-          <button class="btn btn-blue" onclick="loadUsers()">تحديث 🔃</button>
-        </div>
-
-        <div id="users-table-wrap" style="overflow-x:auto;">
-          <table class="users-table" id="users-table">
-            <thead>
-              <tr>
-                <th>UID</th>
-                <th>الإيميل</th>
-                <th>الرصيد</th>
-                <th>الشحن الكلي</th>
-                <th>الصرف الكلي</th>
-                <th>الطلبات</th>
-                <th>إجراء</th>
-              </tr>
-            </thead>
-            <tbody id="users-tbody">
-              <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">اضغط "تحديث" لتحميل البيانات</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="alert" id="users-alert"></div>
-      </div>
-
-    </div>
-
-    <!-- ═══ تبويب: تعبئة رصيد ═══ -->
-    <div class="tab-pane" id="tab-topup">
-
-      <p class="section-title">تعبئة رصيد مستخدم</p>
-
-      <div class="panel-card">
-        <h3>💳 شحن رصيد</h3>
-        <p class="desc">ابحث عن المستخدم ثم أدخل المبلغ</p>
-
-        <div class="input-row" style="margin-bottom:12px;">
-          <input class="p-input arabic" id="topup-uid"
-                 placeholder="أدخل UID المستخدم..." />
-          <button class="btn btn-blue" onclick="searchTopupUser()">بحث 🔍</button>
-        </div>
-
-        <div id="topup-user-card" style="display:none;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;">
-          <div style="font-size:13px;color:var(--muted);">المستخدم</div>
-          <div style="font-size:15px;font-weight:700;color:var(--text);margin-top:4px;" id="topup-found-email">—</div>
-          <div style="font-size:13px;color:#4ade80;margin-top:4px;">الرصيد الحالي: <b id="topup-found-balance">—</b></div>
-        </div>
-
-        <div class="input-row">
-          <input class="p-input" id="topup-amount"
-                 type="number" min="0.01" step="0.01"
-                 placeholder="المبلغ (د.ع)" />
-          <button class="btn btn-green" onclick="executeTopup()">✅ تعبئة الرصيد</button>
-        </div>
-
-        <div id="topup-not-found" style="display:none;color:#ff6677;font-size:13px;margin-top:10px;">❌ المستخدم غير موجود</div>
-        <div class="alert" id="topup-alert"></div>
-      </div>
-
-    </div>
-
-    <!-- ═══ تبويب: الإعدادات ═══ -->
-
-    <!-- ═══ تبويب: الخدمات ═══ -->
-    <div class="tab-pane" id="tab-services">
-
-      <p class="section-title">مزامنة الخدمات مع دارك فولو</p>
-
-      <div class="panel-card">
-        <h3>🔄 مزامنة الأسعار التلقائية</h3>
-        <p class="desc">يجيب أحدث أسعار خدماتك من دارك فولو ويحدث قاعدة البيانات مع تطبيق هامش ربحك</p>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
-          <button class="btn btn-gold" onclick="syncPrices()">🔄 مزامنة الأسعار الآن</button>
-          <button class="btn btn-green" onclick="syncCatalog()">📦 مزامنة الخدمات الكاملة</button>
-          <button class="btn btn-purple" onclick="forceRefreshCatalog()">⚡ مزامنة فورية (أرصدة + كاتالوج)</button>
-        </div>
-        <div class="alert" id="sync-alert" style="margin-top:12px;"></div>
-      </div>
-
-      <div class="panel-card">
-        <h3>📋 حالة الخدمات المربوطة</h3>
-        <p class="desc">عدد الخدمات الموجودة بقاعدة البيانات مع رابطها بدارك فولو</p>
-        <button class="btn btn-gold" onclick="loadServicesStatus()" style="margin-top:8px;">🔍 فحص الحالة</button>
-        <div id="services-status" style="margin-top:14px;"></div>
-      </div>
-
-      <div class="panel-card">
-        <h3>💸 هامش الربح على الخدمات</h3>
-        <p class="desc">تعديل هامش الربح العام — يُطبق على جميع الخدمات عند المزامنة القادمة</p>
-        <div class="input-row" style="margin-top:10px;">
-          <select class="p-input" id="svc-markup-type" style="max-width:130px;">
-            <option value="percent">نسبة %</option>
-            <option value="fixed">مبلغ ثابت</option>
-          </select>
-          <input class="p-input" id="svc-markup-value" type="number" min="0" step="0.1" placeholder="0" style="max-width:120px;" />
-          <button class="btn btn-gold" onclick="saveGlobalMarkup()">💾 حفظ</button>
-        </div>
-        <div class="alert" id="markup-svc-alert" style="margin-top:10px;"></div>
-      </div>
-
-    </div>
-
-    <div class="tab-pane" id="tab-payments">
-      <p class="section-title">المدفوعات وبوابات الدفع</p>
-      <div class="panel-card">
-        <div class="input-row" style="margin-bottom:12px;">
-          <select class="filter-select" id="payments-filter" onchange="loadPayments()">
-            <option value="">كل الحالات</option>
-            <option value="pending">معلّقة</option>
-            <option value="approved">موافق عليها</option>
-            <option value="rejected">مرفوضة</option>
-          </select>
-          <button class="btn btn-blue" onclick="loadPayments()">تحديث</button>
-        </div>
-        <div id="payments-list" style="font-size:13px;color:var(--muted);">اضغط تحديث لعرض المدفوعات</div>
-        <div class="alert" id="payments-alert"></div>
-      </div>
-      <div class="panel-card">
-        <h3>بوابات الدفع</h3>
-        <div id="gateways-list" style="font-size:13px;"></div>
-        <button class="btn btn-gold" onclick="loadGateways()" style="margin-top:10px;">تحديث البوابات</button>
+      <div class="stat-card">
+        <div class="stat-label">رصيد المستخدمين <span class="en" style="font-family:monospace;font-size:0.65rem;color:var(--neon-pink)">total_user_balance</span></div>
+        <div class="stat-value green" id="statTotalBalance">—</div>
       </div>
     </div>
-
-    <div class="tab-pane" id="tab-providers">
-      <p class="section-title">إعدادات مزودي API</p>
-      <div class="panel-card">
-        <div id="providers-list" style="font-size:13px;color:var(--muted);">جاري التحميل...</div>
-        <button class="btn btn-blue" onclick="loadProviders()" style="margin-top:10px;">تحديث المزودين</button>
-        <div class="alert" id="providers-alert"></div>
+    <div class="card" style="margin-top:20px">
+      <div class="card-header">
+        <div class="card-title">إجراءات سريعة <span class="en">Quick Actions</span></div>
+      </div>
+      <div class="quick-actions">
+        <button class="btn btn-secondary" onclick="App.refreshDFBalance()">تحديث رصيد DF — Refresh DF Balance</button>
+        <button class="btn btn-secondary" onclick="App.refreshCatalog()">تحديث الكatalog — Refresh Catalog</button>
+        <button class="btn btn-secondary" onclick="App.loadUsers()">إعادة تحميل المستخدمين — Reload Users</button>
+        <button class="btn btn-secondary" onclick="App.loadStats()">تحديث الإحصائيات — Refresh Stats</button>
       </div>
     </div>
+  </div>
 
-    <div class="tab-pane" id="tab-catalog">
-      <p class="section-title">تخصيص الأقسام والخدمات</p>
-      <div class="panel-card">
-        <div class="input-row" style="margin-bottom:12px;">
-          <input class="p-input arabic" id="cat-search" placeholder="بحث في الأقسام..." oninput="filterCatalogAdmin()" />
-          <button class="btn btn-blue" onclick="loadCatalogAdmin()">تحديث الكاتالوج</button>
+  <!-- ═══ TAB: USERS ═══ -->
+  <div class="tab-content" id="tab-users">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">المستخدمون <span class="en">Users</span></div>
+        <button class="btn btn-secondary btn-sm" onclick="App.loadUsers()">تحديث — Refresh</button>
+      </div>
+      <div class="search-bar">
+        <input type="text" class="search-input" id="userSearchInput" placeholder="بحث بالبريد أو UID — Search email / UID..." oninput="App.filterUsers()">
+      </div>
+      <div id="usersError" class="error-banner" style="display:none"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>البريد <span class="en">email</span></th>
+              <th>الرصيد <span class="en">balance</span></th>
+              <th>المعرّف <span class="en">WF- UID</span></th>
+              <th>إجراءات <span class="en">actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody">
+            <tr><td colspan="4" class="empty-state"><div class="loading-spinner"></div> جاري التحميل...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:12px;font-size:0.78rem;color:var(--text-muted)" id="usersCount"></div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB: TOP-UP ═══ -->
+  <div class="tab-content" id="tab-topup">
+    <div class="card">
+      <div class="card-title" style="margin-bottom:20px">شحن عبر UID <span class="en">UID Top-up</span></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>معرّف المستخدم <span class="en">WF- UID</span></label>
+          <input type="text" class="form-input" id="topupUidInput" placeholder="WF-xxxxxxxx" style="direction:ltr;text-align:left;font-family:monospace">
         </div>
-        <div id="catalog-admin-list" style="max-height:420px;overflow:auto;font-size:13px;"></div>
-        <div class="alert" id="catalog-alert"></div>
-      </div>
-    </div>
-
-    <div class="tab-pane" id="tab-cron">
-      <p class="section-title">مدير المهام المجدولة</p>
-      <div class="panel-card">
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
-          <button class="btn btn-gold" onclick="runCronJob('sync_orders')">مزامنة الطلبات</button>
-          <button class="btn btn-green" onclick="runCronJob('sync_catalog')">مزامنة الكاتالوج</button>
-          <button class="btn btn-blue" onclick="runCronJob('sync_balance')">مزامنة الأرصدة</button>
-          <button class="btn btn-purple" onclick="loadCronLog()">تحديث السجل</button>
-        </div>
-        <div id="cron-log" style="font-size:12px;max-height:360px;overflow:auto;"></div>
-      </div>
-    </div>
-
-    <div class="tab-pane" id="tab-reports">
-      <p class="section-title">الأرباح وسجل النشاط</p>
-      <div class="panel-card">
-        <h3>تقرير الأرباح الشهري</h3>
-        <div id="profit-report" style="font-size:13px;"></div>
-        <button class="btn btn-gold" onclick="loadProfitReport()" style="margin-top:10px;">تحديث التقرير</button>
-      </div>
-      <div class="panel-card">
-        <h3>سجل الأمان</h3>
-        <div id="security-log" style="font-size:12px;max-height:280px;overflow:auto;"></div>
-        <button class="btn btn-blue" onclick="loadSecurityLog()" style="margin-top:10px;">تحديث السجل</button>
-      </div>
-    </div>
-
-    <div class="tab-pane" id="tab-tickets">
-      <p class="section-title">نظام تذاكر الدعم</p>
-      <div class="panel-card">
-        <div id="tickets-list" style="font-size:13px;"></div>
-        <button class="btn btn-blue" onclick="loadTickets()" style="margin-top:10px;">تحديث التذاكر</button>
-        <div class="alert" id="tickets-alert"></div>
-      </div>
-    </div>
-
-    <div class="tab-pane" id="tab-translations">
-      <p class="section-title">اللغة والترجمة</p>
-      <div class="panel-card">
-        <div class="input-row" style="margin-bottom:12px;">
-          <select class="filter-select" id="trans-lang" onchange="loadTranslations()">
-            <option value="ar">العربية</option>
-            <option value="en">English</option>
-          </select>
-          <button class="btn btn-blue" onclick="loadTranslations()">تحميل</button>
-        </div>
-        <div id="translations-list" style="font-size:13px;max-height:400px;overflow:auto;"></div>
-      </div>
-    </div>
-
-    <div class="tab-pane" id="tab-notifications">
-      <p class="section-title">البريد وإشعارات النظام</p>
-      <div class="panel-card">
-        <h3>إعدادات SMTP والبريد</h3>
-        <div id="notif-settings" style="font-size:13px;color:var(--muted);"></div>
-        <button class="btn btn-gold" onclick="loadNotifSettings()" style="margin-top:10px;">تحميل الإعدادات</button>
-        <div class="alert" id="notif-alert"></div>
-      </div>
-    </div>
-
-    <div class="tab-pane" id="tab-settings">
-
-      <p class="section-title">إعدادات اللوحة</p>
-
-      <div class="panel-card">
-        <h3>🔗 رابط السيرفر (Railway)</h3>
-        <p class="desc">الرابط المرتبط حالياً ببوتك</p>
-        <div class="input-row">
-          <input class="p-input" id="server-url-input"
-                 type="url" placeholder="https://..." dir="ltr" />
-          <button class="btn btn-gold" onclick="saveServerUrl()">💾 حفظ</button>
-        </div>
-        <div class="alert" id="url-alert"></div>
-      </div>
-
-      <div class="panel-card">
-        <h3>🤖 إرسال أمر للبوت</h3>
-        <p class="desc">إجبار البوت على إعادة التحميل</p>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <button class="btn btn-gold" onclick="pushToBot('reload')">🔁 إعادة تحميل البوت</button>
-          <button class="btn btn-green" onclick="connectBotSession()">🔌 ربط جلسة الأدمن بالبوت</button>
-        </div>
-        <div class="alert" id="bot-alert"></div>
-      </div>
-
-      <div class="panel-card" style="border-color:rgba(255,34,51,0.2);">
-        <h3 style="color:var(--red);">⚠️ منطقة الخطر</h3>
-        <p class="desc">إجراءات لا يمكن التراجع عنها</p>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <button class="btn btn-red" onclick="clearAllCache()">🗑️ مسح بيانات الكاش المحلي</button>
+        <div class="form-group" style="display:flex;align-items:flex-end">
+          <button class="btn btn-secondary" onclick="App.findUserByUid()" style="width:100%">بحث — Find User</button>
         </div>
       </div>
-
+      <div id="topupUserResult"></div>
+      <div id="topupActionForm" style="display:none;margin-top:16px">
+        <div class="form-row">
+          <div class="form-group">
+            <label>المبلغ <span class="en">amount (+ charge / − deduct)</span></label>
+            <input type="number" class="form-input" id="topupAmountInput" step="0.01" placeholder="0.00" style="direction:ltr;text-align:left;font-family:monospace">
+          </div>
+          <div class="form-group" style="display:flex;align-items:flex-end;gap:8px">
+            <button class="btn btn-success" onclick="App.topupByUid(true)" style="flex:1">شحن + — Top-up</button>
+            <button class="btn btn-danger" onclick="App.topupByUid(false)" style="flex:1">خصم − — Charge</button>
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
 
-  </div><!-- / dashboard-body -->
-</div><!-- / dashboard -->
+  <!-- ═══ TAB: MARGINS ═══ -->
+  <div class="tab-content" id="tab-margins">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">متحكم الهوامش <span class="en">Margin Elasticity Controller</span></div>
+        <button class="btn btn-primary btn-sm" onclick="App.applyAllMargins()">تطبيق الكل — Apply All</button>
+      </div>
+      <div class="global-slider slider-group">
+        <div class="slider-header">
+          <div class="slider-label">الهامش العام <span class="en">global_percent</span></div>
+          <div class="slider-value" id="globalSliderValue">0%</div>
+        </div>
+        <input type="range" id="globalMarginSlider" min="0" max="200" value="0" step="1" oninput="App.updateGlobalSlider(this.value)">
+      </div>
+      <div id="categorySlidersContainer">
+        <div class="empty-state"><div class="loading-spinner"></div> جاري تحميل الفئات...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB: SECURITY ═══ -->
+  <div class="tab-content" id="tab-security">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">درع الأمان <span class="en">Fraud &amp; Security Shield</span></div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="refresh-indicator" id="securityPollIndicator">polling: 10s</span>
+          <button class="btn btn-secondary btn-sm" onclick="App.loadSecurityLog()">تحديث — Refresh</button>
+        </div>
+      </div>
+      <div id="securityLogContainer">
+        <div class="empty-state"><div class="loading-spinner"></div> جاري تحميل سجل الأمان...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB: CRON ═══ -->
+  <div class="tab-content" id="tab-cron">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">محاكي الكرون <span class="en">Cron Simulator</span></div>
+        <button class="btn btn-primary btn-sm" onclick="App.simulateCron()">تشغيل محاكاة — Run Simulation</button>
+      </div>
+      <div id="cronMetrics" class="cron-metrics" style="display:none"></div>
+      <div id="cronSimResult"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">سجل الكرون <span class="en">Cron Log Preview</span></div>
+        <button class="btn btn-secondary btn-sm" onclick="App.loadCronLog()">تحديث — Refresh</button>
+      </div>
+      <div class="cron-output" id="cronLogOutput">— لا يوجد سجل —</div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB: SERVICES ═══ -->
+  <div class="tab-content" id="tab-services">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">حالة الخدمات <span class="en">Services Status</span></div>
+        <button class="btn btn-secondary btn-sm" onclick="App.loadServicesStatus()">تحديث — Refresh</button>
+      </div>
+      <div id="servicesStatusContainer">
+        <div class="empty-state"><div class="loading-spinner"></div> جاري التحميل...</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">مزامنة <span class="en">Sync Operations</span></div>
+      </div>
+      <div class="quick-actions">
+        <button class="btn btn-secondary" onclick="App.syncPrices()">مزامنة الأسعار — Sync Prices</button>
+        <button class="btn btn-secondary" onclick="App.syncCatalog()">مزامنة الكatalog — Sync Catalog</button>
+        <button class="btn btn-secondary" onclick="App.refreshCatalog()">تحديث الكatalog — Refresh Catalog</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB: SETTINGS ═══ -->
+  <div class="tab-content" id="tab-settings">
+    <div class="card">
+      <div class="card-title" style="margin-bottom:20px">الإعدادات <span class="en">Settings</span></div>
+      <div class="settings-section">
+        <h3>عنوان الخادم <span class="en" style="font-family:monospace;font-size:0.75rem;color:var(--neon-pink)">Server URL</span></h3>
+        <div class="form-group">
+          <input type="text" class="form-input" id="settingsServerUrl" style="direction:ltr;text-align:left;font-family:monospace" placeholder="https://example.com">
+        </div>
+        <button class="btn btn-secondary" onclick="App.saveSettings()">حفظ — Save</button>
+      </div>
+      <div class="settings-section">
+        <h3>الجلسة <span class="en" style="font-family:monospace;font-size:0.75rem;color:var(--neon-pink)">Session</span></h3>
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px">
+          Token مخزّن في sessionStorage كـ <code style="color:var(--neon-blue)">wf_panel_key</code>
+        </p>
+        <button class="btn btn-danger" onclick="App.logout()">تسجيل خروج — Logout</button>
+      </div>
+      <div class="settings-section">
+        <h3>معلومات <span class="en" style="font-family:monospace;font-size:0.75rem;color:var(--neon-pink)">Info</span></h3>
+        <p style="font-size:0.85rem;color:var(--text-muted)">
+          Admin Panel v4.0 — SMM Control Center<br>
+          Same-origin default: <code style="color:var(--neon-blue)" id="settingsOriginDisplay"></code>
+        </p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast Container -->
+<div id="toastContainer"></div>
+
+<!-- Balance Modal -->
+<div id="balanceModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)App.closeBalanceModal()">
+  <div class="modal">
+    <h3 id="balanceModalTitle">تعديل الرصيد</h3>
+    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px" id="balanceModalUser"></p>
+    <div class="form-group">
+      <label>المبلغ <span class="en">amount</span></label>
+      <input type="number" class="form-input" id="balanceModalAmount" step="0.01" placeholder="0.00" style="direction:ltr;text-align:left;font-family:monospace">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary btn-sm" onclick="App.closeBalanceModal()">إلغاء — Cancel</button>
+      <button class="btn btn-success btn-sm" id="balanceModalConfirmBtn">تأكيد — Confirm</button>
+    </div>
+  </div>
+</div>
 
 <script>
-// ══════════════════════════════════════════════════════════════
-//  White Follow — Admin Panel JS
-//  يتصل بـ Railway عبر fetch() + يرسل أوامر للبوت عبر
-//  BroadcastChannel + localStorage events
-// ══════════════════════════════════════════════════════════════
+(function(){
+'use strict';
 
-const PANEL_VERSION = '1.0.0';
-// رابط السيرفر الافتراضي — يمكن تعديله من تبويب الإعدادات
-const DEFAULT_SERVER = (window.location.origin && window.location.origin.startsWith('http'))
-  ? window.location.origin
-  : 'https://web-production-005fc.up.railway.app';
+const STORAGE_KEY = 'wf_panel_key';
+const FETCH_TIMEOUT = 15000;
+const DF_REFRESH_INTERVAL = 60000;
+const SECURITY_POLL_INTERVAL = 10000;
 
-// ── State ─────────────────────────────────────────────────────
-let _adminKey    = '';
-let _serverUrl   = '';
-let _usersCache  = {};
-let _topupFoundUid = null;
-let _bc          = null; // BroadcastChannel
+const App = {
+  _serverUrl: window.location.origin,
+  _token: null,
+  _users: [],
+  _categories: [],
+  _dfRefreshTimer: null,
+  _securityPollTimer: null,
+  _currentTab: 'overview',
+  _balanceModalCallback: null,
 
-// ── Startup ───────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', function() {
-  // استرجاع الرابط المحفوظ
-  _serverUrl = localStorage.getItem('wf_panel_server') || DEFAULT_SERVER;
-  document.getElementById('server-url-input').value = _serverUrl;
-  document.getElementById('bot-url-display').textContent = _serverUrl;
+  init() {
+    this._serverUrl = sessionStorage.getItem('wf_server_url') || window.location.origin;
+    this._token = sessionStorage.getItem(STORAGE_KEY);
 
-  // فحص جلسة محفوظة
-  const saved = sessionStorage.getItem('wf_panel_key');
-  if (saved) {
-    _adminKey = saved;
-    showDashboard();
-  }
-
-  // فتح BroadcastChannel
-  if (typeof BroadcastChannel !== 'undefined') {
-    _bc = new BroadcastChannel('wf_admin_panel');
-  }
-});
-
-// ── تسجيل الدخول ──────────────────────────────────────────────
-async function api(path, opts) {
-  opts = opts || {};
-  const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
-  if (_adminKey) headers['X-Admin-Token'] = _adminKey;
-  const res = await fetch(_serverUrl + path, Object.assign({}, opts, { headers }));
-  let data = {};
-  try { data = await res.json(); } catch (_) {}
-  return { res, data };
-}
-
-async function doLogin() {
-  const key = document.getElementById('lp-key').value.trim();
-  if (!key) return;
-
-  const btn = document.querySelector('.btn-login');
-  const errEl = document.getElementById('login-err');
-  errEl.style.display = 'none';
-  btn.textContent = '⏳ جاري التحقق...';
-  btn.disabled = true;
-
-  _serverUrl = (document.getElementById('server-url-input')?.value || _serverUrl || DEFAULT_SERVER).trim();
-
-  try {
-    const { res, data } = await api('/admin/login', {
-      method: 'POST',
-      body: JSON.stringify({ pin: key })
+    const urlInput = document.getElementById('serverUrlInput');
+    urlInput.value = this._serverUrl;
+    urlInput.addEventListener('change', () => {
+      this._serverUrl = urlInput.value.replace(/\/+$/, '');
+      sessionStorage.setItem('wf_server_url', this._serverUrl);
     });
 
-    if (!res.ok || !data.ok || !data.token) {
-      errEl.textContent = data.error
-        ? ('❌ ' + data.error)
-        : ('❌ فشل الاتصال — HTTP ' + res.status);
-      errEl.style.display = 'block';
-      btn.textContent = 'دخول 🚀';
-      btn.disabled = false;
+    const settingsUrl = document.getElementById('settingsServerUrl');
+    if (settingsUrl) settingsUrl.value = this._serverUrl;
+
+    const originDisplay = document.getElementById('settingsOriginDisplay');
+    if (originDisplay) originDisplay.textContent = window.location.origin;
+
+    const pinInput = document.getElementById('pinInput');
+    pinInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.login();
+    });
+    pinInput.addEventListener('input', () => {
+      pinInput.value = pinInput.value.replace(/\D/g, '').slice(0, 6);
+    });
+
+    if (this._token) {
+      this.showApp();
+    }
+  },
+
+  getServerUrl() {
+    return this._serverUrl.replace(/\/+$/, '');
+  },
+
+  getHeaders() {
+    const headers = { 'Content-Type': 'application/json' };
+    if (this._token) {
+      headers['X-Admin-Token'] = this._token;
+    }
+    return headers;
+  },
+
+  async fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+      return response;
+    } catch (err) {
+      clearTimeout(timer);
+      if (err.name === 'AbortError') {
+        throw new Error('انتهت المهلة — Request timeout (' + (timeout / 1000) + 's)');
+      }
+      throw err;
+    }
+  },
+
+  async api(path, options = {}) {
+    const url = this.getServerUrl() + path;
+    const opts = {
+      ...options,
+      headers: { ...this.getHeaders(), ...(options.headers || {}) }
+    };
+    const response = await this.fetchWithTimeout(url, opts);
+    let data;
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      data = await response.text();
+    }
+    if (!response.ok) {
+      const msg = (typeof data === 'object' && data.error) ? data.error :
+                  (typeof data === 'object' && data.message) ? data.message :
+                  'HTTP ' + response.status;
+      throw new Error(msg);
+    }
+    return data;
+  },
+
+  toast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const el = document.createElement('div');
+    el.className = 'toast ' + type;
+    el.textContent = message;
+    container.appendChild(el);
+    setTimeout(() => {
+      el.style.opacity = '0';
+      el.style.transition = 'opacity 0.3s';
+      setTimeout(() => el.remove(), 300);
+    }, 4000);
+  },
+
+  formatMoney(val) {
+    if (val === null || val === undefined || isNaN(val)) return '—';
+    return parseFloat(val).toFixed(2);
+  },
+
+  formatTime(ts) {
+    if (!ts) return '—';
+    try {
+      const d = new Date(ts);
+      if (isNaN(d.getTime())) return String(ts);
+      return d.toLocaleString('ar-EG', {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      });
+    } catch {
+      return String(ts);
+    }
+  },
+
+  /* ── Auth ── */
+  async login() {
+    const pin = document.getElementById('pinInput').value.trim();
+    const errorEl = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+    errorEl.textContent = '';
+
+    if (!pin || pin.length < 1) {
+      errorEl.textContent = 'أدخل رمز PIN — Enter PIN';
       return;
     }
-    _adminKey = data.token;
-    sessionStorage.setItem('wf_panel_key', data.token);
-    errEl.style.display = 'none';
-  } catch (e) {
-    errEl.textContent = '❌ تعذر الاتصال بالسيرفر — تحقق من الرابط';
-    errEl.style.display = 'block';
-    btn.textContent = 'دخول 🚀';
-    btn.disabled = false;
-    return;
+
+    btn.disabled = true;
+    btn.textContent = 'جاري الدخول...';
+
+    try {
+      const data = await this.api('/admin/login', {
+        method: 'POST',
+        body: JSON.stringify({ pin: pin })
+      });
+
+      const token = data.token || data.key || data.access_token || data;
+      if (typeof token !== 'string') {
+        throw new Error('استجابة غير صالحة — Invalid login response');
+      }
+
+      this._token = token;
+      sessionStorage.setItem(STORAGE_KEY, token);
+      this.showApp();
+      this.toast('تم الدخول بنجاح — Login successful', 'success');
+    } catch (err) {
+      errorEl.textContent = err.message || 'فشل الدخول — Login failed';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'دخول — Login';
+    }
+  },
+
+  logout() {
+    this._token = null;
+    sessionStorage.removeItem(STORAGE_KEY);
+    this.stopTimers();
+    document.getElementById('app').classList.remove('active');
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('pinInput').value = '';
+    document.getElementById('loginError').textContent = '';
+    this.toast('تم تسجيل الخروج — Logged out', 'info');
+  },
+
+  showApp() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').classList.add('active');
+    this.startTimers();
+    this.loadAll();
+  },
+
+  startTimers() {
+    this.stopTimers();
+    this._dfRefreshTimer = setInterval(() => this.refreshDFBalance(), DF_REFRESH_INTERVAL);
+    this._securityPollTimer = setInterval(() => {
+      if (this._currentTab === 'security') this.loadSecurityLog(true);
+    }, SECURITY_POLL_INTERVAL);
+  },
+
+  stopTimers() {
+    if (this._dfRefreshTimer) { clearInterval(this._dfRefreshTimer); this._dfRefreshTimer = null; }
+    if (this._securityPollTimer) { clearInterval(this._securityPollTimer); this._securityPollTimer = null; }
+  },
+
+  loadAll() {
+    this.refreshDFBalance();
+    this.loadStats();
+    this.loadUsers();
+    this.loadCategories();
+    this.loadCronLog();
+    this.loadServicesStatus();
+  },
+
+  /* ── Tab Switching ── */
+  switchTab(tabId) {
+    this._currentTab = tabId;
+    document.querySelectorAll('.nav-tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.tab === tabId);
+    });
+    document.querySelectorAll('.tab-content').forEach(c => {
+      c.classList.toggle('active', c.id === 'tab-' + tabId);
+    });
+
+    if (tabId === 'users' && this._users.length === 0) this.loadUsers();
+    if (tabId === 'margins' && this._categories.length === 0) this.loadCategories();
+    if (tabId === 'security') this.loadSecurityLog();
+    if (tabId === 'cron') this.loadCronLog();
+    if (tabId === 'services') this.loadServicesStatus();
+    if (tabId === 'overview') this.loadStats();
+  },
+
+  /* ── DF Balance ── */
+  async refreshDFBalance() {
+    const el = document.getElementById('dfBalance');
+    const updateEl = document.getElementById('dfLastUpdate');
+    el.classList.add('loading');
+
+    try {
+      const data = await this.api('/admin/darkfollow-balance');
+      const balance = data.balance ?? data.amount ?? data.df_balance ?? data;
+      el.textContent = '$' + this.formatMoney(typeof balance === 'object' ? balance.balance : balance);
+      el.classList.remove('loading');
+
+      if (data.currency) document.getElementById('dfCurrency').textContent = data.currency;
+      updateEl.textContent = 'updated: ' + new Date().toLocaleTimeString('ar-EG');
+    } catch (err) {
+      el.textContent = 'خطأ — Error';
+      el.classList.remove('loading');
+      updateEl.textContent = err.message;
+    }
+  },
+
+  /* ── Stats ── */
+  async loadStats() {
+    try {
+      const data = await this.api('/admin/stats');
+      const s = data.stats || data;
+      document.getElementById('statTotalUsers').textContent = s.total_users ?? s.users ?? '—';
+      document.getElementById('statOrdersToday').textContent = s.orders_today ?? s.today_orders ?? '—';
+      document.getElementById('statRevenueToday').textContent = '$' + this.formatMoney(s.revenue_today ?? s.today_revenue ?? s.revenue);
+      document.getElementById('statPendingOrders').textContent = s.pending_orders ?? s.active_orders ?? '—';
+      document.getElementById('statTotalServices').textContent = s.total_services ?? s.active_services ?? '—';
+      document.getElementById('statTotalBalance').textContent = '$' + this.formatMoney(s.total_user_balance ?? s.total_balance);
+    } catch (err) {
+      this.toast('فشل تحميل الإحصائيات — Stats error: ' + err.message, 'error');
+    }
+  },
+
+  /* ── Users ── */
+  async loadUsers() {
+    const tbody = document.getElementById('usersTableBody');
+    const errorEl = document.getElementById('usersError');
+    errorEl.style.display = 'none';
+    tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><div class="loading-spinner"></div> جاري التحميل...</td></tr>';
+
+    try {
+      const data = await this.api('/admin/users?limit=200');
+      this._users = Array.isArray(data) ? data : (data.users || data.data || []);
+      this.renderUsers(this._users);
+      document.getElementById('usersCount').textContent = this._users.length + ' مستخدم — users loaded';
+    } catch (err) {
+      errorEl.textContent = '⚠ ' + err.message;
+      errorEl.style.display = 'flex';
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><div class="icon">⚠</div>فشل التحميل — Load failed</td></tr>';
+    }
+  },
+
+  renderUsers(users) {
+    const tbody = document.getElementById('usersTableBody');
+    if (!users.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><div class="icon">◌</div>لا يوجد مستخدمون — No users</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = users.map(u => {
+      const uid = u.uid || u.user_id || u.id || '—';
+      const email = u.email || '—';
+      const balance = u.balance ?? u.credit ?? 0;
+      const safeUid = this.escapeHtml(String(uid));
+      const safeEmail = this.escapeHtml(String(email));
+      return `<tr data-search="${safeEmail.toLowerCase()} ${safeUid.toLowerCase()}">
+        <td>${safeEmail}</td>
+        <td class="balance">$${this.formatMoney(balance)}</td>
+        <td class="mono">${safeUid}</td>
+        <td>
+          <div class="row-actions">
+            <button class="btn btn-success btn-sm" onclick="App.inlineBalance('${safeUid}',true)">+ شحن</button>
+            <button class="btn btn-danger btn-sm" onclick="App.inlineBalance('${safeUid}',false)">− خصم</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  },
+
+  filterUsers() {
+    const query = document.getElementById('userSearchInput').value.toLowerCase().trim();
+    if (!query) {
+      this.renderUsers(this._users);
+      return;
+    }
+    const filtered = this._users.filter(u => {
+      const email = (u.email || '').toLowerCase();
+      const uid = String(u.uid || u.user_id || u.id || '').toLowerCase();
+      return email.includes(query) || uid.includes(query);
+    });
+    this.renderUsers(filtered);
+  },
+
+  inlineBalance(uid, isTopUp) {
+    this.openBalanceModal(uid, isTopUp, async (amount) => {
+      await this.api('/user/balance', {
+        method: 'POST',
+        body: JSON.stringify({ uid: uid, amount: isTopUp ? Math.abs(amount) : -Math.abs(amount) })
+      });
+      this.toast((isTopUp ? 'تم الشحن — Topped up ' : 'تم الخصم — Charged ') + amount, 'success');
+      this.loadUsers();
+    });
+  },
+
+  openBalanceModal(uid, isTopUp, callback) {
+    document.getElementById('balanceModalTitle').textContent = isTopUp ? 'شحن رصيد — Top-up' : 'خصم رصيد — Charge';
+    document.getElementById('balanceModalUser').textContent = 'UID: ' + uid;
+    document.getElementById('balanceModalAmount').value = '';
+    document.getElementById('balanceModal').style.display = 'flex';
+    this._balanceModalCallback = { callback, isTopUp };
+
+    const confirmBtn = document.getElementById('balanceModalConfirmBtn');
+    confirmBtn.onclick = () => this.confirmBalanceModal();
+    setTimeout(() => document.getElementById('balanceModalAmount').focus(), 100);
+  },
+
+  closeBalanceModal() {
+    document.getElementById('balanceModal').style.display = 'none';
+    this._balanceModalCallback = null;
+  },
+
+  async confirmBalanceModal() {
+    const amount = parseFloat(document.getElementById('balanceModalAmount').value);
+    if (!amount || isNaN(amount) || amount <= 0) {
+      this.toast('أدخل مبلغاً صالحاً — Enter valid amount', 'error');
+      return;
+    }
+    if (!this._balanceModalCallback) return;
+
+    const confirmBtn = document.getElementById('balanceModalConfirmBtn');
+    confirmBtn.disabled = true;
+
+    try {
+      await this._balanceModalCallback.callback(amount);
+      this.closeBalanceModal();
+    } catch (err) {
+      this.toast(err.message, 'error');
+    } finally {
+      confirmBtn.disabled = false;
+    }
+  },
+
+  /* ── UID Top-up ── */
+  async findUserByUid() {
+    const uid = document.getElementById('topupUidInput').value.trim();
+    const resultEl = document.getElementById('topupUserResult');
+    const actionForm = document.getElementById('topupActionForm');
+
+    if (!uid) {
+      this.toast('أدخل UID — Enter UID', 'error');
+      return;
+    }
+
+    resultEl.innerHTML = '<div class="empty-state"><div class="loading-spinner"></div> جاري البحث...</div>';
+    actionForm.style.display = 'none';
+
+    try {
+      const data = await this.api('/user/find?uid=' + encodeURIComponent(uid));
+      const user = data.user || data;
+      resultEl.innerHTML = `<div class="user-found-card">
+        <div class="uid">${this.escapeHtml(user.uid || uid)}</div>
+        <div class="email">${this.escapeHtml(user.email || '—')}</div>
+        <div class="bal">$${this.formatMoney(user.balance ?? user.credit ?? 0)}</div>
+      </div>`;
+      actionForm.style.display = 'block';
+      this._topupFoundUid = user.uid || uid;
+    } catch (err) {
+      resultEl.innerHTML = `<div class="error-banner">⚠ ${this.escapeHtml(err.message)}</div>`;
+    }
+  },
+
+  async topupByUid(isTopUp) {
+    const uid = this._topupFoundUid || document.getElementById('topupUidInput').value.trim();
+    const amount = parseFloat(document.getElementById('topupAmountInput').value);
+
+    if (!uid) { this.toast('ابحث عن مستخدم أولاً — Find user first', 'error'); return; }
+    if (!amount || isNaN(amount) || amount <= 0) { this.toast('أدخل مبلغاً صالحاً — Enter valid amount', 'error'); return; }
+
+    try {
+      await this.api('/user/balance', {
+        method: 'POST',
+        body: JSON.stringify({ uid: uid, amount: isTopUp ? Math.abs(amount) : -Math.abs(amount) })
+      });
+      this.toast((isTopUp ? 'تم الشحن — Topped up ' : 'تم الخصم — Charged ') + amount, 'success');
+      document.getElementById('topupAmountInput').value = '';
+      this.findUserByUid();
+    } catch (err) {
+      this.toast(err.message, 'error');
+    }
+  },
+
+  /* ── Margins ── */
+  async loadCategories() {
+    const container = document.getElementById('categorySlidersContainer');
+    container.innerHTML = '<div class="empty-state"><div class="loading-spinner"></div> جاري تحميل الفئات...</div>';
+
+    try {
+      const data = await this.api('/admin/categories');
+      this._categories = Array.isArray(data) ? data : (data.categories || data.data || []);
+      this.renderCategorySliders();
+    } catch (err) {
+      container.innerHTML = `<div class="error-banner">⚠ ${this.escapeHtml(err.message)}</div>`;
+    }
+  },
+
+  renderCategorySliders() {
+    const container = document.getElementById('categorySlidersContainer');
+    if (!this._categories.length) {
+      container.innerHTML = '<div class="empty-state"><div class="icon">◌</div>لا توجد فئات — No categories</div>';
+      return;
+    }
+
+    container.innerHTML = this._categories.map((cat, i) => {
+      const val = cat.markup_value ?? cat.margin ?? 0;
+      const name = cat.name || cat.title || ('Category ' + cat.id);
+      return `<div class="slider-group" data-cat-id="${cat.id}">
+        <div class="slider-header">
+          <div class="slider-label">${this.escapeHtml(name)} <span class="en">id:${cat.id}</span></div>
+          <div class="slider-value" id="catSliderVal_${i}">${val}%</div>
+        </div>
+        <input type="range" min="0" max="200" value="${val}" step="1"
+          oninput="App.updateCatSlider(${i}, this.value)"
+          id="catSlider_${i}">
+        <input type="hidden" id="catMarkupType_${i}" value="${cat.markup_type || 'percent'}">
+      </div>`;
+    }).join('');
+  },
+
+  updateGlobalSlider(val) {
+    document.getElementById('globalSliderValue').textContent = val + '%';
+  },
+
+  updateCatSlider(index, val) {
+    const el = document.getElementById('catSliderVal_' + index);
+    if (el) el.textContent = val + '%';
+  },
+
+  async applyAllMargins() {
+    const globalPercent = parseFloat(document.getElementById('globalMarginSlider').value) || 0;
+    const categories = this._categories.map((cat, i) => {
+      const slider = document.getElementById('catSlider_' + i);
+      const typeEl = document.getElementById('catMarkupType_' + i);
+      return {
+        id: cat.id,
+        markup_type: typeEl ? typeEl.value : (cat.markup_type || 'percent'),
+        markup_value: slider ? parseFloat(slider.value) : (cat.markup_value ?? 0)
+      };
+    });
+
+    try {
+      await this.api('/admin/categories/margin/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ global_percent: globalPercent, categories: categories })
+      });
+      this.toast('تم تطبيق الهوامش — Margins applied', 'success');
+    } catch (err) {
+      this.toast(err.message, 'error');
+    }
+  },
+
+  /* ── Security Log ── */
+  async loadSecurityLog(silent) {
+    const container = document.getElementById('securityLogContainer');
+
+    if (!silent) {
+      container.innerHTML = '<div class="empty-state"><div class="loading-spinner"></div> جاري التحميل...</div>';
+    }
+
+    try {
+      const data = await this.api('/admin/security-log');
+      const events = Array.isArray(data) ? data : (data.events || data.logs || data.data || []);
+
+      if (!events.length) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">✓</div>لا توجد أحداث — No security events</div>';
+        return;
+      }
+
+      container.innerHTML = events.map(ev => {
+        const type = ev.type || ev.event_type || ev.event || 'unknown';
+        const iconClass = ['balance_jump', 'admin_login_fail', 'rapid_order'].includes(type) ? type : 'rapid_order';
+        const icons = { balance_jump: '⚡', admin_login_fail: '🔒', rapid_order: '⚠' };
+        const labels = {
+          balance_jump: 'قفزة رصيد — balance_jump',
+          admin_login_fail: 'فشل دخول — admin_login_fail',
+          rapid_order: 'طلبات سريعة — rapid_order'
+        };
+        const detail = ev.detail || ev.message || ev.description ||
+          JSON.stringify(ev.data || ev.meta || {}).slice(0, 200);
+        const time = ev.timestamp || ev.created_at || ev.time || ev.date;
+
+        return `<div class="security-event">
+          <div class="event-icon ${iconClass}">${icons[iconClass] || '⚠'}</div>
+          <div class="event-body">
+            <div class="event-type">${labels[type] || this.escapeHtml(type)}</div>
+            <div class="event-detail">${this.escapeHtml(String(detail))}</div>
+            <div class="event-time">${this.formatTime(time)}</div>
+          </div>
+        </div>`;
+      }).join('');
+
+      document.getElementById('securityPollIndicator').textContent = 'last: ' + new Date().toLocaleTimeString('ar-EG') + ' | polling: 10s';
+    } catch (err) {
+      if (!silent) {
+        container.innerHTML = `<div class="error-banner">⚠ ${this.escapeHtml(err.message)}</div>`;
+      }
+    }
+  },
+
+  /* ── Cron ── */
+  async simulateCron() {
+    const resultEl = document.getElementById('cronSimResult');
+    const metricsEl = document.getElementById('cronMetrics');
+    resultEl.innerHTML = '<div class="empty-state"><div class="loading-spinner"></div> جاري المحاكاة...</div>';
+    metricsEl.style.display = 'none';
+
+    try {
+      const data = await this.api('/admin/cron/simulate', { method: 'POST' });
+
+      metricsEl.style.display = 'grid';
+      metricsEl.innerHTML = `
+        <div class="cron-metric">
+          <div class="cron-metric-label">Provider Ping <span style="font-size:0.65rem;color:var(--neon-pink)">ms</span></div>
+          <div class="cron-metric-value">${data.provider_ping_ms ?? data.ping_ms ?? data.ping ?? '—'} ms</div>
+        </div>
+        <div class="cron-metric">
+          <div class="cron-metric-label">CPU Usage</div>
+          <div class="cron-metric-value">${data.cpu_usage ?? data.cpu ?? '—'}%</div>
+        </div>
+        <div class="cron-metric">
+          <div class="cron-metric-label">Memory Usage</div>
+          <div class="cron-metric-value">${data.memory_usage ?? data.memory ?? data.ram ?? '—'} MB</div>
+        </div>
+        <div class="cron-metric">
+          <div class="cron-metric-label">Duration</div>
+          <div class="cron-metric-value">${data.duration_ms ?? data.duration ?? '—'} ms</div>
+        </div>
+      `;
+
+      const preview = data.log_preview || data.preview || data.output || data.message || JSON.stringify(data, null, 2);
+      resultEl.innerHTML = `<div class="cron-output">${this.escapeHtml(String(preview))}</div>`;
+      this.toast('تمت المحاكاة — Simulation complete', 'success');
+      this.loadCronLog();
+    } catch (err) {
+      resultEl.innerHTML = `<div class="error-banner">⚠ ${this.escapeHtml(err.message)}</div>`;
+    }
+  },
+
+  async loadCronLog() {
+    const output = document.getElementById('cronLogOutput');
+    try {
+      const data = await this.api('/admin/cron-log');
+      const log = data.log || data.logs || data.output || data.entries || data;
+      if (Array.isArray(log)) {
+        output.textContent = log.map(e => {
+          if (typeof e === 'string') return e;
+          return '[' + (e.timestamp || e.time || '') + '] ' + (e.message || e.action || JSON.stringify(e));
+        }).join('\n');
+      } else if (typeof log === 'string') {
+        output.textContent = log;
+      } else {
+        output.textContent = JSON.stringify(data, null, 2);
+      }
+    } catch (err) {
+      output.textContent = 'خطأ — Error: ' + err.message;
+    }
+  },
+
+  /* ── Services ── */
+  async loadServicesStatus() {
+    const container = document.getElementById('servicesStatusContainer');
+    container.innerHTML = '<div class="empty-state"><div class="loading-spinner"></div> جاري التحميل...</div>';
+
+    try {
+      const data = await this.api('/admin/services-status');
+      const stats = [
+        { name: 'Active Services', value: data.active_services ?? data.total ?? 0, status: 'up' },
+        { name: 'Inactive Services', value: data.inactive_services ?? data.unlinked ?? 0, status: 'unknown' },
+        { name: 'Categories Used', value: data.categories_used ?? data.linked ?? 0, status: 'up' },
+        { name: 'Active Categories', value: data.active_categories ?? 0, status: 'up' }
+      ];
+
+      container.innerHTML = stats.map(svc => {
+        const statusClass = svc.status === 'up' ? 'up' : 'unknown';
+        const statusLabel = statusClass === 'up' ? 'متصل — UP' : '—';
+        return `<div class="service-item">
+          <div class="service-name">${this.escapeHtml(svc.name)} <span class="en">${svc.value}</span></div>
+          <span class="service-status ${statusClass}">${statusLabel}</span>
+        </div>`;
+      }).join('') + (data.last_sync ? `<p class="en" style="margin-top:12px;color:var(--muted);font-size:12px;">last sync: ${this.escapeHtml(String(data.last_sync))}</p>` : '');
+    } catch (err) {
+      container.innerHTML = `<div class="error-banner">⚠ ${this.escapeHtml(err.message)}</div>`;
+    }
+  },
+
+  async syncPrices() {
+    try {
+      await this.api('/admin/sync-prices', { method: 'POST' });
+      this.toast('تمت مزامنة الأسعار — Prices synced', 'success');
+      this.loadServicesStatus();
+    } catch (err) {
+      this.toast(err.message, 'error');
+    }
+  },
+
+  async syncCatalog() {
+    try {
+      await this.api('/admin/sync-catalog', { method: 'POST' });
+      this.toast('تمت مزامنة الكatalog — Catalog synced', 'success');
+      this.loadServicesStatus();
+    } catch (err) {
+      this.toast(err.message, 'error');
+    }
+  },
+
+  async refreshCatalog() {
+    try {
+      await this.api('/admin/refresh-catalog', { method: 'POST' });
+      this.toast('تم تحديث الكatalog — Catalog refreshed', 'success');
+    } catch (err) {
+      this.toast(err.message, 'error');
+    }
+  },
+
+  /* ── Settings ── */
+  saveSettings() {
+    const url = document.getElementById('settingsServerUrl').value.trim().replace(/\/+$/, '');
+    if (!url) {
+      this.toast('أدخل عنواناً صالحاً — Enter valid URL', 'error');
+      return;
+    }
+    this._serverUrl = url;
+    sessionStorage.setItem('wf_server_url', url);
+    document.getElementById('serverUrlInput').value = url;
+    this.toast('تم الحفظ — Settings saved', 'success');
+  },
+
+  /* ── Utilities ── */
+  escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
   }
-
-  btn.textContent = 'دخول 🚀';
-  btn.disabled = false;
-  showDashboard();
-}
-
-// ── إخفاء login وإظهار Dashboard ──────────────────────────────
-function showDashboard() {
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('dashboard').style.display = 'block';
-
-  // تحميل البيانات الأولية
-  fetchDFBalance();
-  loadUsers();        // ← إصلاح: تحميل المستخدمين فعلياً من السيرفر
-  loadCurrentMarkup();
-  loadAdminStats();   // ← إضافة: إحصائيات لوحة التحكم
-
-  // تحديث حالة البوت
-  document.getElementById('bot-url-display').textContent = _serverUrl;
-
-  // إرسال جلسة الأدمن للبوت المفتوح
-  _pushCmd({ action: 'admin_login', key: _adminKey });
-  localStorage.setItem('wf_panel_admin_active', '1');
-}
-
-// ── تسجيل الخروج ──────────────────────────────────────────────
-function doLogout() {
-  if (!confirm('تأكيد تسجيل الخروج؟')) return;
-  _adminKey = '';
-  sessionStorage.removeItem('wf_panel_key');
-  localStorage.removeItem('wf_panel_admin_active');
-  _pushCmd({ action: 'admin_logout' });
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('dashboard').style.display = 'none';
-  document.getElementById('lp-key').value = '';
-}
-
-// ── إرسال أمر للبوت ───────────────────────────────────────────
-function _pushCmd(cmd) {
-  // BroadcastChannel (نفس المتصفح — سريع)
-  if (_bc) { try { _bc.postMessage(cmd); } catch(_) {} }
-  // localStorage event (تابات مختلفة)
-  try {
-    localStorage.setItem('wf_panel_cmd', JSON.stringify(cmd));
-    // مسح فوراً حتى يُطلق event مجدداً في المرة القادمة
-    setTimeout(() => localStorage.removeItem('wf_panel_cmd'), 500);
-  } catch(_) {}
-}
-
-function pushToBot(action) {
-  _pushCmd({ action });
-  showAlert('bot-alert', '✅ تم إرسال الأمر للبوت', 'success');
-  showAlert('quick-alert', '✅ تم إرسال أمر ' + action + ' للبوت', 'success');
-}
-
-// ── تبويبات ───────────────────────────────────────────────────
-const TAB_LOADERS = {
-  overview: function() { fetchDFBalance(); loadAdminStats(); },
-  users: loadUsers,
-  payments: function() { loadPayments(); loadGateways(); },
-  providers: loadProviders,
-  catalog: loadCatalogAdmin,
-  cron: loadCronLog,
-  reports: function() { loadProfitReport(); loadSecurityLog(); },
-  tickets: loadTickets,
-  translations: loadTranslations,
-  notifications: loadNotifSettings,
-  balance: function() { fetchDFBalance(); loadCurrentMarkup(); },
-  services: loadServicesStatus,
-  topup: function() {},
-  settings: function() {},
 };
 
-function switchTab(name) {
-  document.querySelectorAll('.tab-btn').forEach(b => {
-    b.classList.toggle('active', b.getAttribute('data-tab') === name);
-  });
-  document.querySelectorAll('.tab-pane').forEach(p => {
-    p.classList.toggle('active', p.id === 'tab-' + name);
-  });
-  const loader = TAB_LOADERS[name];
-  if (loader) try { loader(); } catch (e) { console.error(e); }
-}
+window.App = App;
 
-// ── جلب رصيد دارك فولو ────────────────────────────────────────
-async function fetchDFBalance() {
-  const els = [
-    document.getElementById('df-balance-val'),
-    document.getElementById('stat-df-balance')
-  ];
-  els.forEach(e => { if(e) e.textContent = '⏳'; });
+document.addEventListener('DOMContentLoaded', () => App.init());
 
-  try {
-    const res = await fetch(_serverUrl + '/admin/darkfollow-balance', {
-      headers: { 'X-Admin-Token': _adminKey }
-    });
+document.getElementById('balanceModalAmount').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') App.confirmBalanceModal();
+});
 
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error('DFBalance error:', res.status, errText);
-      els.forEach(e => { if(e) e.textContent = '❌ ' + res.status; });
-      return;
-    }
+document.getElementById('topupUidInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') App.findUserByUid();
+});
 
-    const data = await res.json();
-    console.log('DFBalance response:', data);
-    const val = typeof data.balance !== 'undefined'
-      ? parseFloat(data.balance).toFixed(2) + ' $'
-      : '⚠️ ' + (data.error || 'تعذر الجلب');
-    els.forEach(e => { if(e) e.textContent = val; });
-  } catch(e) {
-    console.error('DFBalance exception:', e);
-    els.forEach(el => { if(el) el.textContent = '⚠️ تحقق من الاتصال'; });
-  }
-}
+document.getElementById('topupAmountInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') App.topupByUid(true);
+});
 
-// ── جلب هامش الربح الحالي ─────────────────────────────────────
-async function loadCurrentMarkup() {
-  try {
-    const res = await fetch(_serverUrl + '/admin/markup', {
-      headers: { 'X-Admin-Token': _adminKey }
-    });
-    const data = await res.json();
-    const val = parseFloat(data.markup_value ?? 0);
-    document.getElementById('markup-current-val').textContent = '$' + val.toFixed(2);
-    document.getElementById('markup-input').value = val.toFixed(2);
-    document.getElementById('stat-markup').textContent = '$' + val.toFixed(2);
-  } catch(e) {
-    document.getElementById('markup-current-val').textContent = '⚠️ تعذر الجلب';
-  }
-}
-
-// ── حفظ هامش الربح ────────────────────────────────────────────
-async function saveMarkup() {
-  const val = parseFloat(document.getElementById('markup-input').value);
-  if (isNaN(val) || val < 0) {
-    showAlert('markup-alert', '❌ أدخل قيمة صحيحة (≥ 0)', 'error'); return;
-  }
-
-  showAlert('markup-alert', '⏳ جاري الحفظ...', 'info');
-
-  try {
-    const res = await fetch(_serverUrl + '/admin/markup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': _adminKey },
-      body: JSON.stringify({ markup_type: 'fixed', markup_value: val })
-    });
-    if (!res.ok) throw new Error('server error');
-  } catch(e) {
-    showAlert('markup-alert', '⚠️ تعذر الحفظ في السيرفر — تم الإرسال للبوت فقط', 'error');
-  }
-
-  // إرسال للبوت مباشرة
-  _pushCmd({ action: 'set_markup', markup: val });
-
-  document.getElementById('markup-current-val').textContent = '$' + val.toFixed(2);
-  document.getElementById('stat-markup').textContent = '$' + val.toFixed(2);
-  showAlert('markup-alert', '✅ تم حفظ هامش الربح: $' + val.toFixed(2) + ' لكل خدمة', 'success');
-}
-
-// ── تطبيع صف مستخدم (NULL/legacy uid) ─────────────────────────
-function normalizeUser(u) {
-  if (!u || typeof u !== 'object') return null;
-  const d = Object.assign({}, u);
-  let uid = String(d.uid || d.id || d.user_id || '').trim();
-  if (!uid && d.username && String(d.username).startsWith('WF-')) uid = String(d.username);
-  else if (!uid && d.telegram_id) uid = 'TG-' + String(d.telegram_id);
-  else if (!uid && d.id != null) uid = 'WF-' + String(d.id).padStart(6, '0');
-  else if (!uid) uid = 'LEGACY-' + String(d.email || 'unknown').slice(0, 8);
-  d.uid = uid;
-  d.email = d.email || '';
-  d.telegram_id = d.telegram_id || '';
-  d.balance = parseFloat(d.balance || 0);
-  d.total_charged = parseFloat(d.total_charged || 0);
-  d.total_spent = parseFloat(d.total_spent || 0);
-  d.orders_count = parseInt(d.orders_count || 0, 10) || 0;
-  return d;
-}
-
-// ── تحميل المستخدمين من السيرفر ───────────────────────────────
-async function loadUsers() {
-  const tbody = document.getElementById('users-tbody');
-  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;"><span class="spinner"></span> جاري التحميل...</td></tr>';
-
-  try {
-    const res = await fetch(_serverUrl + '/admin/users?limit=200', {
-      headers: { 'X-Admin-Token': _adminKey }
-    });
-
-    let data = {};
-    try { data = await res.json(); } catch(_) { data = {}; }
-
-    if (!res.ok) {
-      const errMsg = esc(data.error || data.message || ('HTTP ' + res.status));
-      console.error('loadUsers HTTP error:', res.status, errMsg);
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#ff6677;padding:30px;">خطأ ' + res.status + ': ' + errMsg + '</td></tr>';
-      showAlert('users-alert', 'تعذر تحميل المستخدمين: ' + errMsg, 'error');
-      return;
-    }
-
-    const users = (Array.isArray(data) ? data
-                : Array.isArray(data.users) ? data.users
-                : Array.isArray(data.data)  ? data.data
-                : []).map(normalizeUser).filter(Boolean);
-
-    _usersCache = {};
-    users.forEach(u => { _usersCache[u.uid] = u; });
-
-    if (users.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;">لا يوجد مستخدمون بعد</td></tr>';
-      loadUsersStats([]);
-      return;
-    }
-
-    filterUsersTable();
-    loadUsersStats(users);
-
-  } catch(e) {
-    console.error('loadUsers exception:', e);
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#ff6677;padding:30px;">خطأ في الاتصال: ' + esc(e.message) + '</td></tr>';
-    showAlert('users-alert', 'خطأ في الاتصال: ' + e.message, 'error');
-  }
-}
-
-// ── إحصائيات لوحة التحكم من /admin/stats ──────────────────────
-async function loadAdminStats() {
-  try {
-    const res = await fetch(_serverUrl + '/admin/stats', {
-      headers: { 'X-Admin-Token': _adminKey }
-    });
-    if (!res.ok) return;
-    const data = await res.json();
-    const s = data.stats || {};
-    // تحديث عدد المستخدمين إذا loadUsers لم يكتمل بعد
-    if (s.total_users !== undefined) {
-      const el = document.getElementById('stat-users');
-      if (el && el.textContent === '0') el.textContent = s.total_users;
-    }
-    if (s.total_user_balance !== undefined) {
-      const el = document.getElementById('stat-total-bal');
-      if (el && el.textContent === '0') el.textContent = parseFloat(s.total_user_balance).toFixed(0);
-    }
-  } catch(e) {
-    console.error('loadAdminStats error:', e);
-  }
-}
-
-function loadUsersStats(users) {
-  users = users || Object.values(_usersCache);
-  document.getElementById('stat-users').textContent = users.length;
-  const totalBal = users.reduce((s,u) => s + parseFloat(u.balance||0), 0);
-  document.getElementById('stat-total-bal').textContent = totalBal.toFixed(0);
-}
-
-function renderUsersTable(users) {
-  const tbody = document.getElementById('users-tbody');
-  if (!users || users.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px;">لا يوجد مستخدمون مطابقون</td></tr>';
-    return;
-  }
-  tbody.innerHTML = users.map(u => {
-    const uid = esc(u.uid);
-    const bal = (u.balance || 0).toFixed(2);
-    return '<tr>' +
-      '<td class="uid-cell">' + uid + '</td>' +
-      '<td style="font-size:12px;">' + esc(u.email || '—') + (u.telegram_id ? '<br><span style="color:var(--muted);font-size:10px;">TG: ' + esc(u.telegram_id) + '</span>' : '') + '</td>' +
-      '<td><span class="balance-badge">' + bal + '</span></td>' +
-      '<td style="color:var(--muted);font-size:12px;">' + (u.total_charged || 0).toFixed(2) + '</td>' +
-      '<td style="color:#ff6677;font-size:12px;">' + (u.total_spent || 0).toFixed(2) + '</td>' +
-      '<td style="color:var(--muted);font-size:12px;">' + (u.orders_count || 0) + '</td>' +
-      '<td>' +
-        '<button class="inline-btn ib-charge" data-uid="' + uid + '" onclick="quickCharge(this.dataset.uid)">+ شحن</button> ' +
-        '<button class="inline-btn ib-deduct" data-uid="' + uid + '" onclick="quickDeduct(this.dataset.uid)">− خصم</button>' +
-      '</td>' +
-    '</tr>';
-  }).join('');
-}
-
-function filterUsersTable() {
-  const q = (document.getElementById('users-search').value || '').toLowerCase().trim();
-  const balFilter = document.getElementById('users-balance-filter')?.value || 'all';
-  const users = Object.values(_usersCache).filter(u => {
-    const matchQ = !q
-      || String(u.uid || '').toLowerCase().includes(q)
-      || String(u.email || '').toLowerCase().includes(q)
-      || String(u.telegram_id || '').toLowerCase().includes(q);
-    const bal = parseFloat(u.balance || 0);
-    const matchBal = balFilter === 'all'
-      || (balFilter === 'active' && bal > 0)
-      || (balFilter === 'zero' && bal <= 0);
-    return matchQ && matchBal;
-  });
-  renderUsersTable(users);
-}
-
-// ── شحن/خصم سريع من جدول المستخدمين ──────────────────────────
-async function quickCharge(uid) {
-  const amount = parseFloat(prompt('مبلغ الشحن (د.ع):'));
-  if (isNaN(amount) || amount <= 0) return;
-  await _modifyBalance(uid, amount, 'charge');
-}
-
-async function quickDeduct(uid) {
-  const amount = parseFloat(prompt('مبلغ الخصم (د.ع):'));
-  if (isNaN(amount) || amount <= 0) return;
-  await _modifyBalance(uid, -amount, 'deduct');
-}
-
-async function _modifyBalance(uid, amount, type) {
-  try {
-    const res = await fetch(_serverUrl + '/user/balance', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': _adminKey },
-      body: JSON.stringify({ uid, amount })
-    });
-    if (!res.ok) throw new Error('server error');
-  } catch(e) {}
-
-  // إرسال أمر مباشر للبوت
-  _pushCmd({ action: 'topup_user', uid, amount });
-
-  if (_usersCache[uid]) {
-    _usersCache[uid].balance = Math.max(0, (_usersCache[uid].balance||0) + amount);
-    if (amount > 0) _usersCache[uid].total_charged = (_usersCache[uid].total_charged||0) + amount;
-  }
-
-  renderUsersTable(Object.values(_usersCache));
-  showAlert('users-alert', (type==='charge'?'✅ تم شحن ':'✅ تم خصم ') + Math.abs(amount).toFixed(2) + ' د.ع', 'success');
-}
-
-// ── البحث عن مستخدم في تعبئة الرصيد ──────────────────────────
-async function searchTopupUser() {
-  const uid = (document.getElementById('topup-uid').value || '').trim();
-  if (!uid) return;
-
-  _topupFoundUid = null;
-  document.getElementById('topup-user-card').style.display = 'none';
-  document.getElementById('topup-not-found').style.display = 'none';
-
-  try {
-    const res = await fetch(_serverUrl + '/user/find?uid=' + encodeURIComponent(uid), {
-      headers: { 'X-Admin-Token': _adminKey }
-    });
-    const data = await res.json();
-
-    if (res.ok && data && data.uid) {
-      _topupFoundUid = data.uid;
-      document.getElementById('topup-found-email').textContent   = data.email || data.uid;
-      document.getElementById('topup-found-balance').textContent = parseFloat(data.balance||0).toFixed(2) + ' د.ع';
-      document.getElementById('topup-user-card').style.display   = 'block';
-    } else {
-      document.getElementById('topup-not-found').style.display = 'block';
-    }
-  } catch(e) {
-    document.getElementById('topup-not-found').style.display = 'block';
-  }
-}
-
-async function executeTopup() {
-  if (!_topupFoundUid) { showAlert('topup-alert','❌ اختر مستخدماً أولاً','error'); return; }
-  const amount = parseFloat(document.getElementById('topup-amount').value);
-  if (!amount || amount <= 0) { showAlert('topup-alert','❌ أدخل مبلغاً صحيحاً','error'); return; }
-
-  showAlert('topup-alert','⏳ جاري الإرسال...','info');
-
-  try {
-    await fetch(_serverUrl + '/user/balance', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': _adminKey },
-      body: JSON.stringify({ uid: _topupFoundUid, amount })
-    });
-  } catch(e) {}
-
-  _pushCmd({ action: 'topup_user', uid: _topupFoundUid, amount });
-
-  const newBal = parseFloat((document.getElementById('topup-found-balance').textContent||'0')) + amount;
-  document.getElementById('topup-found-balance').textContent = newBal.toFixed(2) + ' د.ع';
-  document.getElementById('topup-amount').value = '';
-  showAlert('topup-alert', `✅ تمت تعبئة ${amount.toFixed(2)} د.ع بنجاح`, 'success');
-}
-
-// ── ربط جلسة الأدمن بالبوت ────────────────────────────────────
-function connectBotSession() {
-  _pushCmd({ action: 'admin_login', key: _adminKey });
-  localStorage.setItem('wf_panel_admin_active', '1');
-  showAlert('bot-alert', '✅ تم إرسال جلسة الأدمن للبوت — افتح البوت ليتطبق', 'success');
-}
-
-// ── حفظ رابط السيرفر ──────────────────────────────────────────
-function saveServerUrl() {
-  const url = (document.getElementById('server-url-input').value || '').trim();
-  if (!url.startsWith('http')) {
-    showAlert('url-alert','❌ رابط غير صحيح','error'); return;
-  }
-  _serverUrl = url;
-  localStorage.setItem('wf_panel_server', url);
-  document.getElementById('bot-url-display').textContent = url;
-  showAlert('url-alert','✅ تم حفظ الرابط','success');
-  pingServer();
-}
-
-// ── فحص الاتصال ───────────────────────────────────────────────
-async function pingServer() {
-  document.getElementById('conn-status').textContent = 'جاري الفحص...';
-  try {
-    const res = await fetch(_serverUrl + '/health', { signal: AbortSignal.timeout(5000) });
-    document.getElementById('conn-status').textContent = res.ok ? 'متصل ✅' : 'خطأ في السيرفر';
-  } catch(e) {
-    document.getElementById('conn-status').textContent = 'غير متصل ⚠️';
-  }
-}
-
-// ── مسح الكاش ─────────────────────────────────────────────────
-function clearAllCache() {
-  if (!confirm('هل أنت متأكد؟ سيتم مسح بيانات الكاش المحلي للوحة فقط.')) return;
-  const key = sessionStorage.getItem('wf_panel_key');
-  localStorage.removeItem('wf_panel_server');
-  localStorage.removeItem('wf_panel_cmd');
-  sessionStorage.clear();
-  if (key) sessionStorage.setItem('wf_panel_key', key);
-  alert('✅ تم مسح الكاش');
-}
-
-// ── Helpers ───────────────────────────────────────────────────
-function esc(str) {
-  return String(str||'')
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;');
-}
-
-function showAlert(id, msg, type) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.textContent = msg;
-  el.className = 'alert ' + type;
-  el.style.display = 'block';
-  clearTimeout(el._t);
-  el._t = setTimeout(() => { el.style.display='none'; }, 4000);
-}
-// ══════════════════════════════════════════════════════════
-//  الخدمات — مزامنة مع دارك فولو
-// ══════════════════════════════════════════════════════════
-
-async function syncPrices() {
-  const btn = event.target;
-  btn.disabled = true;
-  btn.textContent = '⏳ جاري المزامنة...';
-  showAlert('sync-alert', 'جاري مزامنة الأسعار من دارك فولو...', 'info');
-  try {
-    const res = await fetch(_serverUrl + '/admin/sync-prices', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': _adminKey },
-      body: JSON.stringify({ provider_id: null })
-    });
-    const data = await res.json();
-    if (data.ok) {
-      showAlert('sync-alert', `✅ تم تحديث ${data.updated} خدمة بنجاح`, 'success');
-    } else {
-      showAlert('sync-alert', '⚠️ ' + (data.error || 'فشلت المزامنة'), 'error');
-    }
-  } catch(e) {
-    showAlert('sync-alert', '❌ خطأ: ' + e.message, 'error');
-  }
-  btn.disabled = false;
-  btn.textContent = '🔄 مزامنة الأسعار الآن';
-}
-
-async function syncCatalog() {
-  const btn = event.target;
-  btn.disabled = true;
-  btn.textContent = '⏳ جاري الجلب...';
-  showAlert('sync-alert', 'جاري جلب قائمة الخدمات الكاملة من دارك فولو — قد يأخذ ثوانٍ...', 'info');
-  try {
-    const res = await fetch(_serverUrl + '/admin/sync-catalog', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': _adminKey },
-      body: JSON.stringify({})
-    });
-    const data = await res.json();
-    if (data.ok) {
-      showAlert('sync-alert', `✅ تمت المزامنة: ${data.updated || 0} خدمة محدثة، ${data.added || 0} خدمة جديدة`, 'success');
-    } else {
-      showAlert('sync-alert', '⚠️ ' + (data.error || 'فشلت مزامنة الكاتالوج'), 'error');
-    }
-  } catch(e) {
-    showAlert('sync-alert', '❌ خطأ: ' + e.message, 'error');
-  }
-  btn.disabled = false;
-  btn.textContent = '📦 مزامنة الخدمات الكاملة';
-}
-
-async function forceRefreshCatalog() {
-  showAlert('sync-alert', '⏳ جاري تشغيل مزامنة فورية للأرصدة والكاتالوج...', 'info');
-  showAlert('quick-alert', '⏳ مزامنة فورية قيد التشغيل...', 'info');
-  try {
-    const res = await fetch(_serverUrl + '/admin/refresh-catalog', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': _adminKey },
-      body: JSON.stringify({})
-    });
-    const data = await res.json();
-    if (res.ok && data.ok) {
-      showAlert('sync-alert', '✅ ' + (data.message || 'بدأت المزامنة الفورية'), 'success');
-      showAlert('quick-alert', '✅ بدأت مزامنة الأرصدة والكاتالوج', 'success');
-      fetchDFBalance();
-      setTimeout(loadServicesStatus, 3000);
-    } else {
-      const err = data.error || ('HTTP ' + res.status);
-      showAlert('sync-alert', '⚠️ ' + err, 'error');
-      showAlert('quick-alert', '⚠️ ' + err, 'error');
-    }
-  } catch(e) {
-    showAlert('sync-alert', '❌ خطأ: ' + e.message, 'error');
-    showAlert('quick-alert', '❌ خطأ: ' + e.message, 'error');
-  }
-}
-
-async function loadServicesStatus() {
-  const container = document.getElementById('services-status');
-  container.innerHTML = '<p style="color:#aaa;">⏳ جاري الفحص...</p>';
-  try {
-    const res = await fetch(_serverUrl + '/admin/services-status', {
-      headers: { 'X-Admin-Token': _adminKey }
-    });
-    const data = await res.json();
-    if (data.ok) {
-      container.innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <div style="background:rgba(0,200,100,0.1);border:1px solid rgba(0,200,100,0.3);border-radius:8px;padding:12px;text-align:center;">
-            <div style="font-size:24px;font-weight:800;color:#00c864;">${data.total}</div>
-            <div style="font-size:12px;color:#aaa;">إجمالي الخدمات</div>
-          </div>
-          <div style="background:rgba(0,160,255,0.1);border:1px solid rgba(0,160,255,0.3);border-radius:8px;padding:12px;text-align:center;">
-            <div style="font-size:24px;font-weight:800;color:#00a0ff;">${data.linked}</div>
-            <div style="font-size:12px;color:#aaa;">مربوطة بدارك فولو</div>
-          </div>
-          <div style="background:rgba(218,165,32,0.1);border:1px solid rgba(218,165,32,0.3);border-radius:8px;padding:12px;text-align:center;">
-            <div style="font-size:24px;font-weight:800;color:#DAA520;">${data.active}</div>
-            <div style="font-size:12px;color:#aaa;">خدمات مفعلة</div>
-          </div>
-          <div style="background:rgba(255,50,50,0.1);border:1px solid rgba(255,50,50,0.3);border-radius:8px;padding:12px;text-align:center;">
-            <div style="font-size:24px;font-weight:800;color:#ff3232;">${data.unlinked}</div>
-            <div style="font-size:12px;color:#aaa;">بدون ربط</div>
-          </div>
-        </div>
-        ${data.last_sync ? `<p style="color:#888;font-size:12px;margin-top:10px;">آخر مزامنة: ${data.last_sync}</p>` : ''}
-      `;
-    } else {
-      container.innerHTML = '<p style="color:#f55;">⚠️ ' + (data.error || 'تعذر الجلب') + '</p>';
-    }
-  } catch(e) {
-    container.innerHTML = '<p style="color:#f55;">❌ ' + e.message + '</p>';
-  }
-}
-
-async function loadPayments() {
-  const el = document.getElementById('payments-list');
-  el.textContent = 'جاري التحميل...';
-  const status = document.getElementById('payments-filter')?.value || '';
-  const q = status ? ('?status=' + encodeURIComponent(status)) : '';
-  try {
-    const { res, data } = await api('/admin/payments' + q);
-    if (!res.ok) { el.textContent = 'خطأ: ' + (data.error || res.status); return; }
-    const rows = data.payments || [];
-    if (!rows.length) { el.textContent = 'لا توجد مدفوعات'; return; }
-    el.innerHTML = rows.map(p =>
-      '<div style="padding:10px 0;border-bottom:1px solid var(--border);">' +
-      '<b>#' + esc(p.id) + '</b> ' + esc(p.user_email || '') + ' — ' + parseFloat(p.amount||0).toFixed(2) +
-      ' <span style="color:var(--muted);">[' + esc(p.status) + ']</span>' +
-      (p.status === 'pending' ? ' <button class="inline-btn ib-charge" onclick="approvePayment(' + p.id + ')">موافقة</button>' : '') +
-      '</div>'
-    ).join('');
-  } catch (e) { el.textContent = 'خطأ اتصال'; }
-}
-
-async function approvePayment(id) {
-  const { res, data } = await api('/admin/payments/' + id + '/approve', { method: 'POST', body: '{}' });
-  showAlert('payments-alert', res.ok && data.ok ? 'تمت الموافقة' : (data.error || 'فشل'), res.ok ? 'success' : 'error');
-  loadPayments();
-}
-
-async function loadGateways() {
-  const el = document.getElementById('gateways-list');
-  const { res, data } = await api('/admin/payment-gateways');
-  if (!res.ok) { el.textContent = 'تعذر التحميل'; return; }
-  const rows = data.gateways || [];
-  el.innerHTML = rows.length ? rows.map(g =>
-    '<div style="padding:8px 0;border-bottom:1px solid var(--border);">' + esc(g.name) + ' — ' + esc(g.type || '') + '</div>'
-  ).join('') : 'لا توجد بوابات';
-}
-
-async function loadProviders() {
-  const el = document.getElementById('providers-list');
-  el.textContent = 'جاري التحميل...';
-  const { res, data } = await api('/admin/providers');
-  if (!res.ok) { el.textContent = 'خطأ'; return; }
-  const rows = data.providers || [];
-  el.innerHTML = rows.map(p =>
-    '<div style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">' +
-    '<span><b>' + esc(p.name) + '</b><br><small style="color:var(--muted);">' + esc(p.api_url) + '</small></span>' +
-    '<span style="color:var(--neon);font-weight:700;">$' + parseFloat(p.balance||0).toFixed(2) + '</span></div>'
-  ).join('') || 'لا يوجد مزودون';
-}
-
-let _catalogAdminCache = [];
-async function loadCatalogAdmin() {
-  const el = document.getElementById('catalog-admin-list');
-  el.textContent = 'جاري التحميل...';
-  const { res, data } = await api('/admin/categories');
-  if (!res.ok) { el.textContent = 'خطأ'; return; }
-  _catalogAdminCache = data.categories || [];
-  filterCatalogAdmin();
-}
-
-function filterCatalogAdmin() {
-  const el = document.getElementById('catalog-admin-list');
-  const q = (document.getElementById('cat-search')?.value || '').toLowerCase();
-  const rows = _catalogAdminCache.filter(c =>
-    !q || (c.name_ar||'').toLowerCase().includes(q) || (c.name_en||'').toLowerCase().includes(q)
-  );
-  el.innerHTML = rows.map(c =>
-    '<div style="padding:10px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;">' +
-    '<b>' + esc(c.name_ar) + '</b> <small style="color:var(--muted);">(' + esc(c.group_code||'') + ')</small>' +
-    '<div style="margin-top:6px;"><input class="p-input arabic" style="font-size:12px;padding:8px;" value="' + esc(c.name_ar) + '" data-cid="' + c.id + '" onblur="saveCategoryName(this)" /></div>' +
-    '</div>'
-  ).join('') || 'لا توجد أقسام';
-}
-
-async function saveCategoryName(inp) {
-  const cid = inp.getAttribute('data-cid');
-  const { res } = await api('/admin/categories/' + cid, {
-    method: 'PUT',
-    body: JSON.stringify({ name_ar: inp.value })
-  });
-  showAlert('catalog-alert', res.ok ? 'تم الحفظ' : 'فشل الحفظ', res.ok ? 'success' : 'error');
-}
-
-async function runCronJob(job) {
-  const { res, data } = await api('/admin/cron/run', { method: 'POST', body: JSON.stringify({ job }) });
-  showAlert('quick-alert', res.ok ? ('تم تشغيل: ' + job) : (data.error || 'فشل'), res.ok ? 'success' : 'error');
-  setTimeout(loadCronLog, 1500);
-}
-
-async function loadCronLog() {
-  const el = document.getElementById('cron-log');
-  const { res, data } = await api('/admin/cron-log');
-  if (!res.ok) { el.textContent = 'تعذر التحميل'; return; }
-  const rows = data.logs || [];
-  el.innerHTML = rows.slice(0, 50).map(r =>
-    '<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);">' +
-    esc(r.ran_at) + ' — <b>' + esc(r.job_name) + '</b> [' + esc(r.status) + '] ' + esc(r.details || '') +
-    '</div>'
-  ).join('') || 'لا يوجد سجل';
-}
-
-async function loadProfitReport() {
-  const el = document.getElementById('profit-report');
-  const { res, data } = await api('/admin/reports/profit');
-  if (!res.ok) { el.textContent = 'تعذر التحميل'; return; }
-  const rows = data.monthly || [];
-  el.innerHTML = rows.map(r =>
-    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">' +
-    '<span>' + esc(r.month) + '</span><span style="color:var(--green);font-weight:700;">$' + parseFloat(r.profit||0).toFixed(2) + '</span></div>'
-  ).join('') || 'لا توجد بيانات';
-}
-
-async function loadSecurityLog() {
-  const el = document.getElementById('security-log');
-  const { res, data } = await api('/admin/security-log');
-  if (!res.ok) { el.textContent = 'تعذر التحميل'; return; }
-  const rows = data.logs || [];
-  el.innerHTML = rows.slice(0, 40).map(r =>
-    '<div style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px;">' +
-    esc(r.created_at) + ' — ' + esc(r.event_type) + ' — ' + esc(r.ip) + '</div>'
-  ).join('') || 'فارغ';
-}
-
-async function loadTickets() {
-  const el = document.getElementById('tickets-list');
-  el.textContent = 'جاري التحميل...';
-  const { res, data } = await api('/admin/tickets');
-  if (!res.ok) { el.textContent = 'خطأ'; return; }
-  const rows = data.tickets || [];
-  el.innerHTML = rows.map(t =>
-    '<div style="padding:10px 0;border-bottom:1px solid var(--border);">' +
-    '<b>#' + t.id + '</b> ' + esc(t.subject || '') + ' <span style="color:var(--muted);">[' + esc(t.status) + ']</span></div>'
-  ).join('') || 'لا توجد تذاكر';
-}
-
-async function loadTranslations() {
-  const el = document.getElementById('translations-list');
-  const lang = document.getElementById('trans-lang')?.value || 'ar';
-  const { res, data } = await api('/admin/translations?lang=' + lang);
-  if (!res.ok) { el.textContent = 'خطأ'; return; }
-  const rows = data.translations || [];
-  el.innerHTML = rows.map(t =>
-    '<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">' +
-    '<code>' + esc(t.key) + '</code> → ' + esc(t.value) + '</div>'
-  ).join('') || 'لا توجد ترجمات';
-}
-
-async function loadNotifSettings() {
-  const el = document.getElementById('notif-settings');
-  const { res, data } = await api('/admin/settings');
-  if (!res.ok) { el.textContent = 'تعذر التحميل'; return; }
-  const s = data.settings || data || {};
-  el.innerHTML =
-    '<p>اسم الموقع: ' + esc(s.site_name || 'White Follow') + '</p>' +
-    '<p>العملة: ' + esc(s.currency || 'USD') + '</p>' +
-    '<p>الحد الأدنى للشحن: ' + esc(s.min_deposit || '1') + '</p>' +
-    '<p style="color:var(--muted);margin-top:8px;font-size:12px;">إعدادات SMTP تُضبط عبر متغيرات Railway (SMTP_HOST, SMTP_USER, SMTP_PASS)</p>';
-}
-
-async function saveGlobalMarkup() {
-  const type  = document.getElementById('svc-markup-type').value;
-  const value = parseFloat(document.getElementById('svc-markup-value').value) || 0;
-  showAlert('markup-svc-alert', 'جاري الحفظ...', 'info');
-  try {
-    const res = await fetch(_serverUrl + '/admin/markup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': _adminKey },
-      body: JSON.stringify({ markup_type: type, markup_value: value })
-    });
-    const data = await res.json();
-    if (data.ok) {
-      showAlert('markup-svc-alert', `✅ تم الحفظ — هامش الربح: ${type === 'percent' ? value + '%' : '+' + value + ' ثابت'}`, 'success');
-    } else {
-      showAlert('markup-svc-alert', '⚠️ ' + (data.error || 'فشل الحفظ'), 'error');
-    }
-  } catch(e) {
-    showAlert('markup-svc-alert', '❌ ' + e.message, 'error');
-  }
-}
-
+})();
 </script>
 </body>
 </html>
