@@ -916,6 +916,39 @@ class CatalogManager:
     def refresh_rates(self) -> int:
         return self.markup.recalculate_all_service_rates()
 
+    # ── كلمات مفتاحية لتصنيف كل قسم تلقائياً ──────────────────────────────
+    _GROUP_KEYWORDS: Dict[str, List[str]] = {
+        "cards": [
+            "بطاقة", "بطاقات", "card", "cards", "gift", "هدية", "هدايا",
+            "itunes", "netflix", "amazon", "playstation", "nintendo",
+            "blizzard", "valorant", "fortnite", "steam", "xbox",
+            "pubg", "free fire", "شدات", "جواهر", "رصيد",
+        ],
+        "subscriptions": [
+            "اشتراك", "اشتراكات", "subscription", "subscriptions",
+            "premium", "بريميوم", "نتفلكس", "ستيم", "نايترو", "nitro",
+            "discord", "دسكورد", "spotify", "سبوتيفاي",
+        ],
+        "topup": [
+            "شحن", "recharge", "topup", "top-up", "top up",
+            "موبايل", "mobile", "اتصالات", "زين", "اورانج", "du ",
+        ],
+        "games": [
+            "العاب", "ألعاب", "game", "games", "جيمز",
+            "pubg", "codm", "mobile legend", "clash",
+        ],
+    }
+
+    @classmethod
+    def _detect_group(cls, name: str) -> str:
+        """تحديد group_code تلقائياً بناءً على اسم القسم."""
+        low = (name or "").lower()
+        for group, keywords in cls._GROUP_KEYWORDS.items():
+            for kw in keywords:
+                if kw in low:
+                    return group
+        return "white"
+
     def list_for_storefront(self, lang: str = "ar") -> List[Dict[str, Any]]:
         self.deduplicate_database()
         categories = self.db.execute(
@@ -956,12 +989,14 @@ class CatalogManager:
             norm = self.normalize_category_name(cat.get("name_ar") or cat.get("name") or "")
             if not norm:
                 continue
+            _cat_label = cat.get("name_ar") or cat.get("name") or ""
             payload = {
                 "id": cat["id"],
                 "name": cat.get("name"),
-                "name_ar": cat.get("name_ar") or cat.get("name"),
+                "name_ar": _cat_label,
                 "icon": cat.get("icon"),
                 "sort_order": cat.get("sort_order"),
+                "group_code": self._detect_group(_cat_label),
                 "services": list(by_cat.get(cat["id"], [])),
             }
             if norm not in merged:
@@ -1963,6 +1998,10 @@ class PanelApplication:
                     "markup": self.markup.get_global_markup(),
                 }
             )
+
+        @sr("/health", methods=["GET"])
+        def health_check() -> Any:
+            return jsonify({"ok": True, "status": "healthy"}), 200
 
         @sr("/user/balance", methods=["POST"])
         @admin
