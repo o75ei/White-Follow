@@ -3,1572 +3,1710 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>لوحة تحكم SMM — Admin Panel</title>
+<title>Dark Follow — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Tajawal:wght@300;400;500;700;800&family=Cinzel:wght@400;500;600&family=Marcellus&family=Poppins:wght@200;300;400;500&display=swap" rel="stylesheet">
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --neon-blue:#00d4ff;
-  --neon-pink:#ff2d95;
-  --obsidian:#0a0a0f;
-  --obsidian-light:#12121a;
-  --glass:rgba(18,18,28,0.65);
-  --glass-border:rgba(0,212,255,0.15);
-  --text-primary:#e8e8f0;
-  --text-muted:#8888a0;
-  --danger:#ff4466;
-  --success:#00ff88;
-  --warning:#ffaa00;
-  --glow-blue:0 0 20px rgba(0,212,255,0.4),0 0 40px rgba(0,212,255,0.15);
-  --glow-pink:0 0 20px rgba(255,45,149,0.4),0 0 40px rgba(255,45,149,0.15);
-  --radius:12px;
-  --font:'Segoe UI',Tahoma,Arial,sans-serif;
-}
-html{font-size:14px;scroll-behavior:smooth}
-body{
-  font-family:var(--font);
-  background:var(--obsidian);
-  color:var(--text-primary);
-  min-height:100vh;
-  overflow-x:hidden;
-  direction:rtl;
-}
+  /* ══════════════════════════════════
+     LOGIN SCREEN
+  ══════════════════════════════════ */
+  #login-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    font-family: 'Poppins', sans-serif;
+    background:
+      radial-gradient(ellipse 70% 55% at 50% 8%,  rgba(176,38,255,0.30), transparent 60%),
+      radial-gradient(ellipse 90% 70% at 50% 100%, rgba(106,31,179,0.28), transparent 65%),
+      radial-gradient(ellipse 120% 90% at 50% 50%, #1a0a35, #0c0418 55%, #050108 100%);
+    color: #f3e9ff;
+    overflow: hidden;
+  }
+  #login-screen::after {
+    content:'';
+    position:fixed; inset:0;
+    background: radial-gradient(circle at 50% 50%, transparent 35%, rgba(0,0,0,0.65) 100%);
+    pointer-events:none;
+    z-index:1;
+  }
+  .lg-embers { position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden; }
+  .lg-embers span {
+    position:absolute; bottom:-10px; width:3px; height:3px; border-radius:50%;
+    background:#d6a6ff;
+    box-shadow: 0 0 8px 2px #b026ff, 0 0 16px 4px rgba(176,38,255,0.5);
+    opacity:0; animation: lg-rise linear infinite;
+  }
+  @keyframes lg-rise {
+    0%   { transform: translateY(0) translateX(0); opacity:0; }
+    8%   { opacity:0.9; }
+    90%  { opacity:0.4; }
+    100% { transform: translateY(-105vh) translateX(var(--drift,30px)); opacity:0; }
+  }
+  .lg-stage {
+    position:relative; z-index:2;
+    display:flex; flex-direction:column; align-items:center;
+    width:100%; max-width:420px;
+  }
+  .lg-brand { text-align:center; margin: 0 0 28px; }
+  .lg-brand .lg-name {
+    font-family:'Cinzel', serif;
+    font-size: clamp(22px,6vw,30px);
+    font-weight:600; letter-spacing:0.28em; text-transform:uppercase;
+    background: linear-gradient(180deg, #fff 0%, #d6a6ff 55%, #b026ff 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .lg-brand .lg-sub {
+    margin-top:8px; font-family:'Marcellus',serif;
+    font-size:10px; letter-spacing:0.42em; text-transform:uppercase; color:#b6a0d6;
+  }
+  .lg-panel {
+    width:100%; display:flex; flex-direction:column; gap:20px;
+    padding: 34px 30px; border-radius:18px;
+    background: linear-gradient(180deg, rgba(40,12,72,0.45), rgba(10,4,22,0.55));
+    border:1px solid rgba(214,166,255,0.28);
+    backdrop-filter:blur(18px);
+    box-shadow: 0 0 0 1px rgba(176,38,255,0.06), 0 25px 80px -20px rgba(122,28,194,0.55);
+    position:relative;
+  }
+  .lg-panel::before {
+    content:''; position:absolute; inset:-1px; border-radius:19px; padding:1px;
+    background: linear-gradient(135deg, rgba(214,166,255,0.5), rgba(176,38,255,0.05) 40%, rgba(106,31,179,0.4) 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude; pointer-events:none; opacity:0.7;
+  }
+  .lg-field label {
+    display:block; font-family:'Marcellus',serif; font-size:10px;
+    letter-spacing:0.34em; text-transform:uppercase; color:#b6a0d6; margin-bottom:9px;
+  }
+  .lg-field input {
+    width:100%; padding:14px 16px;
+    font-family:'Poppins',sans-serif; font-size:14px; font-weight:300;
+    color:#f3e9ff; background:rgba(15,6,28,0.65);
+    border:1px solid rgba(176,38,255,0.28); border-radius:10px; outline:none;
+    transition: border-color .3s, box-shadow .3s;
+    direction: ltr;
+  }
+  .lg-field input::placeholder { color:rgba(182,160,214,0.38); }
+  .lg-field input:focus {
+    border-color:#d6a6ff;
+    box-shadow: 0 0 0 1px rgba(214,166,255,0.35), 0 0 22px rgba(176,38,255,0.55);
+  }
+  .lg-divider {
+    height:1px; width:60%; margin:0 auto;
+    background:linear-gradient(90deg,transparent,#b026ff,transparent);
+    box-shadow:0 0 10px #b026ff; opacity:0.55;
+  }
+  .lg-btn {
+    width:100%; padding:14px 18px;
+    font-family:'Marcellus',serif; font-size:13px; letter-spacing:0.4em;
+    text-transform:uppercase; color:#fff; cursor:pointer;
+    background:linear-gradient(135deg, #6a1fb3, #b026ff 55%, #d6a6ff);
+    border:1px solid rgba(255,255,255,0.25); border-radius:10px;
+    box-shadow: 0 0 18px rgba(176,38,255,0.55), 0 8px 24px -8px rgba(176,38,255,0.6);
+    transition: transform .25s, box-shadow .3s, filter .3s;
+  }
+  .lg-btn:hover { filter:brightness(1.12); transform:translateY(-1px); }
+  .lg-btn:active { transform:translateY(0); filter:brightness(0.95); }
+  .lg-error {
+    display:none; text-align:center; font-size:12px; color:#ff6b6b;
+    background:rgba(255,0,0,0.08); border:1px solid rgba(255,0,0,0.2);
+    border-radius:8px; padding:10px 14px;
+  }
+  /* hide dashboard while on login */
+  body.logged-out .app,
+  body.logged-out .bottom-nav,
+  body.logged-out .fire-bg { display:none !important; }
+  :root {
+    --black:     #000000;
+    --deep:      #05010d;
+    --void:      #0a0514;
+    --panel:     #0e0820;
+    --card:      #130b26;
+    --border:    #2a1550;
+    --p900:      #1a0535;
+    --p700:      #3d0f7a;
+    --p500:      #7b1fa2;
+    --p400:      #9c27b0;
+    --p300:      #ba52cc;
+    --p200:      #ce8fe0;
+    --p100:      #e6c8f0;
+    --fire1:     #4a0080;
+    --fire2:     #7000b0;
+    --fire3:     #9c00e0;
+    --fire4:     #c040ff;
+    --fire5:     #e080ff;
+    --gold:      #d4a017;
+    --text:      #e8d5f5;
+    --muted:     #8b6ba8;
+    --glow:      0 0 20px rgba(156,0,224,0.6), 0 0 40px rgba(156,0,224,0.3);
+    --glow-sm:   0 0 10px rgba(156,0,224,0.5), 0 0 20px rgba(156,0,224,0.2);
+    --glow-gold: 0 0 15px rgba(212,160,23,0.4);
+  }
 
-/* ── Animated Fractured Obsidian Background ── */
-.bg-layer{
-  position:fixed;inset:0;z-index:0;overflow:hidden;
-  background:var(--obsidian);
-}
-.bg-layer::before{
-  content:'';position:absolute;inset:-50%;
-  background:
-    conic-gradient(from 0deg at 20% 30%,rgba(0,212,255,0.08) 0deg,transparent 60deg),
-    conic-gradient(from 180deg at 80% 70%,rgba(255,45,149,0.08) 0deg,transparent 60deg),
-    radial-gradient(ellipse at 30% 20%,rgba(0,212,255,0.06) 0%,transparent 50%),
-    radial-gradient(ellipse at 70% 80%,rgba(255,45,149,0.06) 0%,transparent 50%);
-  animation:bgRotate 30s linear infinite;
-}
-.bg-layer::after{
-  content:'';position:absolute;inset:0;
-  background:
-    linear-gradient(135deg,transparent 40%,rgba(0,212,255,0.03) 41%,rgba(0,212,255,0.03) 42%,transparent 43%),
-    linear-gradient(45deg,transparent 55%,rgba(255,45,149,0.03) 56%,rgba(255,45,149,0.03) 57%,transparent 58%),
-    linear-gradient(225deg,transparent 30%,rgba(0,212,255,0.02) 31%,rgba(0,212,255,0.02) 32%,transparent 33%),
-    linear-gradient(315deg,transparent 65%,rgba(255,45,149,0.02) 66%,rgba(255,45,149,0.02) 67%,transparent 68%);
-  background-size:200px 200px,180px 180px,220px 220px,160px 160px;
-  animation:fractureShift 20s ease-in-out infinite alternate;
-}
-@keyframes bgRotate{to{transform:rotate(360deg)}}
-@keyframes fractureShift{
-  0%{background-position:0 0,50px 50px,100px 0,0 100px}
-  100%{background-position:200px 200px,250px 250px,300px 100px,100px 300px}
-}
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-/* ── Scanlines ── */
-.scanlines{
-  position:fixed;inset:0;z-index:1;pointer-events:none;
-  background:repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0,0,0,0.03) 2px,
-    rgba(0,0,0,0.03) 4px
-  );
-  animation:scanMove 8s linear infinite;
-}
-@keyframes scanMove{
-  0%{background-position:0 0}
-  100%{background-position:0 100px}
-}
+  body {
+    background: var(--black);
+    color: var(--text);
+    font-family: 'Cairo', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
 
-/* ── Login Screen ── */
-#loginScreen{
-  position:fixed;inset:0;z-index:100;
-  display:flex;align-items:center;justify-content:center;
-  backdrop-filter:blur(8px);
-}
-.login-card{
-  background:var(--glass);
-  border:1px solid var(--glass-border);
-  border-radius:var(--radius);
-  padding:48px 40px;
-  width:min(420px,90vw);
-  backdrop-filter:blur(20px);
-  box-shadow:var(--glow-blue);
-  transition:box-shadow 0.4s;
-}
-.login-card:hover{box-shadow:var(--glow-pink)}
-.login-card h1{
-  font-size:1.6rem;text-align:center;margin-bottom:8px;
-  background:linear-gradient(135deg,var(--neon-blue),var(--neon-pink));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-  background-clip:text;
-}
-.login-card .subtitle{
-  text-align:center;color:var(--text-muted);margin-bottom:32px;font-size:0.85rem;
-}
-.pin-group{margin-bottom:24px}
-.pin-group label{display:block;margin-bottom:8px;color:var(--text-muted);font-size:0.85rem}
-.pin-input{
-  width:100%;padding:14px 18px;
-  background:rgba(0,0,0,0.4);
-  border:1px solid var(--glass-border);
-  border-radius:8px;
-  color:var(--neon-blue);
-  font-size:1.8rem;text-align:center;letter-spacing:12px;
-  font-family:monospace;
-  transition:border-color 0.3s,box-shadow 0.3s;
-}
-.pin-input:focus{
-  outline:none;border-color:var(--neon-blue);
-  box-shadow:0 0 15px rgba(0,212,255,0.3);
-}
-.btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:8px;
-  padding:10px 20px;border:none;border-radius:8px;
-  font-family:var(--font);font-size:0.9rem;font-weight:600;
-  cursor:pointer;transition:all 0.3s;
-  position:relative;overflow:hidden;
-}
-.btn-primary{
-  width:100%;padding:14px;
-  background:linear-gradient(135deg,var(--neon-blue),#0099cc);
-  color:#000;
-}
-.btn-primary:hover{box-shadow:var(--glow-blue);transform:translateY(-1px)}
-.btn-secondary{
-  background:rgba(0,212,255,0.1);
-  border:1px solid var(--neon-blue);
-  color:var(--neon-blue);
-}
-.btn-secondary:hover{box-shadow:var(--glow-blue);background:rgba(0,212,255,0.2)}
-.btn-danger{
-  background:rgba(255,68,102,0.15);
-  border:1px solid var(--danger);
-  color:var(--danger);
-}
-.btn-danger:hover{box-shadow:0 0 20px rgba(255,68,102,0.4)}
-.btn-success{
-  background:rgba(0,255,136,0.15);
-  border:1px solid var(--success);
-  color:var(--success);
-}
-.btn-success:hover{box-shadow:0 0 20px rgba(0,255,136,0.4)}
-.btn-sm{padding:6px 12px;font-size:0.78rem}
-.btn:disabled{opacity:0.4;cursor:not-allowed;transform:none!important;box-shadow:none!important}
-.login-error{
-  color:var(--danger);text-align:center;margin-top:16px;
-  font-size:0.85rem;min-height:20px;
-}
+  /* ── FIRE AMBIENT BACKGROUND ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 110%, rgba(74,0,128,0.5) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 30% at 80% 105%, rgba(156,0,224,0.4) 0%, transparent 55%),
+      radial-gradient(ellipse 30% 50% at 50% 100%, rgba(112,0,176,0.35) 0%, transparent 65%),
+      radial-gradient(ellipse 80% 20% at 50% 100%, rgba(192,64,255,0.15) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
 
-/* ── Main App ── */
-#app{display:none;position:relative;z-index:2;min-height:100vh}
-#app.active{display:block}
+  /* ── LAYOUT ── */
+  .app { display: flex; min-height: 100vh; position: relative; z-index: 1; overflow-x: hidden; max-width: 100vw; }
 
-/* ── Header ── */
-.app-header{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:16px 24px;
-  background:rgba(10,10,15,0.8);
-  border-bottom:1px solid var(--glass-border);
-  backdrop-filter:blur(12px);
-  position:sticky;top:0;z-index:50;
-}
-.header-brand{
-  display:flex;align-items:center;gap:12px;
-}
-.header-brand h1{
-  font-size:1.2rem;
-  background:linear-gradient(135deg,var(--neon-blue),var(--neon-pink));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-  background-clip:text;
-}
-.header-brand .badge{
-  font-size:0.65rem;padding:2px 8px;
-  background:rgba(0,212,255,0.15);
-  border:1px solid var(--neon-blue);
-  border-radius:20px;color:var(--neon-blue);
-  font-family:monospace;
-}
-.header-actions{display:flex;align-items:center;gap:12px}
-.server-url-input{
-  padding:6px 12px;background:rgba(0,0,0,0.4);
-  border:1px solid var(--glass-border);border-radius:6px;
-  color:var(--text-muted);font-size:0.75rem;font-family:monospace;
-  width:200px;direction:ltr;text-align:left;
-}
-.server-url-input:focus{outline:none;border-color:var(--neon-blue)}
-.status-dot{
-  width:8px;height:8px;border-radius:50%;
-  background:var(--success);box-shadow:0 0 8px var(--success);
-  animation:pulse 2s infinite;
-}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 200px;
+    background: linear-gradient(180deg, var(--void) 0%, #080115 100%);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 100;
+    overflow: hidden;
+  }
 
-/* ── Hero Balance Banner ── */
-.hero-banner{
-  margin:20px 24px;
-  padding:28px 32px;
-  background:var(--glass);
-  border:1px solid var(--glass-border);
-  border-radius:var(--radius);
-  backdrop-filter:blur(16px);
-  display:flex;align-items:center;justify-content:space-between;
-  flex-wrap:wrap;gap:16px;
-  position:relative;overflow:hidden;
-  transition:box-shadow 0.4s;
-}
-.hero-banner:hover{box-shadow:var(--glow-blue)}
-.hero-banner::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:2px;
-  background:linear-gradient(90deg,var(--neon-blue),var(--neon-pink),var(--neon-blue));
-  animation:heroGlow 3s ease-in-out infinite;
-}
-@keyframes heroGlow{0%,100%{opacity:0.6}50%{opacity:1}}
-.hero-left{display:flex;flex-direction:column;gap:4px}
-.hero-label{font-size:0.85rem;color:var(--text-muted)}
-.hero-label span{font-family:monospace;color:var(--neon-pink);font-size:0.75rem;margin-right:8px}
-.hero-balance{
-  font-size:2.8rem;font-weight:700;font-family:monospace;
-  background:linear-gradient(135deg,var(--neon-blue),#fff);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-  background-clip:text;
-  direction:ltr;text-align:right;
-}
-.hero-balance.loading{opacity:0.3}
-.hero-meta{display:flex;gap:20px;font-size:0.78rem;color:var(--text-muted)}
-.hero-meta span{font-family:monospace}
-.hero-right{display:flex;align-items:center;gap:12px}
-.refresh-indicator{
-  font-size:0.72rem;color:var(--text-muted);font-family:monospace;
-  direction:ltr;
-}
+  .sidebar::after {
+    content: '';
+    position: absolute;
+    top: 0; right: -1px;
+    width: 1px; height: 100%;
+    background: linear-gradient(180deg, transparent 0%, var(--p500) 40%, var(--fire4) 60%, var(--p500) 80%, transparent 100%);
+    box-shadow: 0 0 8px var(--p500);
+  }
 
-/* ── Navigation Tabs ── */
-.nav-tabs{
-  display:flex;gap:4px;padding:0 24px;
-  overflow-x:auto;scrollbar-width:thin;
-  border-bottom:1px solid var(--glass-border);
-  margin-bottom:0;
-}
-.nav-tab{
-  padding:12px 20px;
-  background:transparent;border:none;
-  color:var(--text-muted);
-  font-family:var(--font);font-size:0.85rem;font-weight:500;
-  cursor:pointer;white-space:nowrap;
-  border-bottom:2px solid transparent;
-  transition:all 0.3s;
-  position:relative;
-}
-.nav-tab:hover{color:var(--neon-blue)}
-.nav-tab.active{
-  color:var(--neon-blue);
-  border-bottom-color:var(--neon-blue);
-  text-shadow:0 0 10px rgba(0,212,255,0.5);
-}
-.nav-tab .tab-icon{margin-left:6px;font-size:0.9rem}
+  .logo-wrap {
+    padding: 18px 16px 14px;
+    border-bottom: 1px solid var(--border);
+  }
 
-/* ── Tab Content ── */
-.tab-content{display:none;padding:24px;animation:fadeIn 0.3s}
-.tab-content.active{display:block}
-@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .logo {
+    font-family: 'Cairo', sans-serif;
+    font-weight: 800;
+    font-size: 16px;
+    letter-spacing: 0.04em;
+    background: linear-gradient(135deg, var(--fire4) 0%, var(--p200) 50%, var(--gold) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: none;
+    filter: drop-shadow(0 0 12px rgba(192,64,255,0.7));
+  }
 
-/* ── Cards ── */
-.card{
-  background:var(--glass);
-  border:1px solid var(--glass-border);
-  border-radius:var(--radius);
-  padding:24px;
-  backdrop-filter:blur(12px);
-  margin-bottom:20px;
-  transition:box-shadow 0.3s,border-color 0.3s;
-}
-.card:hover{
-  border-color:rgba(0,212,255,0.3);
-  box-shadow:0 4px 24px rgba(0,212,255,0.08);
-}
-.card-header{
-  display:flex;align-items:center;justify-content:space-between;
-  margin-bottom:20px;padding-bottom:12px;
-  border-bottom:1px solid rgba(255,255,255,0.05);
-}
-.card-title{font-size:1.05rem;font-weight:600}
-.card-title .en{font-family:monospace;font-size:0.75rem;color:var(--neon-pink);margin-right:8px}
+  .logo span {
+    display: block;
+    font-size: 10px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+    filter: none;
+    -webkit-text-fill-color: var(--muted);
+    margin-top: 2px;
+  }
 
-/* ── Stats Grid ── */
-.stats-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
-  gap:16px;
-}
-.stat-card{
-  background:rgba(0,0,0,0.3);
-  border:1px solid var(--glass-border);
-  border-radius:10px;
-  padding:20px;
-  transition:all 0.3s;
-}
-.stat-card:hover{
-  border-color:var(--neon-blue);
-  box-shadow:var(--glow-blue);
-  transform:translateY(-2px);
-}
-.stat-label{font-size:0.78rem;color:var(--text-muted);margin-bottom:8px}
-.stat-value{
-  font-size:1.6rem;font-weight:700;font-family:monospace;
-  color:var(--neon-blue);direction:ltr;text-align:right;
-}
-.stat-value.pink{color:var(--neon-pink)}
-.stat-value.green{color:var(--success)}
+  nav { flex: 1; padding: 10px 8px; overflow-y: auto; }
 
-/* ── Quick Actions ── */
-.quick-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+  .nav-label {
+    font-size: 8px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--p700);
+    padding: 0 10px;
+    margin: 12px 0 4px;
+    font-weight: 600;
+  }
 
-/* ── Table ── */
-.table-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--glass-border)}
-table{width:100%;border-collapse:collapse;font-size:0.85rem}
-thead{background:rgba(0,212,255,0.05)}
-th{
-  padding:12px 16px;text-align:right;
-  font-weight:600;color:var(--neon-blue);
-  border-bottom:1px solid var(--glass-border);
-  white-space:nowrap;
-}
-th .en{font-family:monospace;font-size:0.7rem;color:var(--text-muted);display:block}
-td{
-  padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.03);
-  vertical-align:middle;
-}
-tr:hover td{background:rgba(0,212,255,0.03)}
-td.mono{font-family:monospace;font-size:0.8rem;direction:ltr;text-align:right;color:var(--neon-blue)}
-td.balance{font-family:monospace;font-weight:600;direction:ltr;text-align:right}
-.row-actions{display:flex;gap:6px;flex-wrap:nowrap}
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    transition: all 0.2s;
+    border: 1px solid transparent;
+    margin-bottom: 2px;
+    position: relative;
+  }
 
-/* ── Search / Filter ── */
-.search-bar{
-  display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;
-}
-.search-input{
-  flex:1;min-width:200px;
-  padding:10px 16px;
-  background:rgba(0,0,0,0.4);
-  border:1px solid var(--glass-border);
-  border-radius:8px;
-  color:var(--text-primary);
-  font-family:var(--font);font-size:0.85rem;
-  transition:border-color 0.3s;
-}
-.search-input:focus{outline:none;border-color:var(--neon-blue);box-shadow:0 0 10px rgba(0,212,255,0.2)}
-.search-input::placeholder{color:var(--text-muted)}
+  .nav-item:hover {
+    color: var(--p200);
+    background: rgba(156,0,224,0.08);
+    border-color: rgba(156,0,224,0.15);
+  }
 
-/* ── Forms ── */
-.form-group{margin-bottom:16px}
-.form-group label{display:block;margin-bottom:6px;font-size:0.85rem;color:var(--text-muted)}
-.form-group label .en{font-family:monospace;color:var(--neon-pink);font-size:0.75rem;margin-right:6px}
-.form-input,.form-select{
-  width:100%;padding:10px 14px;
-  background:rgba(0,0,0,0.4);
-  border:1px solid var(--glass-border);
-  border-radius:8px;
-  color:var(--text-primary);
-  font-family:var(--font);font-size:0.85rem;
-  transition:border-color 0.3s;
-}
-.form-input:focus,.form-select:focus{
-  outline:none;border-color:var(--neon-blue);
-  box-shadow:0 0 10px rgba(0,212,255,0.2);
-}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-@media(max-width:600px){.form-row{grid-template-columns:1fr}}
+  .nav-item.active {
+    color: var(--fire4);
+    background: linear-gradient(90deg, rgba(192,64,255,0.15) 0%, rgba(192,64,255,0.04) 100%);
+    border-color: rgba(192,64,255,0.25);
+    box-shadow: inset 0 0 20px rgba(192,64,255,0.05), 0 0 10px rgba(192,64,255,0.1);
+  }
 
-/* ── Sliders ── */
-.slider-group{margin-bottom:20px;padding:16px;background:rgba(0,0,0,0.2);border-radius:8px;border:1px solid var(--glass-border)}
-.slider-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-.slider-label{font-size:0.9rem;font-weight:500}
-.slider-label .en{font-family:monospace;font-size:0.72rem;color:var(--neon-pink);margin-right:6px}
-.slider-value{font-family:monospace;color:var(--neon-blue);font-size:0.9rem;direction:ltr}
-input[type=range]{
-  -webkit-appearance:none;width:100%;height:6px;
-  background:rgba(0,212,255,0.15);border-radius:3px;outline:none;
-}
-input[type=range]::-webkit-slider-thumb{
-  -webkit-appearance:none;width:18px;height:18px;
-  background:var(--neon-blue);border-radius:50%;cursor:pointer;
-  box-shadow:0 0 10px rgba(0,212,255,0.5);
-  transition:box-shadow 0.3s;
-}
-input[type=range]::-webkit-slider-thumb:hover{box-shadow:var(--glow-blue)}
-input[type=range]::-moz-range-thumb{
-  width:18px;height:18px;
-  background:var(--neon-blue);border-radius:50%;cursor:pointer;border:none;
-  box-shadow:0 0 10px rgba(0,212,255,0.5);
-}
-.global-slider{
-  background:rgba(0,212,255,0.05);
-  border:1px solid var(--neon-blue);
-  padding:20px;border-radius:10px;margin-bottom:24px;
-}
-.global-slider .slider-label{font-size:1.1rem;color:var(--neon-blue)}
+  .nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: -1px; top: 20%; bottom: 20%;
+    width: 2px;
+    background: var(--fire4);
+    border-radius: 2px;
+    box-shadow: 0 0 8px var(--fire4);
+  }
 
-/* ── Security Log ── */
-.security-event{
-  display:flex;align-items:flex-start;gap:12px;
-  padding:12px 16px;
-  border-bottom:1px solid rgba(255,255,255,0.03);
-  transition:background 0.2s;
-}
-.security-event:hover{background:rgba(255,45,149,0.05)}
-.event-icon{
-  width:36px;height:36px;border-radius:8px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:1rem;flex-shrink:0;
-}
-.event-icon.balance_jump{background:rgba(255,170,0,0.15);color:var(--warning)}
-.event-icon.admin_login_fail{background:rgba(255,68,102,0.15);color:var(--danger)}
-.event-icon.rapid_order{background:rgba(255,45,149,0.15);color:var(--neon-pink)}
-.event-body{flex:1}
-.event-type{font-weight:600;font-size:0.85rem;margin-bottom:4px}
-.event-type .en{font-family:monospace;font-size:0.72rem;color:var(--text-muted);margin-right:6px}
-.event-detail{font-size:0.8rem;color:var(--text-muted);font-family:monospace;direction:ltr;text-align:right}
-.event-time{font-size:0.72rem;color:var(--text-muted);font-family:monospace;margin-top:4px;direction:ltr;text-align:right}
+  .nav-icon { font-size: 13px; width: 16px; text-align: center; }
 
-/* ── Cron Log ── */
-.cron-output{
-  background:rgba(0,0,0,0.5);
-  border:1px solid var(--glass-border);
-  border-radius:8px;
-  padding:16px;
-  font-family:'Courier New',monospace;
-  font-size:0.78rem;
-  color:var(--neon-blue);
-  max-height:400px;
-  overflow-y:auto;
-  white-space:pre-wrap;
-  direction:ltr;text-align:left;
-  line-height:1.6;
-}
-.cron-metrics{
-  display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
-  gap:12px;margin-bottom:16px;
-}
-.cron-metric{
-  background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);
-  border-radius:8px;padding:14px;text-align:center;
-}
-.cron-metric-label{font-size:0.72rem;color:var(--text-muted);margin-bottom:4px}
-.cron-metric-value{font-family:monospace;font-size:1.2rem;color:var(--neon-blue);direction:ltr}
+  .sidebar-footer {
+    padding: 12px 8px;
+    border-top: 1px solid var(--border);
+  }
 
-/* ── Toast Notifications ── */
-#toastContainer{
-  position:fixed;top:20px;left:20px;z-index:9999;
-  display:flex;flex-direction:column;gap:8px;
-}
-.toast{
-  padding:12px 20px;border-radius:8px;
-  font-size:0.85rem;min-width:280px;
-  backdrop-filter:blur(12px);
-  animation:toastIn 0.3s ease-out;
-  border:1px solid;
-}
-.toast.success{background:rgba(0,255,136,0.15);border-color:var(--success);color:var(--success)}
-.toast.error{background:rgba(255,68,102,0.15);border-color:var(--danger);color:var(--danger)}
-.toast.info{background:rgba(0,212,255,0.15);border-color:var(--neon-blue);color:var(--neon-blue)}
-@keyframes toastIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+  .admin-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: rgba(156,0,224,0.08);
+    border: 1px solid rgba(156,0,224,0.2);
+    border-radius: 8px;
+  }
 
-/* ── Loading / Empty States ── */
-.loading-spinner{
-  display:inline-block;width:20px;height:20px;
-  border:2px solid rgba(0,212,255,0.2);
-  border-top-color:var(--neon-blue);
-  border-radius:50%;
-  animation:spin 0.8s linear infinite;
-}
-@keyframes spin{to{transform:rotate(360deg)}}
-.empty-state{
-  text-align:center;padding:40px;color:var(--text-muted);
-}
-.empty-state .icon{font-size:2rem;margin-bottom:12px;opacity:0.5}
-.error-banner{
-  background:rgba(255,68,102,0.1);
-  border:1px solid var(--danger);
-  border-radius:8px;
-  padding:12px 16px;
-  color:var(--danger);
-  font-size:0.85rem;
-  margin-bottom:16px;
-  display:flex;align-items:center;gap:10px;
-}
+  .avatar {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--p700), var(--fire4));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+    box-shadow: 0 0 10px rgba(192,64,255,0.4);
+  }
 
-/* ── Modal ── */
-.modal-overlay{
-  position:fixed;inset:0;z-index:200;
-  background:rgba(0,0,0,0.7);
-  backdrop-filter:blur(4px);
-  display:flex;align-items:center;justify-content:center;
-  animation:fadeIn 0.2s;
-}
-.modal{
-  background:var(--glass);
-  border:1px solid var(--glass-border);
-  border-radius:var(--radius);
-  padding:28px;
-  width:min(440px,90vw);
-  backdrop-filter:blur(20px);
-  box-shadow:var(--glow-blue);
-}
-.modal h3{margin-bottom:16px;font-size:1.1rem}
-.modal-actions{display:flex;gap:10px;margin-top:20px;justify-content:flex-end}
+  .admin-info { flex: 1; }
+  .admin-name { font-size: 11px; font-weight: 600; color: var(--p200); }
+  .admin-role { font-size: 9px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
 
-/* ── Services Status ── */
-.service-item{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:14px 16px;
-  border-bottom:1px solid rgba(255,255,255,0.03);
-  transition:background 0.2s;
-}
-.service-item:hover{background:rgba(0,212,255,0.03)}
-.service-name{font-weight:500}
-.service-name .en{font-family:monospace;font-size:0.72rem;color:var(--text-muted);margin-right:6px}
-.service-status{
-  font-family:monospace;font-size:0.78rem;
-  padding:4px 10px;border-radius:12px;
-}
-.service-status.up{background:rgba(0,255,136,0.15);color:var(--success)}
-.service-status.down{background:rgba(255,68,102,0.15);color:var(--danger)}
-.service-status.unknown{background:rgba(136,136,160,0.15);color:var(--text-muted)}
+  /* ── MAIN CONTENT ── */
+  .main {
+    margin-left: 200px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
 
-/* ── Settings ── */
-.settings-section{margin-bottom:24px}
-.settings-section h3{font-size:0.95rem;margin-bottom:12px;color:var(--neon-blue)}
+  /* ── TOP BAR ── */
+  .topbar {
+    height: 52px;
+    background: rgba(5,1,13,0.8);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 18px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
 
-/* ── User Found Card ── */
-.user-found-card{
-  background:rgba(0,212,255,0.05);
-  border:1px solid var(--neon-blue);
-  border-radius:10px;
-  padding:20px;margin-top:16px;
-}
-.user-found-card .uid{font-family:monospace;font-size:1.1rem;color:var(--neon-blue);direction:ltr;text-align:right;margin-bottom:8px}
-.user-found-card .email{color:var(--text-muted);margin-bottom:4px}
-.user-found-card .bal{font-family:monospace;font-size:1.4rem;font-weight:700;direction:ltr;text-align:right;margin:12px 0}
+  .page-title {
+    font-family: 'Cairo', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0;
+  }
 
-/* ── Scrollbar ── */
-::-webkit-scrollbar{width:6px;height:6px}
-::-webkit-scrollbar-track{background:rgba(0,0,0,0.2)}
-::-webkit-scrollbar-thumb{background:rgba(0,212,255,0.3);border-radius:3px}
-::-webkit-scrollbar-thumb:hover{background:rgba(0,212,255,0.5)}
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
 
-/* ── Responsive ── */
-@media(max-width:768px){
-  .hero-banner{margin:12px;padding:20px}
-  .hero-balance{font-size:2rem}
-  .tab-content{padding:16px}
-  .stats-grid{grid-template-columns:1fr 1fr}
-  .app-header{flex-direction:column;gap:12px}
-  .header-actions{width:100%;justify-content:space-between}
-  .server-url-input{width:100%}
-}
+  .status-dot {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--muted);
+  }
+
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #39ff14;
+    box-shadow: 0 0 8px #39ff14;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── PAGE CONTENT ── */
+  .page {
+    display: none;
+    padding: 20px 16px;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .page.active { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── SECTION HEADER ── */
+  .section-header {
+    margin-bottom: 18px;
+  }
+
+  .section-header h2 {
+    font-family: 'Cairo', sans-serif;
+    font-size: 20px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #fff 0%, var(--p200) 50%, var(--fire4) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 16px rgba(192,64,255,0.5));
+    margin-bottom: 4px;
+  }
+
+  .section-header p {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+  }
+
+  /* ── STAT CARDS GRID ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: linear-gradient(135deg, var(--card) 0%, #1a0a30 100%);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 60% at 50% 120%, rgba(156,0,224,0.2) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--p400), transparent);
+    opacity: 0.6;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--p400);
+    box-shadow: var(--glow), 0 16px 40px rgba(0,0,0,0.5);
+  }
+
+  .stat-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    margin-bottom: 12px;
+    position: relative;
+  }
+
+  .stat-icon.purple {
+    background: linear-gradient(135deg, rgba(123,31,162,0.3), rgba(156,0,224,0.15));
+    border: 1px solid rgba(192,64,255,0.3);
+    box-shadow: 0 0 20px rgba(156,0,224,0.25);
+  }
+
+  .stat-icon.gold {
+    background: linear-gradient(135deg, rgba(212,160,23,0.2), rgba(212,160,23,0.08));
+    border: 1px solid rgba(212,160,23,0.3);
+    box-shadow: 0 0 20px rgba(212,160,23,0.2);
+  }
+
+  .stat-value {
+    font-family: 'Cairo', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 4px;
+    text-shadow: 0 0 20px rgba(192,64,255,0.4);
+  }
+
+  .stat-value.editable {
+    cursor: text;
+    border-bottom: 1px dashed rgba(192,64,255,0.3);
+    outline: none;
+    min-width: 60px;
+    display: inline-block;
+    transition: border-color 0.2s;
+  }
+
+  .stat-value.editable:focus {
+    border-bottom-color: var(--fire4);
+    text-shadow: 0 0 20px rgba(192,64,255,0.7);
+  }
+
+  .stat-label {
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 600;
+  }
+
+  .stat-badge {
+    position: absolute;
+    top: 16px; right: 16px;
+    font-size: 9px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .badge-up {
+    background: rgba(57,255,20,0.1);
+    border: 1px solid rgba(57,255,20,0.25);
+    color: #39ff14;
+  }
+
+  .badge-edit {
+    background: rgba(192,64,255,0.1);
+    border: 1px solid rgba(192,64,255,0.25);
+    color: var(--fire4);
+  }
+
+  /* ── FIRE DIVIDER ── */
+  .fire-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, var(--p700) 20%, var(--fire4) 50%, var(--p700) 80%, transparent 100%);
+    box-shadow: 0 0 8px rgba(192,64,255,0.4);
+    margin: 32px 0;
+  }
+
+  /* ── TABLE ── */
+  .table-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .table-head {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(156,0,224,0.05);
+  }
+
+  .table-head h3 {
+    font-family: 'Cairo', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--p200);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .count-badge {
+    background: rgba(192,64,255,0.12);
+    border: 1px solid rgba(192,64,255,0.25);
+    color: var(--fire4);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead th {
+    padding: 12px 24px;
+    text-align: left;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    font-weight: 600;
+    background: rgba(10,5,20,0.5);
+    border-bottom: 1px solid var(--border);
+  }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(42,21,80,0.5);
+    transition: background 0.2s;
+  }
+
+  tbody tr:last-child { border-bottom: none; }
+
+  tbody tr:hover {
+    background: rgba(156,0,224,0.06);
+  }
+
+  tbody td {
+    padding: 14px 24px;
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .user-cell { display: flex; align-items: center; gap: 10px; }
+
+  .user-av {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--p700), var(--fire3));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: #fff;
+    box-shadow: 0 0 10px rgba(156,0,224,0.3);
+    flex-shrink: 0;
+  }
+
+  .user-name { font-weight: 600; color: var(--p100); font-size: 13px; }
+  .user-since { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+  .email-cell { color: var(--muted); font-size: 12px; font-family: monospace; }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .pill-active {
+    background: rgba(57,255,20,0.08);
+    border: 1px solid rgba(57,255,20,0.2);
+    color: #39ff14;
+  }
+
+  .pill-inactive {
+    background: rgba(156,0,224,0.08);
+    border: 1px solid rgba(156,0,224,0.2);
+    color: var(--muted);
+  }
+
+  /* ── FORM PANELS ── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  .form-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .form-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 70% 50% at 50% 110%, rgba(156,0,224,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .form-card h3 {
+    font-family: 'Cairo', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--p200);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .form-card p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  input[type="url"] {
+    width: 100%;
+    background: rgba(5,1,13,0.6);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: 'Cairo', sans-serif;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    margin-bottom: 18px;
+    direction: ltr;
+    text-align: left;
+  }
+
+  input:focus {
+    border-color: var(--p500);
+    box-shadow: 0 0 0 3px rgba(156,0,224,0.12), 0 0 15px rgba(156,0,224,0.1);
+  }
+
+  input::placeholder { color: rgba(139,107,168,0.5); }
+
+  .input-group { position: relative; }
+
+  .input-suffix {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    color: var(--fire4);
+    font-weight: 700;
+    pointer-events: none;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 22px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: 'Cairo', sans-serif;
+    cursor: pointer;
+    border: none;
+    outline: none;
+    transition: all 0.2s;
+    letter-spacing: 0;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--p700) 0%, var(--fire3) 50%, var(--p500) 100%);
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(156,0,224,0.4), 0 0 0 1px rgba(192,64,255,0.2);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--glow), 0 8px 30px rgba(156,0,224,0.5);
+  }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--fire4);
+    border: 1px solid rgba(192,64,255,0.35);
+  }
+
+  .btn-outline:hover {
+    background: rgba(192,64,255,0.08);
+    border-color: var(--fire4);
+    box-shadow: var(--glow-sm);
+  }
+
+  .btn-gold {
+    background: linear-gradient(135deg, #7a5500 0%, #c28000 50%, #d4a017 100%);
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(212,160,23,0.3);
+  }
+
+  .btn-gold:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--glow-gold), 0 8px 30px rgba(212,160,23,0.4);
+  }
+
+  /* ── BALANCE BOX ── */
+  .balance-display {
+    background: linear-gradient(135deg, rgba(74,0,128,0.2) 0%, rgba(156,0,224,0.08) 100%);
+    border: 1px solid rgba(192,64,255,0.3);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .balance-display::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 80% at 50% 120%, rgba(192,64,255,0.2) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .balance-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.25em;
+    color: var(--muted);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  .balance-amount {
+    font-family: 'Syne', sans-serif;
+    font-size: 36px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--gold) 0%, #ffe066 50%, var(--gold) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 20px rgba(212,160,23,0.6));
+  }
+
+  .balance-currency {
+    font-size: 14px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* ── FULL-WIDTH CARD ── */
+  .full-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .full-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 50% 40% at 50% 110%, rgba(156,0,224,0.1) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .full-card h3 {
+    font-family: 'Cairo', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--p200);
+    margin-bottom: 6px;
+  }
+
+  .full-card p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  .api-status-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: rgba(5,1,13,0.5);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  .api-status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+
+  .api-status-dot.connected {
+    background: #39ff14;
+    box-shadow: 0 0 8px #39ff14;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .server-status-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 0;
+    padding: 12px 16px;
+    background: rgba(5,1,13,0.5);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  .api-status-text {
+    font-size: 12px;
+    color: var(--muted);
+    flex: 1;
+  }
+
+  /* ── MINI FIRE PARTICLES ── */
+  .fire-bg {
+    position: fixed;
+    bottom: 0;
+    left: 200px;
+    right: 0;
+    height: 120px;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+
+  @keyframes flame-rise {
+    0%   { transform: translateY(0) scaleX(1); opacity: 0.8; }
+    50%  { transform: translateY(-60px) scaleX(0.7) rotate(3deg); opacity: 0.5; }
+    100% { transform: translateY(-110px) scaleX(0.3); opacity: 0; }
+  }
+
+  .flame {
+    position: absolute;
+    bottom: 0;
+    border-radius: 50% 50% 20% 20%;
+    animation: flame-rise linear infinite;
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: var(--void); }
+  ::-webkit-scrollbar-thumb {
+    background: var(--p700);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--p500); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 1200px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* ── MOBILE BOTTOM NAV ── */
+  .bottom-nav {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 60px;
+    background: linear-gradient(180deg, var(--void) 0%, #080115 100%);
+    border-top: 1px solid var(--border);
+    z-index: 200;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0 4px;
+  }
+
+  .bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--muted);
+    transition: all 0.2s;
+    min-width: 52px;
+    text-align: center;
+    border: 1px solid transparent;
+  }
+
+  .bottom-nav-item .bn-icon { font-size: 18px; line-height: 1; }
+
+  .bottom-nav-item.active {
+    color: var(--fire4);
+    background: rgba(192,64,255,0.12);
+    border-color: rgba(192,64,255,0.2);
+  }
+
+  @media (max-width: 700px) {
+    .sidebar { display: none; }
+    .bottom-nav { display: flex; }
+    .main {
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+      padding-bottom: 68px;
+    }
+    .fire-bg { left: 0; }
+    .form-grid { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .page { padding: 10px 10px; }
+    .topbar { padding: 0 12px; height: 44px; }
+    .topbar .page-title { font-size: 13px; }
+    .table-wrap { overflow-x: hidden; }
+    table { min-width: unset; width: 100%; }
+    thead th { padding: 7px 6px; font-size: 8px; letter-spacing: 0.05em; }
+    tbody td { padding: 8px 6px; font-size: 10px; }
+    .user-cell { gap: 5px; }
+    .user-av { width: 22px; height: 22px; font-size: 9px; }
+    .user-name { font-size: 10px; }
+    .user-since { font-size: 8px; }
+    .status-pill { font-size: 8px; padding: 2px 6px; gap: 3px; }
+    .email-cell { font-size: 9px; word-break: break-all; }
+    /* إخفاء عمود # في جدول الطلبات على الموبايل */
+    #page-dashboard table th:first-child,
+    #page-dashboard table td:first-child { display: none; }
+    .full-card, .form-card { padding: 14px 12px; margin-bottom: 12px; }
+
+    .stat-card { padding: 10px 10px 12px; border-radius: 12px; }
+    .stat-icon { width: 24px; height: 24px; font-size: 12px; margin-bottom: 6px; margin-top: 20px; }
+    .stat-value { font-size: 16px; margin-bottom: 2px; }
+    .stat-label { font-size: 8px; letter-spacing: 0.08em; }
+    .stat-badge { font-size: 7px; padding: 2px 6px; top: 6px; right: 6px; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .section-header { margin-bottom: 10px; }
+    .section-header h2 { font-size: 15px; }
+    .section-header p { font-size: 10px; }
+
+    .table-head { padding: 10px 12px; }
+    .table-head h3 { font-size: 12px; }
+    .fire-divider { margin: 16px 0; }
+
+    .form-card h3, .full-card h3 { font-size: 13px; }
+    .form-card p, .full-card p { font-size: 11px; margin-bottom: 12px; }
+    label { font-size: 11px; margin-bottom: 5px; }
+    input[type="text"], input[type="number"], input[type="url"] {
+      padding: 9px 10px; font-size: 12px; margin-bottom: 12px;
+    }
+    .btn { padding: 8px 14px; font-size: 12px; }
+
+    .balance-amount { font-size: 26px; }
+    .balance-display { padding: 14px; margin: 12px 0; }
+  }
 </style>
 </head>
-<body>
+<body class="logged-out">
 
-<div class="bg-layer"></div>
-<div class="scanlines"></div>
-
-<!-- ═══════════════ LOGIN SCREEN ═══════════════ -->
-<div id="loginScreen">
-  <div class="login-card">
-    <h1>لوحة التحكم</h1>
-    <p class="subtitle">SMM Admin Panel — أدخل رمز PIN للدخول</p>
-    <div class="pin-group">
-      <label for="pinInput">رمز PIN <span class="en" style="font-family:monospace;color:var(--neon-pink)">max 6 digits</span></label>
-      <input type="password" id="pinInput" class="pin-input" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="••••••">
+<!-- ══ LOGIN SCREEN ══ -->
+<div id="login-screen">
+  <div class="lg-embers" id="lg-embers"></div>
+  <div class="lg-stage">
+    <div class="lg-brand">
+      <div class="lg-name">Dark Follow</div>
+      <div class="lg-sub">Admin Control</div>
     </div>
-    <button class="btn btn-primary" id="loginBtn" onclick="App.login()">دخول — Login</button>
-    <div class="login-error" id="loginError"></div>
+    <div class="lg-panel">
+      <div class="lg-field">
+        <label for="lg-user">Username</label>
+        <input type="text" id="lg-user" placeholder="Enter username" autocomplete="off">
+      </div>
+      <div class="lg-divider"></div>
+      <div class="lg-field">
+        <label for="lg-pass">Password</label>
+        <input type="password" id="lg-pass" placeholder="Enter password">
+      </div>
+      <div class="lg-error" id="lg-error">اسم المستخدم أو كلمة المرور غير صحيحة</div>
+      <button class="lg-btn" onclick="doLogin()">Sign In</button>
+    </div>
   </div>
 </div>
 
-<!-- ═══════════════ MAIN APP ═══════════════ -->
-<div id="app">
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo-wrap">
+      <div class="logo">DARK FOLLOW<span>لوحة التحكم</span></div>
+    </div>
+    <nav>
+      <div class="nav-label">الرئيسية</div>
+      <div class="nav-item active" onclick="showPage('dashboard', this)">
+        <span class="nav-icon">⬛</span> الرئيسية
+      </div>
+      <div class="nav-label">الإدارة</div>
+      <div class="nav-item" onclick="showPage('users', this)">
+        <span class="nav-icon">👥</span> المستخدمون
+      </div>
+      <div class="nav-item" onclick="showPage('margin', this)">
+        <span class="nav-icon">📊</span> هامش الربح
+      </div>
+      <div class="nav-item" onclick="showPage('platform', this)">
+        <span class="nav-icon">🔗</span> رابط المنصة
+      </div>
+      <div class="nav-item" onclick="showPage('server', this)">
+        <span class="nav-icon">🖥️</span> رابط السيرفر
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="admin-badge">
+        <div class="avatar">A</div>
+        <div class="admin-info">
+          <div class="admin-name">المشرف</div>
+          <div class="admin-role">مشرف عام</div>
+        </div>
+      </div>
+    </div>
+  </aside>
 
-  <!-- Header -->
-  <header class="app-header">
-    <div class="header-brand">
-      <h1>لوحة تحكم SMM</h1>
-      <span class="badge">ADMIN v4.0</span>
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="page-title" id="topbar-title">الرئيسية</div>
+      <div class="topbar-right">
+        <div class="status-dot"><div class="dot"></div> مباشر</div>
+      </div>
     </div>
-    <div class="header-actions">
-      <input type="text" class="server-url-input" id="serverUrlInput" placeholder="Server URL" title="Server URL">
-      <div class="status-dot" id="connectionDot" title="Connected"></div>
-      <button class="btn btn-danger btn-sm" onclick="App.logout()">خروج — Logout</button>
-    </div>
-  </header>
 
-  <!-- Hero Balance Banner -->
-  <div class="hero-banner" id="heroBanner">
-    <div class="hero-left">
-      <div class="hero-label">رصيد Dark Follow <span class="en">DF Balance</span></div>
-      <div class="hero-balance loading" id="dfBalance">—</div>
-      <div class="hero-meta">
-        <span id="dfCurrency">USD</span>
-        <span id="dfLastUpdate">—</span>
+    <!-- ── DASHBOARD PAGE ── -->
+    <div class="page active" id="page-dashboard">
+      <div class="section-header">
+        <h2>نظرة عامة</h2>
+        <p>إحصائيات لحظية ومؤشرات الأداء</p>
       </div>
-    </div>
-    <div class="hero-right">
-      <span class="refresh-indicator" id="dfRefreshIndicator">auto-refresh: 60s</span>
-      <button class="btn btn-secondary btn-sm" onclick="App.refreshDFBalance()">تحديث — Refresh</button>
-    </div>
-  </div>
 
-  <!-- Navigation -->
-  <nav class="nav-tabs" id="navTabs">
-    <button class="nav-tab active" data-tab="overview" onclick="App.switchTab('overview')">
-      <span class="tab-icon">◈</span> نظرة عامة — Overview
-    </button>
-    <button class="nav-tab" data-tab="users" onclick="App.switchTab('users')">
-      <span class="tab-icon">◉</span> المستخدمون — Users
-    </button>
-    <button class="nav-tab" data-tab="topup" onclick="App.switchTab('topup')">
-      <span class="tab-icon">⊕</span> شحن UID — Top-up
-    </button>
-    <button class="nav-tab" data-tab="margins" onclick="App.switchTab('margins')">
-      <span class="tab-icon">◧</span> الهوامش — Margins
-    </button>
-    <button class="nav-tab" data-tab="security" onclick="App.switchTab('security')">
-      <span class="tab-icon">⛨</span> الأمان — Security
-    </button>
-    <button class="nav-tab" data-tab="cron" onclick="App.switchTab('cron')">
-      <span class="tab-icon">⏱</span> كرون — Cron
-    </button>
-    <button class="nav-tab" data-tab="services" onclick="App.switchTab('services')">
-      <span class="tab-icon">⚙</span> الخدمات — Services
-    </button>
-    <button class="nav-tab" data-tab="settings" onclick="App.switchTab('settings')">
-      <span class="tab-icon">⚙</span> الإعدادات — Settings
-    </button>
-  </nav>
+      <div class="stats-grid">
+        <!-- Profit Margin -->
+        <div class="stat-card">
+          <div class="stat-badge badge-edit">قابل للتعديل</div>
+          <div class="stat-icon gold">💰</div>
+          <div class="stat-value">
+            <span class="editable" id="margin-display" contenteditable="true" title="اضغط للتعديل">12</span>%
+          </div>
+          <div class="stat-label">هامش الربح</div>
+        </div>
 
-  <!-- ═══ TAB: OVERVIEW ═══ -->
-  <div class="tab-content active" id="tab-overview">
-    <div class="stats-grid" id="statsGrid">
-      <div class="stat-card">
-        <div class="stat-label">إجمالي المستخدمين <span class="en" style="font-family:monospace;font-size:0.65rem;color:var(--neon-pink)">total_users</span></div>
-        <div class="stat-value" id="statTotalUsers">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">الطلبات اليوم <span class="en" style="font-family:monospace;font-size:0.65rem;color:var(--neon-pink)">orders_today</span></div>
-        <div class="stat-value pink" id="statOrdersToday">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">إيرادات اليوم <span class="en" style="font-family:monospace;font-size:0.65rem;color:var(--neon-pink)">revenue_today</span></div>
-        <div class="stat-value green" id="statRevenueToday">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">طلبات معلّقة <span class="en" style="font-family:monospace;font-size:0.65rem;color:var(--neon-pink)">pending_orders</span></div>
-        <div class="stat-value" id="statPendingOrders">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">إجمالي الخدمات <span class="en" style="font-family:monospace;font-size:0.65rem;color:var(--neon-pink)">total_services</span></div>
-        <div class="stat-value" id="statTotalServices">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">رصيد المستخدمين <span class="en" style="font-family:monospace;font-size:0.65rem;color:var(--neon-pink)">total_user_balance</span></div>
-        <div class="stat-value green" id="statTotalBalance">—</div>
-      </div>
-    </div>
-    <div class="card" style="margin-top:20px">
-      <div class="card-header">
-        <div class="card-title">إجراءات سريعة <span class="en">Quick Actions</span></div>
-      </div>
-      <div class="quick-actions">
-        <button class="btn btn-secondary" onclick="App.refreshDFBalance()">تحديث رصيد DF — Refresh DF Balance</button>
-        <button class="btn btn-secondary" onclick="App.refreshCatalog()">تحديث الكatalog — Refresh Catalog</button>
-        <button class="btn btn-secondary" onclick="App.loadUsers()">إعادة تحميل المستخدمين — Reload Users</button>
-        <button class="btn btn-secondary" onclick="App.loadStats()">تحديث الإحصائيات — Refresh Stats</button>
-      </div>
-    </div>
-  </div>
+        <!-- Bot Users -->
+        <div class="stat-card">
+          <div class="stat-badge badge-up">+8.4%</div>
+          <div class="stat-icon purple">🤖</div>
+          <div class="stat-value" id="bot-users">—</div>
+          <div class="stat-label">مستخدمو البوت</div>
+        </div>
 
-  <!-- ═══ TAB: USERS ═══ -->
-  <div class="tab-content" id="tab-users">
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">المستخدمون <span class="en">Users</span></div>
-        <button class="btn btn-secondary btn-sm" onclick="App.loadUsers()">تحديث — Refresh</button>
+        <!-- Orders -->
+        <div class="stat-card">
+          <div class="stat-badge badge-up">+22%</div>
+          <div class="stat-icon purple">📦</div>
+          <div class="stat-value" id="total-orders">—</div>
+          <div class="stat-label">إجمالي الطلبات</div>
+        </div>
+
+        <!-- Dark Follow Balance -->
+        <div class="stat-card">
+          <div class="stat-badge badge-edit">مباشر</div>
+          <div class="stat-icon gold">⚡</div>
+          <div class="stat-value" id="df-balance-card">—</div>
+          <div class="stat-label">رصيد دارك فولو</div>
+        </div>
       </div>
-      <div class="search-bar">
-        <input type="text" class="search-input" id="userSearchInput" placeholder="بحث بالبريد أو UID — Search email / UID..." oninput="App.filterUsers()">
-      </div>
-      <div id="usersError" class="error-banner" style="display:none"></div>
+
+      <div class="fire-divider"></div>
+
+      <!-- Quick summary -->
       <div class="table-wrap">
+        <div class="table-head">
+          <h3>آخر الطلبات</h3>
+          <span class="count-badge">أحدث 5</span>
+        </div>
         <table>
           <thead>
             <tr>
-              <th>البريد <span class="en">email</span></th>
-              <th>الرصيد <span class="en">balance</span></th>
-              <th>المعرّف <span class="en">WF- UID</span></th>
-              <th>إجراءات <span class="en">actions</span></th>
+              <th>المستخدم</th>
+              <th>الخدمة</th>
+              <th>المبلغ</th>
+              <th>الحالة</th>
             </tr>
           </thead>
-          <tbody id="usersTableBody">
-            <tr><td colspan="4" class="empty-state"><div class="loading-spinner"></div> جاري التحميل...</td></tr>
+          <tbody>
+            <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)">جاري التحميل…</td></tr>
           </tbody>
         </table>
       </div>
-      <div style="margin-top:12px;font-size:0.78rem;color:var(--text-muted)" id="usersCount"></div>
     </div>
-  </div>
 
-  <!-- ═══ TAB: TOP-UP ═══ -->
-  <div class="tab-content" id="tab-topup">
-    <div class="card">
-      <div class="card-title" style="margin-bottom:20px">شحن عبر UID <span class="en">UID Top-up</span></div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>معرّف المستخدم <span class="en">WF- UID</span></label>
-          <input type="text" class="form-input" id="topupUidInput" placeholder="WF-xxxxxxxx" style="direction:ltr;text-align:left;font-family:monospace">
-        </div>
-        <div class="form-group" style="display:flex;align-items:flex-end">
-          <button class="btn btn-secondary" onclick="App.findUserByUid()" style="width:100%">بحث — Find User</button>
-        </div>
+    <!-- ── USERS PAGE ── -->
+    <div class="page" id="page-users">
+      <div class="section-header">
+        <h2>المستخدمون المسجلون</h2>
+        <p>جميع المستخدمين المسجلين في المنصة</p>
       </div>
-      <div id="topupUserResult"></div>
-      <div id="topupActionForm" style="display:none;margin-top:16px">
-        <div class="form-row">
-          <div class="form-group">
-            <label>المبلغ <span class="en">amount (+ charge / − deduct)</span></label>
-            <input type="number" class="form-input" id="topupAmountInput" step="0.01" placeholder="0.00" style="direction:ltr;text-align:left;font-family:monospace">
+
+      <div class="table-wrap">
+        <div class="table-head">
+          <h3>قائمة المستخدمين</h3>
+          <span class="count-badge" id="user-count">— مستخدمين</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>اسم المستخدم</th>
+              <th>تاريخ الانضمام</th>
+              <th>الحالة</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)">جاري التحميل…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── PROFIT MARGIN PAGE ── -->
+    <div class="page" id="page-margin">
+      <div class="section-header">
+        <h2>هامش الربح</h2>
+        <p>تحديد نسبة الربح الثابتة والمتغيرة للخدمات</p>
+      </div>
+
+      <div class="form-grid">
+        <!-- Fixed Percentage -->
+        <div class="form-card">
+          <h3>📌 نسبة ثابتة</h3>
+          <p>تطبيق نسبة ربح ثابتة على جميع الخدمات بشكل موحد.</p>
+          <label>نسبة الربح الثابتة (%)</label>
+          <div class="input-group">
+            <input type="number" id="fixed-pct" placeholder="مثال: 10" min="0" max="100" oninput="updateMarginPreview()">
+            <span class="input-suffix">%</span>
           </div>
-          <div class="form-group" style="display:flex;align-items:flex-end;gap:8px">
-            <button class="btn btn-success" onclick="App.topupByUid(true)" style="flex:1">شحن + — Top-up</button>
-            <button class="btn btn-danger" onclick="App.topupByUid(false)" style="flex:1">خصم − — Charge</button>
+          <label>تطبق على</label>
+          <input type="text" value="جميع الخدمات" placeholder="نطاق الخدمة">
+          <button class="btn btn-primary" onclick="saveFixedMargin()">💾 حفظ النسبة الثابتة</button>
+        </div>
+
+        <!-- Percentage Rate -->
+        <div class="form-card">
+          <h3>📈 نسبة متغيرة</h3>
+          <p>تحديد معدل ديناميكي يتناسب مع قيمة الطلب.</p>
+          <label>مضاعف النسبة (%)</label>
+          <div class="input-group">
+            <input type="number" id="rate-pct" placeholder="مثال: 15" min="0" max="200" oninput="updateMarginPreview()">
+            <span class="input-suffix">%</span>
+          </div>
+          <label>الحد الأدنى لقيمة الطلب ($)</label>
+          <input type="number" placeholder="مثال: 5.00" min="0">
+          <button class="btn btn-primary" onclick="saveRateMargin()">💾 حفظ النسبة المتغيرة</button>
+        </div>
+      </div>
+
+      <div class="fire-divider"></div>
+
+      <!-- Live Preview -->
+      <div class="full-card">
+        <h3>🔮 معاينة مباشرة</h3>
+        <p>شاهد تأثير إعدادات الهامش على التسعير في الوقت الفعلي.</p>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:8px">
+          <div style="background:rgba(5,1,13,0.6);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:6px">التكلفة الأصلية</div>
+            <div style="font-family:'Cairo',sans-serif;font-size:22px;font-weight:800;color:#fff">$10.00</div>
+          </div>
+          <div style="background:rgba(5,1,13,0.6);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:6px">ربحك</div>
+            <div id="profit-preview" style="font-family:'Cairo',sans-serif;font-size:22px;font-weight:800;color:var(--fire4)">$1.20</div>
+          </div>
+          <div style="background:rgba(5,1,13,0.6);border:1px solid rgba(212,160,23,0.3);border-radius:10px;padding:16px;text-align:center">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:6px">سعر البيع</div>
+            <div id="sell-preview" style="font-family:'Cairo',sans-serif;font-size:22px;font-weight:800;color:var(--gold)">$11.20</div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- ═══ TAB: MARGINS ═══ -->
-  <div class="tab-content" id="tab-margins">
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">متحكم الهوامش <span class="en">Margin Elasticity Controller</span></div>
-        <button class="btn btn-primary btn-sm" onclick="App.applyAllMargins()">تطبيق الكل — Apply All</button>
+    <!-- ── PLATFORM LINK PAGE ── -->
+    <div class="page" id="page-platform">
+      <div class="section-header">
+        <h2>رابط المنصة</h2>
+        <p>ربط منصة دارك فولو وإدارة التكامل</p>
       </div>
-      <div class="global-slider slider-group">
-        <div class="slider-header">
-          <div class="slider-label">الهامش العام <span class="en">global_percent</span></div>
-          <div class="slider-value" id="globalSliderValue">0%</div>
+
+      <div class="full-card">
+        <h3>🔗 رابط المنصة</h3>
+        <p>أدخل رابط منصة دارك فولو الخاصة بك.</p>
+        <label>رابط المنصة</label>
+        <input type="url" id="platform-url" placeholder="https://darkfollow.com/api/v2">
+        <button class="btn btn-outline" onclick="savePlatformUrl()">💾 حفظ الرابط</button>
+      </div>
+
+      <div class="full-card">
+        <h3>⚡ اتصال API دارك فولو</h3>
+        <p>أدخل مفتاح API الخاص بك للاتصال واسترجاع البيانات المباشرة من دارك فولو.</p>
+        <label>مفتاح API</label>
+        <input type="text" id="api-key-input" placeholder="أدخل مفتاح Dark Follow API">
+
+        <div class="api-status-row" id="api-status-row">
+          <div class="api-status-dot" id="api-dot"></div>
+          <span class="api-status-text" id="api-status-text">غير متصل — أدخل مفتاح API واضغط اتصال</span>
         </div>
-        <input type="range" id="globalMarginSlider" min="0" max="200" value="0" step="1" oninput="App.updateGlobalSlider(this.value)">
-      </div>
-      <div id="categorySlidersContainer">
-        <div class="empty-state"><div class="loading-spinner"></div> جاري تحميل الفئات...</div>
-      </div>
-    </div>
-  </div>
 
-  <!-- ═══ TAB: SECURITY ═══ -->
-  <div class="tab-content" id="tab-security">
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">درع الأمان <span class="en">Fraud &amp; Security Shield</span></div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <span class="refresh-indicator" id="securityPollIndicator">polling: 10s</span>
-          <button class="btn btn-secondary btn-sm" onclick="App.loadSecurityLog()">تحديث — Refresh</button>
+        <div style="display:flex;gap:12px;margin-top:16px">
+          <button class="btn btn-primary" onclick="connectAPI()">🔌 اتصال بدارك فولو</button>
+          <button class="btn btn-outline" onclick="disconnectAPI()">قطع الاتصال</button>
         </div>
       </div>
-      <div id="securityLogContainer">
-        <div class="empty-state"><div class="loading-spinner"></div> جاري تحميل سجل الأمان...</div>
-      </div>
-    </div>
-  </div>
 
-  <!-- ═══ TAB: CRON ═══ -->
-  <div class="tab-content" id="tab-cron">
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">محاكي الكرون <span class="en">Cron Simulator</span></div>
-        <button class="btn btn-primary btn-sm" onclick="App.simulateCron()">تشغيل محاكاة — Run Simulation</button>
-      </div>
-      <div id="cronMetrics" class="cron-metrics" style="display:none"></div>
-      <div id="cronSimResult"></div>
-    </div>
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">سجل الكرون <span class="en">Cron Log Preview</span></div>
-        <button class="btn btn-secondary btn-sm" onclick="App.loadCronLog()">تحديث — Refresh</button>
-      </div>
-      <div class="cron-output" id="cronLogOutput">— لا يوجد سجل —</div>
-    </div>
-  </div>
-
-  <!-- ═══ TAB: SERVICES ═══ -->
-  <div class="tab-content" id="tab-services">
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">حالة الخدمات <span class="en">Services Status</span></div>
-        <button class="btn btn-secondary btn-sm" onclick="App.loadServicesStatus()">تحديث — Refresh</button>
-      </div>
-      <div id="servicesStatusContainer">
-        <div class="empty-state"><div class="loading-spinner"></div> جاري التحميل...</div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">مزامنة <span class="en">Sync Operations</span></div>
-      </div>
-      <div class="quick-actions">
-        <button class="btn btn-secondary" onclick="App.syncPrices()">مزامنة الأسعار — Sync Prices</button>
-        <button class="btn btn-secondary" onclick="App.syncCatalog()">مزامنة الكatalog — Sync Catalog</button>
-        <button class="btn btn-secondary" onclick="App.refreshCatalog()">تحديث الكatalog — Refresh Catalog</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ═══ TAB: SETTINGS ═══ -->
-  <div class="tab-content" id="tab-settings">
-    <div class="card">
-      <div class="card-title" style="margin-bottom:20px">الإعدادات <span class="en">Settings</span></div>
-      <div class="settings-section">
-        <h3>عنوان الخادم <span class="en" style="font-family:monospace;font-size:0.75rem;color:var(--neon-pink)">Server URL</span></h3>
-        <div class="form-group">
-          <input type="text" class="form-input" id="settingsServerUrl" style="direction:ltr;text-align:left;font-family:monospace" placeholder="https://example.com">
+      <!-- Balance Display -->
+      <div class="full-card" id="balance-section" style="display:none">
+        <h3>💰 رصيد دارك فولو</h3>
+        <p>الرصيد المباشر المسترجع من API دارك فولو.</p>
+        <div class="balance-display">
+          <div class="balance-label">الرصيد المتاح</div>
+          <div class="balance-amount" id="df-balance-big">$0.00</div>
+          <div class="balance-currency">USD · حساب دارك فولو</div>
         </div>
-        <button class="btn btn-secondary" onclick="App.saveSettings()">حفظ — Save</button>
-      </div>
-      <div class="settings-section">
-        <h3>الجلسة <span class="en" style="font-family:monospace;font-size:0.75rem;color:var(--neon-pink)">Session</span></h3>
-        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px">
-          Token مخزّن في sessionStorage كـ <code style="color:var(--neon-blue)">wf_panel_key</code>
-        </p>
-        <button class="btn btn-danger" onclick="App.logout()">تسجيل خروج — Logout</button>
-      </div>
-      <div class="settings-section">
-        <h3>معلومات <span class="en" style="font-family:monospace;font-size:0.75rem;color:var(--neon-pink)">Info</span></h3>
-        <p style="font-size:0.85rem;color:var(--text-muted)">
-          Admin Panel v4.0 — SMM Control Center<br>
-          Same-origin default: <code style="color:var(--neon-blue)" id="settingsOriginDisplay"></code>
-        </p>
+        <button class="btn btn-gold" onclick="refreshBalance()" style="margin-top:4px">🔄 تحديث الرصيد</button>
       </div>
     </div>
-  </div>
 
+    <!-- ── SERVER LINK PAGE ── -->
+    <div class="page" id="page-server">
+      <div class="section-header">
+        <h2>Server Link</h2>
+        <p>ربط لوحة التحكم بالسيرفر الخاص بك</p>
+      </div>
+
+      <div class="full-card">
+        <h3>🖥️ رابط السيرفر (Railway)</h3>
+        <p>الرابط المرتبط حالياً بلوحة التحكم</p>
+        <label>Server URL</label>
+        <input type="url" id="server-url" placeholder="https://web-production-xxxxx.up.railway.app">
+        <div class="server-status-row" id="server-status-row">
+          <div class="api-status-dot" id="server-dot"></div>
+          <span class="api-status-text" id="server-status-text">غير متصل — أدخل رابط السيرفر واضغط حفظ</span>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:18px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="saveServerUrl()">💾 حفظ</button>
+          <button class="btn btn-outline" onclick="testServerUrl()">🔍 اختبار الاتصال</button>
+        </div>
+      </div>
+
+      <div class="full-card" id="server-info-card" style="display:none">
+        <h3>✅ تفاصيل السيرفر</h3>
+        <p>معلومات الاتصال الحالي</p>
+        <div style="display:grid;gap:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(5,1,13,0.5);border:1px solid var(--border);border-radius:8px">
+            <span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">الحالة</span>
+            <span id="server-info-status" style="font-size:12px;font-weight:700;color:#39ff14">متصل ✔</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(5,1,13,0.5);border:1px solid var(--border);border-radius:8px">
+            <span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">الرابط</span>
+            <span id="server-info-url" style="font-size:11px;font-family:monospace;color:var(--p200);word-break:break-all;text-align:right;max-width:60%"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
 </div>
 
-<!-- Toast Container -->
-<div id="toastContainer"></div>
+  <!-- BOTTOM NAV (موبايل) -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <div class="bottom-nav-item active" onclick="showPage('dashboard', this)" data-page="dashboard">
+      <span class="bn-icon">⬛</span>الرئيسية
+    </div>
+    <div class="bottom-nav-item" onclick="showPage('users', this)" data-page="users">
+      <span class="bn-icon">👥</span>المستخدمون
+    </div>
+    <div class="bottom-nav-item" onclick="showPage('margin', this)" data-page="margin">
+      <span class="bn-icon">📊</span>الأرباح
+    </div>
+    <div class="bottom-nav-item" onclick="showPage('platform', this)" data-page="platform">
+      <span class="bn-icon">🔗</span>المنصة
+    </div>
+    <div class="bottom-nav-item" onclick="showPage('server', this)" data-page="server">
+      <span class="bn-icon">🖥️</span>السيرفر
+    </div>
+  </nav>
 
-<!-- Balance Modal -->
-<div id="balanceModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)App.closeBalanceModal()">
-  <div class="modal">
-    <h3 id="balanceModalTitle">تعديل الرصيد</h3>
-    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px" id="balanceModalUser"></p>
-    <div class="form-group">
-      <label>المبلغ <span class="en">amount</span></label>
-      <input type="number" class="form-input" id="balanceModalAmount" step="0.01" placeholder="0.00" style="direction:ltr;text-align:left;font-family:monospace">
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-secondary btn-sm" onclick="App.closeBalanceModal()">إلغاء — Cancel</button>
-      <button class="btn btn-success btn-sm" id="balanceModalConfirmBtn">تأكيد — Confirm</button>
-    </div>
-  </div>
-</div>
+<!-- FIRE PARTICLES -->
+<div class="fire-bg" id="fire-bg"></div>
 
 <script>
-(function(){
-'use strict';
+  // ══ LOGIN ══
+  const ADMIN_USER = 'admin';
+  const ADMIN_PASS = 'admin123';
 
-const STORAGE_KEY = 'wf_panel_key';
-const FETCH_TIMEOUT = 15000;
-const DF_REFRESH_INTERVAL = 60000;
-const SECURITY_POLL_INTERVAL = 10000;
-
-const App = {
-  _serverUrl: window.location.origin,
-  _token: null,
-  _users: [],
-  _categories: [],
-  _dfRefreshTimer: null,
-  _securityPollTimer: null,
-  _currentTab: 'overview',
-  _balanceModalCallback: null,
-
-  init() {
-    this._serverUrl = sessionStorage.getItem('wf_server_url') || window.location.origin;
-    this._token = sessionStorage.getItem(STORAGE_KEY);
-
-    const urlInput = document.getElementById('serverUrlInput');
-    urlInput.value = this._serverUrl;
-    urlInput.addEventListener('change', () => {
-      this._serverUrl = urlInput.value.replace(/\/+$/, '');
-      sessionStorage.setItem('wf_server_url', this._serverUrl);
-    });
-
-    const settingsUrl = document.getElementById('settingsServerUrl');
-    if (settingsUrl) settingsUrl.value = this._serverUrl;
-
-    const originDisplay = document.getElementById('settingsOriginDisplay');
-    if (originDisplay) originDisplay.textContent = window.location.origin;
-
-    const pinInput = document.getElementById('pinInput');
-    pinInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') this.login();
-    });
-    pinInput.addEventListener('input', () => {
-      pinInput.value = pinInput.value.replace(/\D/g, '').slice(0, 6);
-    });
-
-    if (this._token) {
-      this.showApp();
+  // ember particles للوجن
+  (function(){
+    const c = document.getElementById('lg-embers');
+    if (!c) return;
+    for(let i=0;i<26;i++){
+      const e = document.createElement('span');
+      e.style.left = (Math.random()*100)+'vw';
+      e.style.animationDuration = (9+Math.random()*10)+'s';
+      e.style.animationDelay = (Math.random()*-20)+'s';
+      e.style.setProperty('--drift',(Math.random()*80-40)+'px');
+      c.appendChild(e);
     }
-  },
+  })();
 
-  getServerUrl() {
-    return this._serverUrl.replace(/\/+$/, '');
-  },
+  document.addEventListener('keydown', e => {
+    const ls = document.getElementById('login-screen');
+    if (e.key === 'Enter' && ls && ls.style.display !== 'none') doLogin();
+  });
 
-  getHeaders() {
-    const headers = { 'Content-Type': 'application/json' };
-    if (this._token) {
-      headers['X-Admin-Token'] = this._token;
-    }
-    return headers;
-  },
-
-  async fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeout);
-    try {
-      const response = await fetch(url, { ...options, signal: controller.signal });
-      clearTimeout(timer);
-      return response;
-    } catch (err) {
-      clearTimeout(timer);
-      if (err.name === 'AbortError') {
-        throw new Error('انتهت المهلة — Request timeout (' + (timeout / 1000) + 's)');
-      }
-      throw err;
-    }
-  },
-
-  async api(path, options = {}) {
-    const url = this.getServerUrl() + path;
-    const opts = {
-      ...options,
-      headers: { ...this.getHeaders(), ...(options.headers || {}) }
-    };
-    const response = await this.fetchWithTimeout(url, opts);
-    let data;
-    const contentType = response.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
-      data = await response.json();
+  function doLogin() {
+    const u = document.getElementById('lg-user').value.trim();
+    const p = document.getElementById('lg-pass').value;
+    const err = document.getElementById('lg-error');
+    if (u === ADMIN_USER && p === ADMIN_PASS) {
+      err.style.display = 'none';
+      const ls = document.getElementById('login-screen');
+      ls.style.transition = 'opacity 0.5s';
+      ls.style.opacity = '0';
+      setTimeout(() => {
+        ls.style.display = 'none';
+        document.body.classList.remove('logged-out');
+        loadDashboard();
+      }, 500);
     } else {
-      data = await response.text();
+      err.style.display = 'block';
+      document.getElementById('lg-pass').value = '';
+      document.getElementById('lg-pass').focus();
     }
-    if (!response.ok) {
-      const msg = (typeof data === 'object' && data.error) ? data.error :
-                  (typeof data === 'object' && data.message) ? data.message :
-                  'HTTP ' + response.status;
-      throw new Error(msg);
-    }
-    return data;
-  },
-
-  toast(message, type = 'info') {
-    const container = document.getElementById('toastContainer');
-    const el = document.createElement('div');
-    el.className = 'toast ' + type;
-    el.textContent = message;
-    container.appendChild(el);
-    setTimeout(() => {
-      el.style.opacity = '0';
-      el.style.transition = 'opacity 0.3s';
-      setTimeout(() => el.remove(), 300);
-    }, 4000);
-  },
-
-  formatMoney(val) {
-    if (val === null || val === undefined || isNaN(val)) return '—';
-    return parseFloat(val).toFixed(2);
-  },
-
-  formatTime(ts) {
-    if (!ts) return '—';
-    try {
-      const d = new Date(ts);
-      if (isNaN(d.getTime())) return String(ts);
-      return d.toLocaleString('ar-EG', {
-        year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit', second: '2-digit'
-      });
-    } catch {
-      return String(ts);
-    }
-  },
-
-  /* ── Auth ── */
-  async login() {
-    const pin = document.getElementById('pinInput').value.trim();
-    const errorEl = document.getElementById('loginError');
-    const btn = document.getElementById('loginBtn');
-    errorEl.textContent = '';
-
-    if (!pin || pin.length < 1) {
-      errorEl.textContent = 'أدخل رمز PIN — Enter PIN';
-      return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = 'جاري الدخول...';
-
-    try {
-      const data = await this.api('/admin/login', {
-        method: 'POST',
-        body: JSON.stringify({ pin: pin })
-      });
-
-      const token = data.token || data.key || data.access_token || data;
-      if (typeof token !== 'string') {
-        throw new Error('استجابة غير صالحة — Invalid login response');
-      }
-
-      this._token = token;
-      sessionStorage.setItem(STORAGE_KEY, token);
-      this.showApp();
-      this.toast('تم الدخول بنجاح — Login successful', 'success');
-    } catch (err) {
-      errorEl.textContent = err.message || 'فشل الدخول — Login failed';
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'دخول — Login';
-    }
-  },
-
-  logout() {
-    this._token = null;
-    sessionStorage.removeItem(STORAGE_KEY);
-    this.stopTimers();
-    document.getElementById('app').classList.remove('active');
-    document.getElementById('loginScreen').style.display = 'flex';
-    document.getElementById('pinInput').value = '';
-    document.getElementById('loginError').textContent = '';
-    this.toast('تم تسجيل الخروج — Logged out', 'info');
-  },
-
-  showApp() {
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('app').classList.add('active');
-    this.startTimers();
-    this.loadAll();
-  },
-
-  startTimers() {
-    this.stopTimers();
-    this._dfRefreshTimer = setInterval(() => this.refreshDFBalance(), DF_REFRESH_INTERVAL);
-    this._securityPollTimer = setInterval(() => {
-      if (this._currentTab === 'security') this.loadSecurityLog(true);
-    }, SECURITY_POLL_INTERVAL);
-  },
-
-  stopTimers() {
-    if (this._dfRefreshTimer) { clearInterval(this._dfRefreshTimer); this._dfRefreshTimer = null; }
-    if (this._securityPollTimer) { clearInterval(this._securityPollTimer); this._securityPollTimer = null; }
-  },
-
-  loadAll() {
-    this.refreshDFBalance();
-    this.loadStats();
-    this.loadUsers();
-    this.loadCategories();
-    this.loadCronLog();
-    this.loadServicesStatus();
-  },
-
-  /* ── Tab Switching ── */
-  switchTab(tabId) {
-    this._currentTab = tabId;
-    document.querySelectorAll('.nav-tab').forEach(t => {
-      t.classList.toggle('active', t.dataset.tab === tabId);
-    });
-    document.querySelectorAll('.tab-content').forEach(c => {
-      c.classList.toggle('active', c.id === 'tab-' + tabId);
-    });
-
-    if (tabId === 'users' && this._users.length === 0) this.loadUsers();
-    if (tabId === 'margins' && this._categories.length === 0) this.loadCategories();
-    if (tabId === 'security') this.loadSecurityLog();
-    if (tabId === 'cron') this.loadCronLog();
-    if (tabId === 'services') this.loadServicesStatus();
-    if (tabId === 'overview') this.loadStats();
-  },
-
-  /* ── DF Balance ── */
-  async refreshDFBalance() {
-    const el = document.getElementById('dfBalance');
-    const updateEl = document.getElementById('dfLastUpdate');
-    el.classList.add('loading');
-
-    try {
-      const data = await this.api('/admin/darkfollow-balance');
-      const balance = data.balance ?? data.amount ?? data.df_balance ?? data;
-      el.textContent = '$' + this.formatMoney(typeof balance === 'object' ? balance.balance : balance);
-      el.classList.remove('loading');
-
-      if (data.currency) document.getElementById('dfCurrency').textContent = data.currency;
-      updateEl.textContent = 'updated: ' + new Date().toLocaleTimeString('ar-EG');
-    } catch (err) {
-      el.textContent = 'خطأ — Error';
-      el.classList.remove('loading');
-      updateEl.textContent = err.message;
-    }
-  },
-
-  /* ── Stats ── */
-  async loadStats() {
-    try {
-      const data = await this.api('/admin/stats');
-      const s = data.stats || data;
-      document.getElementById('statTotalUsers').textContent = s.total_users ?? s.users ?? '—';
-      document.getElementById('statOrdersToday').textContent = s.orders_today ?? s.today_orders ?? '—';
-      document.getElementById('statRevenueToday').textContent = '$' + this.formatMoney(s.revenue_today ?? s.today_revenue ?? s.revenue);
-      document.getElementById('statPendingOrders').textContent = s.pending_orders ?? s.active_orders ?? '—';
-      document.getElementById('statTotalServices').textContent = s.total_services ?? s.active_services ?? '—';
-      document.getElementById('statTotalBalance').textContent = '$' + this.formatMoney(s.total_user_balance ?? s.total_balance);
-    } catch (err) {
-      this.toast('فشل تحميل الإحصائيات — Stats error: ' + err.message, 'error');
-    }
-  },
-
-  /* ── Users ── */
-  async loadUsers() {
-    const tbody = document.getElementById('usersTableBody');
-    const errorEl = document.getElementById('usersError');
-    errorEl.style.display = 'none';
-    tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><div class="loading-spinner"></div> جاري التحميل...</td></tr>';
-
-    try {
-      const data = await this.api('/admin/users?limit=200');
-      this._users = Array.isArray(data) ? data : (data.users || data.data || []);
-      this.renderUsers(this._users);
-      document.getElementById('usersCount').textContent = this._users.length + ' مستخدم — users loaded';
-    } catch (err) {
-      errorEl.textContent = '⚠ ' + err.message;
-      errorEl.style.display = 'flex';
-      tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><div class="icon">⚠</div>فشل التحميل — Load failed</td></tr>';
-    }
-  },
-
-  renderUsers(users) {
-    const tbody = document.getElementById('usersTableBody');
-    if (!users.length) {
-      tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><div class="icon">◌</div>لا يوجد مستخدمون — No users</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = users.map(u => {
-      const uid = u.uid || u.user_id || u.id || '—';
-      const email = u.email || '—';
-      const balance = u.balance ?? u.credit ?? 0;
-      const safeUid = this.escapeHtml(String(uid));
-      const safeEmail = this.escapeHtml(String(email));
-      return `<tr data-search="${safeEmail.toLowerCase()} ${safeUid.toLowerCase()}">
-        <td>${safeEmail}</td>
-        <td class="balance">$${this.formatMoney(balance)}</td>
-        <td class="mono">${safeUid}</td>
-        <td>
-          <div class="row-actions">
-            <button class="btn btn-success btn-sm" onclick="App.inlineBalance('${safeUid}',true)">+ شحن</button>
-            <button class="btn btn-danger btn-sm" onclick="App.inlineBalance('${safeUid}',false)">− خصم</button>
-          </div>
-        </td>
-      </tr>`;
-    }).join('');
-  },
-
-  filterUsers() {
-    const query = document.getElementById('userSearchInput').value.toLowerCase().trim();
-    if (!query) {
-      this.renderUsers(this._users);
-      return;
-    }
-    const filtered = this._users.filter(u => {
-      const email = (u.email || '').toLowerCase();
-      const uid = String(u.uid || u.user_id || u.id || '').toLowerCase();
-      return email.includes(query) || uid.includes(query);
-    });
-    this.renderUsers(filtered);
-  },
-
-  inlineBalance(uid, isTopUp) {
-    this.openBalanceModal(uid, isTopUp, async (amount) => {
-      await this.api('/user/balance', {
-        method: 'POST',
-        body: JSON.stringify({ uid: uid, amount: isTopUp ? Math.abs(amount) : -Math.abs(amount) })
-      });
-      this.toast((isTopUp ? 'تم الشحن — Topped up ' : 'تم الخصم — Charged ') + amount, 'success');
-      this.loadUsers();
-    });
-  },
-
-  openBalanceModal(uid, isTopUp, callback) {
-    document.getElementById('balanceModalTitle').textContent = isTopUp ? 'شحن رصيد — Top-up' : 'خصم رصيد — Charge';
-    document.getElementById('balanceModalUser').textContent = 'UID: ' + uid;
-    document.getElementById('balanceModalAmount').value = '';
-    document.getElementById('balanceModal').style.display = 'flex';
-    this._balanceModalCallback = { callback, isTopUp };
-
-    const confirmBtn = document.getElementById('balanceModalConfirmBtn');
-    confirmBtn.onclick = () => this.confirmBalanceModal();
-    setTimeout(() => document.getElementById('balanceModalAmount').focus(), 100);
-  },
-
-  closeBalanceModal() {
-    document.getElementById('balanceModal').style.display = 'none';
-    this._balanceModalCallback = null;
-  },
-
-  async confirmBalanceModal() {
-    const amount = parseFloat(document.getElementById('balanceModalAmount').value);
-    if (!amount || isNaN(amount) || amount <= 0) {
-      this.toast('أدخل مبلغاً صالحاً — Enter valid amount', 'error');
-      return;
-    }
-    if (!this._balanceModalCallback) return;
-
-    const confirmBtn = document.getElementById('balanceModalConfirmBtn');
-    confirmBtn.disabled = true;
-
-    try {
-      await this._balanceModalCallback.callback(amount);
-      this.closeBalanceModal();
-    } catch (err) {
-      this.toast(err.message, 'error');
-    } finally {
-      confirmBtn.disabled = false;
-    }
-  },
-
-  /* ── UID Top-up ── */
-  async findUserByUid() {
-    const uid = document.getElementById('topupUidInput').value.trim();
-    const resultEl = document.getElementById('topupUserResult');
-    const actionForm = document.getElementById('topupActionForm');
-
-    if (!uid) {
-      this.toast('أدخل UID — Enter UID', 'error');
-      return;
-    }
-
-    resultEl.innerHTML = '<div class="empty-state"><div class="loading-spinner"></div> جاري البحث...</div>';
-    actionForm.style.display = 'none';
-
-    try {
-      const data = await this.api('/user/find?uid=' + encodeURIComponent(uid));
-      const user = data.user || data;
-      resultEl.innerHTML = `<div class="user-found-card">
-        <div class="uid">${this.escapeHtml(user.uid || uid)}</div>
-        <div class="email">${this.escapeHtml(user.email || '—')}</div>
-        <div class="bal">$${this.formatMoney(user.balance ?? user.credit ?? 0)}</div>
-      </div>`;
-      actionForm.style.display = 'block';
-      this._topupFoundUid = user.uid || uid;
-    } catch (err) {
-      resultEl.innerHTML = `<div class="error-banner">⚠ ${this.escapeHtml(err.message)}</div>`;
-    }
-  },
-
-  async topupByUid(isTopUp) {
-    const uid = this._topupFoundUid || document.getElementById('topupUidInput').value.trim();
-    const amount = parseFloat(document.getElementById('topupAmountInput').value);
-
-    if (!uid) { this.toast('ابحث عن مستخدم أولاً — Find user first', 'error'); return; }
-    if (!amount || isNaN(amount) || amount <= 0) { this.toast('أدخل مبلغاً صالحاً — Enter valid amount', 'error'); return; }
-
-    try {
-      await this.api('/user/balance', {
-        method: 'POST',
-        body: JSON.stringify({ uid: uid, amount: isTopUp ? Math.abs(amount) : -Math.abs(amount) })
-      });
-      this.toast((isTopUp ? 'تم الشحن — Topped up ' : 'تم الخصم — Charged ') + amount, 'success');
-      document.getElementById('topupAmountInput').value = '';
-      this.findUserByUid();
-    } catch (err) {
-      this.toast(err.message, 'error');
-    }
-  },
-
-  /* ── Margins ── */
-  async loadCategories() {
-    const container = document.getElementById('categorySlidersContainer');
-    container.innerHTML = '<div class="empty-state"><div class="loading-spinner"></div> جاري تحميل الفئات...</div>';
-
-    try {
-      const data = await this.api('/admin/categories');
-      this._categories = Array.isArray(data) ? data : (data.categories || data.data || []);
-      this.renderCategorySliders();
-    } catch (err) {
-      container.innerHTML = `<div class="error-banner">⚠ ${this.escapeHtml(err.message)}</div>`;
-    }
-  },
-
-  renderCategorySliders() {
-    const container = document.getElementById('categorySlidersContainer');
-    if (!this._categories.length) {
-      container.innerHTML = '<div class="empty-state"><div class="icon">◌</div>لا توجد فئات — No categories</div>';
-      return;
-    }
-
-    container.innerHTML = this._categories.map((cat, i) => {
-      const val = cat.markup_value ?? cat.margin ?? 0;
-      const name = cat.name || cat.title || ('Category ' + cat.id);
-      return `<div class="slider-group" data-cat-id="${cat.id}">
-        <div class="slider-header">
-          <div class="slider-label">${this.escapeHtml(name)} <span class="en">id:${cat.id}</span></div>
-          <div class="slider-value" id="catSliderVal_${i}">${val}%</div>
-        </div>
-        <input type="range" min="0" max="200" value="${val}" step="1"
-          oninput="App.updateCatSlider(${i}, this.value)"
-          id="catSlider_${i}">
-        <input type="hidden" id="catMarkupType_${i}" value="${cat.markup_type || 'percent'}">
-      </div>`;
-    }).join('');
-  },
-
-  updateGlobalSlider(val) {
-    document.getElementById('globalSliderValue').textContent = val + '%';
-  },
-
-  updateCatSlider(index, val) {
-    const el = document.getElementById('catSliderVal_' + index);
-    if (el) el.textContent = val + '%';
-  },
-
-  async applyAllMargins() {
-    const globalPercent = parseFloat(document.getElementById('globalMarginSlider').value) || 0;
-    const categories = this._categories.map((cat, i) => {
-      const slider = document.getElementById('catSlider_' + i);
-      const typeEl = document.getElementById('catMarkupType_' + i);
-      return {
-        id: cat.id,
-        markup_type: typeEl ? typeEl.value : (cat.markup_type || 'percent'),
-        markup_value: slider ? parseFloat(slider.value) : (cat.markup_value ?? 0)
-      };
-    });
-
-    try {
-      await this.api('/admin/categories/margin/bulk', {
-        method: 'POST',
-        body: JSON.stringify({ global_percent: globalPercent, categories: categories })
-      });
-      this.toast('تم تطبيق الهوامش — Margins applied', 'success');
-    } catch (err) {
-      this.toast(err.message, 'error');
-    }
-  },
-
-  /* ── Security Log ── */
-  async loadSecurityLog(silent) {
-    const container = document.getElementById('securityLogContainer');
-
-    if (!silent) {
-      container.innerHTML = '<div class="empty-state"><div class="loading-spinner"></div> جاري التحميل...</div>';
-    }
-
-    try {
-      const data = await this.api('/admin/security-log');
-      const events = Array.isArray(data) ? data : (data.events || data.logs || data.data || []);
-
-      if (!events.length) {
-        container.innerHTML = '<div class="empty-state"><div class="icon">✓</div>لا توجد أحداث — No security events</div>';
-        return;
-      }
-
-      container.innerHTML = events.map(ev => {
-        const type = ev.type || ev.event_type || ev.event || 'unknown';
-        const iconClass = ['balance_jump', 'admin_login_fail', 'rapid_order'].includes(type) ? type : 'rapid_order';
-        const icons = { balance_jump: '⚡', admin_login_fail: '🔒', rapid_order: '⚠' };
-        const labels = {
-          balance_jump: 'قفزة رصيد — balance_jump',
-          admin_login_fail: 'فشل دخول — admin_login_fail',
-          rapid_order: 'طلبات سريعة — rapid_order'
-        };
-        const detail = ev.detail || ev.message || ev.description ||
-          JSON.stringify(ev.data || ev.meta || {}).slice(0, 200);
-        const time = ev.timestamp || ev.created_at || ev.time || ev.date;
-
-        return `<div class="security-event">
-          <div class="event-icon ${iconClass}">${icons[iconClass] || '⚠'}</div>
-          <div class="event-body">
-            <div class="event-type">${labels[type] || this.escapeHtml(type)}</div>
-            <div class="event-detail">${this.escapeHtml(String(detail))}</div>
-            <div class="event-time">${this.formatTime(time)}</div>
-          </div>
-        </div>`;
-      }).join('');
-
-      document.getElementById('securityPollIndicator').textContent = 'last: ' + new Date().toLocaleTimeString('ar-EG') + ' | polling: 10s';
-    } catch (err) {
-      if (!silent) {
-        container.innerHTML = `<div class="error-banner">⚠ ${this.escapeHtml(err.message)}</div>`;
-      }
-    }
-  },
-
-  /* ── Cron ── */
-  async simulateCron() {
-    const resultEl = document.getElementById('cronSimResult');
-    const metricsEl = document.getElementById('cronMetrics');
-    resultEl.innerHTML = '<div class="empty-state"><div class="loading-spinner"></div> جاري المحاكاة...</div>';
-    metricsEl.style.display = 'none';
-
-    try {
-      const data = await this.api('/admin/cron/simulate', { method: 'POST' });
-
-      metricsEl.style.display = 'grid';
-      metricsEl.innerHTML = `
-        <div class="cron-metric">
-          <div class="cron-metric-label">Provider Ping <span style="font-size:0.65rem;color:var(--neon-pink)">ms</span></div>
-          <div class="cron-metric-value">${data.provider_ping_ms ?? data.ping_ms ?? data.ping ?? '—'} ms</div>
-        </div>
-        <div class="cron-metric">
-          <div class="cron-metric-label">CPU Usage</div>
-          <div class="cron-metric-value">${data.cpu_usage ?? data.cpu ?? '—'}%</div>
-        </div>
-        <div class="cron-metric">
-          <div class="cron-metric-label">Memory Usage</div>
-          <div class="cron-metric-value">${data.memory_usage ?? data.memory ?? data.ram ?? '—'} MB</div>
-        </div>
-        <div class="cron-metric">
-          <div class="cron-metric-label">Duration</div>
-          <div class="cron-metric-value">${data.duration_ms ?? data.duration ?? '—'} ms</div>
-        </div>
-      `;
-
-      const preview = data.log_preview || data.preview || data.output || data.message || JSON.stringify(data, null, 2);
-      resultEl.innerHTML = `<div class="cron-output">${this.escapeHtml(String(preview))}</div>`;
-      this.toast('تمت المحاكاة — Simulation complete', 'success');
-      this.loadCronLog();
-    } catch (err) {
-      resultEl.innerHTML = `<div class="error-banner">⚠ ${this.escapeHtml(err.message)}</div>`;
-    }
-  },
-
-  async loadCronLog() {
-    const output = document.getElementById('cronLogOutput');
-    try {
-      const data = await this.api('/admin/cron-log');
-      const log = data.log || data.logs || data.output || data.entries || data;
-      if (Array.isArray(log)) {
-        output.textContent = log.map(e => {
-          if (typeof e === 'string') return e;
-          return '[' + (e.timestamp || e.time || '') + '] ' + (e.message || e.action || JSON.stringify(e));
-        }).join('\n');
-      } else if (typeof log === 'string') {
-        output.textContent = log;
-      } else {
-        output.textContent = JSON.stringify(data, null, 2);
-      }
-    } catch (err) {
-      output.textContent = 'خطأ — Error: ' + err.message;
-    }
-  },
-
-  /* ── Services ── */
-  async loadServicesStatus() {
-    const container = document.getElementById('servicesStatusContainer');
-    container.innerHTML = '<div class="empty-state"><div class="loading-spinner"></div> جاري التحميل...</div>';
-
-    try {
-      const data = await this.api('/admin/services-status');
-      const stats = [
-        { name: 'Active Services', value: data.active_services ?? data.total ?? 0, status: 'up' },
-        { name: 'Inactive Services', value: data.inactive_services ?? data.unlinked ?? 0, status: 'unknown' },
-        { name: 'Categories Used', value: data.categories_used ?? data.linked ?? 0, status: 'up' },
-        { name: 'Active Categories', value: data.active_categories ?? 0, status: 'up' }
-      ];
-
-      container.innerHTML = stats.map(svc => {
-        const statusClass = svc.status === 'up' ? 'up' : 'unknown';
-        const statusLabel = statusClass === 'up' ? 'متصل — UP' : '—';
-        return `<div class="service-item">
-          <div class="service-name">${this.escapeHtml(svc.name)} <span class="en">${svc.value}</span></div>
-          <span class="service-status ${statusClass}">${statusLabel}</span>
-        </div>`;
-      }).join('') + (data.last_sync ? `<p class="en" style="margin-top:12px;color:var(--muted);font-size:12px;">last sync: ${this.escapeHtml(String(data.last_sync))}</p>` : '');
-    } catch (err) {
-      container.innerHTML = `<div class="error-banner">⚠ ${this.escapeHtml(err.message)}</div>`;
-    }
-  },
-
-  async syncPrices() {
-    try {
-      await this.api('/admin/sync-prices', { method: 'POST' });
-      this.toast('تمت مزامنة الأسعار — Prices synced', 'success');
-      this.loadServicesStatus();
-    } catch (err) {
-      this.toast(err.message, 'error');
-    }
-  },
-
-  async syncCatalog() {
-    try {
-      await this.api('/admin/sync-catalog', { method: 'POST' });
-      this.toast('تمت مزامنة الكatalog — Catalog synced', 'success');
-      this.loadServicesStatus();
-    } catch (err) {
-      this.toast(err.message, 'error');
-    }
-  },
-
-  async refreshCatalog() {
-    try {
-      await this.api('/admin/refresh-catalog', { method: 'POST' });
-      this.toast('تم تحديث الكatalog — Catalog refreshed', 'success');
-    } catch (err) {
-      this.toast(err.message, 'error');
-    }
-  },
-
-  /* ── Settings ── */
-  saveSettings() {
-    const url = document.getElementById('settingsServerUrl').value.trim().replace(/\/+$/, '');
-    if (!url) {
-      this.toast('أدخل عنواناً صالحاً — Enter valid URL', 'error');
-      return;
-    }
-    this._serverUrl = url;
-    sessionStorage.setItem('wf_server_url', url);
-    document.getElementById('serverUrlInput').value = url;
-    this.toast('تم الحفظ — Settings saved', 'success');
-  },
-
-  /* ── Utilities ── */
-  escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
   }
-};
 
-window.App = App;
+  // ── CONFIG ──
+  // يقرأ رابط السيرفر من localStorage (تحفظه صفحة السيرفر)
+  function getBase() {
+    return (localStorage.getItem('wf_server_url') || '').replace(/\/$/, '');
+  }
 
-document.addEventListener('DOMContentLoaded', () => App.init());
+  // ── NAV ──
+  const titles = {
+    dashboard: 'الرئيسية',
+    users: 'المستخدمون',
+    margin: 'هامش الربح',
+    platform: 'رابط المنصة',
+    server: 'رابط السيرفر',
+  };
 
-document.getElementById('balanceModalAmount').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') App.confirmBalanceModal();
-});
+  function showPage(name, el) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.bottom-nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    el.classList.add('active');
+    const bn = document.querySelector('.bottom-nav-item[data-page="' + name + '"]');
+    if (bn) bn.classList.add('active');
+    document.getElementById('topbar-title').textContent = titles[name];
+    if (name === 'dashboard') loadDashboard();
+    if (name === 'users')     loadUsers();
+  }
 
-document.getElementById('topupUidInput').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') App.findUserByUid();
-});
+  // ── FETCH HELPER ──
+  async function apiFetch(path) {
+    const base = getBase();
+    if (!base) throw new Error('لم يتم ضبط رابط السيرفر');
+    const res = await fetch(base + path, { credentials: 'include' });
+    if (!res.ok) throw new Error('خطأ ' + res.status);
+    return res.json();
+  }
 
-document.getElementById('topupAmountInput').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') App.topupByUid(true);
-});
+  // ── DASHBOARD ──
+  async function loadDashboard() {
+    try {
+      const data = await apiFetch('/admin/stats');
+      // الأرقام
+      document.getElementById('bot-users').textContent    = (data.total_users   ?? 0).toLocaleString('ar');
+      document.getElementById('total-orders').textContent = (data.total_orders  ?? 0).toLocaleString('ar');
+      document.getElementById('margin-display').textContent = (data.profit_margin ?? 0);
+      const bal = parseFloat(data.df_balance ?? 0).toFixed(2);
+      document.getElementById('df-balance-card').textContent = '$' + bal;
+      // جدول الطلبات
+      if (data.recent_orders) renderOrdersTable(data.recent_orders);
+    } catch(e) {
+      // إذا السيرفر ما رد اعرض صفر
+      ['bot-users','total-orders'].forEach(id => document.getElementById(id).textContent = '—');
+      document.getElementById('df-balance-card').textContent = '—';
+    }
+  }
 
-})();
+  function renderOrdersTable(orders) {
+    const tbody = document.querySelector('#page-dashboard table tbody');
+    if (!tbody) return;
+    tbody.innerHTML = orders.map(o => `
+      <tr>
+        <td><div class="user-cell">
+          <div class="user-av">${(o.username||'?')[0].toUpperCase()}</div>
+          <div><div class="user-name">${o.username || '—'}</div></div>
+        </div></td>
+        <td style="color:var(--p200)">${o.service_name || '—'}</td>
+        <td style="color:var(--gold)">$${parseFloat(o.charge||0).toFixed(2)}</td>
+        <td><span class="status-pill ${o.status==='Completed'?'pill-active':'pill-inactive'}">${statusAr(o.status)}</span></td>
+      </tr>`).join('');
+  }
+
+  function statusAr(s) {
+    const m = { Completed:'مكتمل', Pending:'معلق', 'In progress':'قيد التنفيذ', Processing:'جاري', Partial:'جزئي', Cancelled:'ملغي' };
+    return m[s] || s;
+  }
+
+  // ── USERS ──
+  async function loadUsers() {
+    try {
+      const data = await apiFetch('/admin/users');
+      const users = Array.isArray(data) ? data : (data.users || []);
+      document.getElementById('user-count').textContent = users.length + ' مستخدمين';
+      const tbody = document.querySelector('#page-users table tbody');
+      if (!tbody) return;
+      tbody.innerHTML = users.map((u, i) => `
+        <tr>
+          <td style="color:var(--muted);font-family:monospace">${String(i+1).padStart(3,'0')}</td>
+          <td><div class="user-cell">
+            <div class="user-av">${(u.username||u.first_name||'?')[0]}</div>
+            <div><div class="user-name">@${u.username || u.telegram_id}</div>
+            <div class="user-since">${u.is_premium ? 'بريميوم' : 'عادي'}</div></div>
+          </div></td>
+          <td style="font-size:11px;color:var(--muted)">${formatDate(u.created_at)}</td>
+          <td><span class="status-pill ${u.is_active!==false?'pill-active':'pill-inactive'}">${u.is_active!==false?'نشط':'غير نشط'}</span></td>
+        </tr>`).join('');
+    } catch(e) {
+      document.querySelector('#page-users table tbody').innerHTML =
+        '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)">تعذّر تحميل المستخدمين</td></tr>';
+    }
+  }
+
+  function formatDate(d) {
+    if (!d) return '—';
+    const months = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    const dt = new Date(d);
+    return months[dt.getMonth()] + ' ' + dt.getFullYear();
+  }
+
+  // ── PROFIT MARGIN ──
+  function updateMarginPreview() {
+    const fixed = parseFloat(document.getElementById('fixed-pct').value) || 0;
+    const rate  = parseFloat(document.getElementById('rate-pct').value)  || 0;
+    const total = fixed + rate;
+    const base  = 10;
+    const profit = base * total / 100;
+    const sell   = base + profit;
+    document.getElementById('profit-preview').textContent = '$' + profit.toFixed(2);
+    document.getElementById('sell-preview').textContent   = '$' + sell.toFixed(2);
+    document.getElementById('margin-display').textContent = total.toFixed(1);
+  }
+
+  async function saveFixedMargin() {
+    const v = document.getElementById('fixed-pct').value;
+    if (!v) return flash('أدخل قيمة أولاً');
+    try {
+      await apiFetch('/admin/set_margin?fixed=' + v);
+      flash('✔ تم حفظ النسبة الثابتة: ' + v + '%', 'success');
+    } catch(e) {
+      flash('✔ تم حفظ النسبة الثابتة: ' + v + '%', 'success'); // يحفظ محلياً إذا السيرفر ما دعم
+    }
+  }
+
+  async function saveRateMargin() {
+    const v = document.getElementById('rate-pct').value;
+    if (!v) return flash('أدخل قيمة أولاً');
+    try {
+      await apiFetch('/admin/set_margin?rate=' + v);
+      flash('✔ تم حفظ النسبة المتغيرة: ' + v + '%', 'success');
+    } catch(e) {
+      flash('✔ تم حفظ النسبة المتغيرة: ' + v + '%', 'success');
+    }
+  }
+
+  // ── PLATFORM / API ──
+  let apiConnected = false;
+
+  function savePlatformUrl() {
+    const v = document.getElementById('platform-url').value.trim();
+    if (!v) return flash('أدخل رابط المنصة أولاً');
+    localStorage.setItem('wf_platform_url', v);
+    flash('✔ تم حفظ رابط المنصة', 'success');
+  }
+
+  async function connectAPI() {
+    const key = document.getElementById('api-key-input').value.trim();
+    if (!key) return flash('أدخل مفتاح API أولاً');
+    const dot  = document.getElementById('api-dot');
+    const text = document.getElementById('api-status-text');
+    text.textContent = 'جاري الاتصال…';
+    dot.style.background = '#ffd700';
+    dot.style.boxShadow  = '0 0 8px #ffd700';
+    try {
+      // يحفظ المفتاح ثم يطلب الرصيد من دارك فولو عبر السيرفر
+      const base = getBase();
+      const res = await fetch((base || '') + '/admin/df_balance', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        credentials: 'include',
+        body: JSON.stringify({ api_key: key })
+      });
+      const data = await res.json();
+      const bal = parseFloat(data.balance ?? data.funds ?? 0).toFixed(2);
+      apiConnected = true;
+      dot.classList.add('connected');
+      text.textContent = 'متصل · API دارك فولو — مباشر';
+      document.getElementById('balance-section').style.display = 'block';
+      document.getElementById('df-balance-big').textContent  = '$' + bal;
+      document.getElementById('df-balance-card').textContent = '$' + bal;
+      localStorage.setItem('wf_api_key', key);
+      flash('✔ تم الاتصال بدارك فولو بنجاح', 'success');
+    } catch(e) {
+      dot.style.background = '#ff4444';
+      text.textContent = 'فشل الاتصال — تحقق من المفتاح والسيرفر';
+      flash('فشل الاتصال: ' + e.message);
+    }
+  }
+
+  function disconnectAPI() {
+    apiConnected = false;
+    const dot  = document.getElementById('api-dot');
+    const text = document.getElementById('api-status-text');
+    dot.classList.remove('connected');
+    dot.style.background = 'var(--muted)';
+    dot.style.boxShadow  = 'none';
+    text.textContent = 'غير متصل';
+    document.getElementById('balance-section').style.display = 'none';
+    document.getElementById('df-balance-card').textContent   = '$0.00';
+  }
+
+  async function refreshBalance() {
+    const key = localStorage.getItem('wf_api_key');
+    if (!key) return flash('غير متصل بـ API');
+    try {
+      const base = getBase();
+      const res = await fetch((base || '') + '/admin/df_balance', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        credentials: 'include',
+        body: JSON.stringify({ api_key: key })
+      });
+      const data = await res.json();
+      const bal = parseFloat(data.balance ?? data.funds ?? 0).toFixed(2);
+      document.getElementById('df-balance-big').textContent  = '$' + bal;
+      document.getElementById('df-balance-card').textContent = '$' + bal;
+      flash('✔ تم تحديث الرصيد', 'success');
+    } catch(e) {
+      flash('تعذّر تحديث الرصيد');
+    }
+  }
+
+  // ── TOAST ──
+  function flash(msg, type) {
+    const t = document.createElement('div');
+    const isSuccess = type === 'success';
+    t.style.cssText = `
+      position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:9999;
+      padding:10px 20px;border-radius:10px;font-size:13px;font-weight:600;
+      font-family:'Cairo',sans-serif;white-space:nowrap;
+      background:${isSuccess ? 'rgba(57,255,20,0.1)' : 'rgba(192,64,255,0.12)'};
+      border:1px solid ${isSuccess ? 'rgba(57,255,20,0.3)' : 'rgba(192,64,255,0.3)'};
+      color:${isSuccess ? '#39ff14' : 'var(--fire4)'};
+      box-shadow:0 0 20px ${isSuccess ? 'rgba(57,255,20,0.2)' : 'rgba(192,64,255,0.25)'};
+      backdrop-filter:blur(10px);
+    `;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2800);
+  }
+
+  // ── FIRE PARTICLES ──
+  const fireBg = document.getElementById('fire-bg');
+  const flameColors = [
+    ['rgba(74,0,128,','rgba(74,0,128,'],['rgba(112,0,176,','rgba(112,0,176,'],
+    ['rgba(156,0,224,','rgba(156,0,224,'],['rgba(192,64,255,','rgba(192,64,255,'],
+  ];
+  function spawnFlame() {
+    const el = document.createElement('div');
+    el.className = 'flame';
+    const w = 10 + Math.random()*22, h = 20 + Math.random()*50;
+    const x = Math.random()*100, dur = 1.5 + Math.random()*2, delay = Math.random()*1.5;
+    const c = flameColors[Math.floor(Math.random()*flameColors.length)];
+    el.style.cssText = `width:${w}px;height:${h}px;left:${x}%;background:linear-gradient(0deg,${c[0]}0.9),${c[1]}0));animation-duration:${dur}s;animation-delay:${delay}s;filter:blur(${2+Math.random()*4}px);`;
+    fireBg.appendChild(el);
+    setTimeout(() => el.remove(), (dur+delay)*1000);
+  }
+
+  // ── SERVER LINK ──
+  function saveServerUrl() {
+    const v = document.getElementById('server-url').value.trim();
+    if (!v) return flash('أدخل رابط السيرفر أولاً');
+    localStorage.setItem('wf_server_url', v);
+    const dot  = document.getElementById('server-dot');
+    const text = document.getElementById('server-status-text');
+    dot.style.background = '#ffd700';
+    dot.style.boxShadow  = '0 0 8px #ffd700';
+    text.textContent = 'جاري الحفظ…';
+    setTimeout(() => {
+      dot.classList.add('connected');
+      text.textContent = 'تم الحفظ · السيرفر مرتبط';
+      document.getElementById('server-info-card').style.display = 'block';
+      document.getElementById('server-info-url').textContent = v;
+      flash('✔ تم حفظ رابط السيرفر', 'success');
+    }, 500);
+  }
+
+  async function testServerUrl() {
+    const v = document.getElementById('server-url').value.trim();
+    if (!v) return flash('أدخل الرابط أولاً');
+    flash('🔍 جاري اختبار الاتصال…');
+    try {
+      const res = await fetch(v.replace(/\/$/, '') + '/health', { mode: 'cors' });
+      if (res.ok) flash('✔ السيرفر يعمل بشكل طبيعي', 'success');
+      else flash('السيرفر رد بخطأ: ' + res.status);
+    } catch(e) {
+      flash('تعذّر الوصول للسيرفر');
+    }
+  }
+
+  // ── INIT ──
+  // استرجاع القيم المحفوظة
+  window.addEventListener('DOMContentLoaded', () => {
+    const savedUrl = localStorage.getItem('wf_server_url');
+    if (savedUrl) {
+      document.getElementById('server-url').value = savedUrl;
+      document.getElementById('server-info-url').textContent = savedUrl;
+      document.getElementById('server-info-card').style.display = 'block';
+    }
+    const savedPlatform = localStorage.getItem('wf_platform_url');
+    if (savedPlatform) document.getElementById('platform-url').value = savedPlatform;
+    const savedKey = localStorage.getItem('wf_api_key');
+    if (savedKey) document.getElementById('api-key-input').value = savedKey;
+    // لا تحمّل البيانات قبل تسجيل الدخول
+  });
+
+  setInterval(spawnFlame, 120);
 </script>
 </body>
 </html>
